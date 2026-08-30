@@ -14,6 +14,7 @@
   import { Categorizer } from '../lib/categorizer.js';
 
   let selectedCompte = $state('');
+  let dropdownOpen = $state(false);
   let checkLearnRule = $state(true);
   let inputKeyword = $state('');
 
@@ -36,6 +37,32 @@
     t => t.compteAttribué !== '699' && t.statut === 'attribue'
   ));
   let displayedTxList = $derived(activeTab === 'pending' ? nonTriees : triees);
+
+  let listComptesTries = $derived(
+    $planComptable
+      .filter(c => c.compte !== '699')
+      .slice()
+      .sort((a, b) => a.compte.localeCompare(b.compte, undefined, {numeric: true}))
+  );
+
+  // Regroupement des transactions attribuées par compte
+  let groupedTriees = $derived(getGroupedTriees(triees));
+
+  function getGroupedTriees(txList) {
+    const groups = {};
+    txList.forEach(tx => {
+      const cat = tx.compteAttribué || '699';
+      if (!groups[cat]) {
+        groups[cat] = {
+          compte: cat,
+          libelle: Categorizer.obtenirLibelleCompte(cat),
+          txs: []
+        };
+      }
+      groups[cat].txs.push(tx);
+    });
+    return Object.values(groups).sort((a, b) => a.compte.localeCompare(b.compte));
+  }
 
   // Automatically select first transaction of the active tab list if current is not in the list
   $effect(() => {
@@ -255,8 +282,8 @@
 </script>
 
 <div class="page-title-section">
-  <h1 class="page-title">Trier les opérations bancaires</h1>
-  <p class="page-subtitle">Reliez chaque opération à sa catégorie pour équilibrer vos registres.</p>
+  <h1 class="page-title">Attribuer les numéros de compte aux libellés</h1>
+  <p class="page-subtitle">Associez chaque mouvement bancaire à son compte comptable pour générer vos registres.</p>
 </div>
 
 <div class="progress-bar-container">
@@ -280,13 +307,13 @@
         style="background: none; border: none; border-bottom: 2px solid {activeTab === 'pending' ? 'var(--color-primary, #6366f1)' : 'transparent'}; color: {activeTab === 'pending' ? 'white' : 'var(--text-secondary)'}; font-family: var(--font-title); font-size: 1rem; padding: 5px 5px; cursor: pointer; font-weight: 600; transition: all 0.2s;" 
         onclick={() => activeTab = 'pending'}
       >
-        À classer ({nonTriees.length})
+        À attribuer ({nonTriees.length})
       </button>
       <button 
         style="background: none; border: none; border-bottom: 2px solid {activeTab === 'categorized' ? 'var(--color-primary, #6366f1)' : 'transparent'}; color: {activeTab === 'categorized' ? 'white' : 'var(--text-secondary)'}; font-family: var(--font-title); font-size: 1rem; padding: 5px 5px; cursor: pointer; font-weight: 600; transition: all 0.2s;" 
         onclick={() => activeTab = 'categorized'}
       >
-        Classées ({triees.length})
+        Attribuées ({triees.length})
       </button>
     </div>
     
@@ -301,8 +328,8 @@
             {activeTab === 'pending' ? 'Votre comptabilité est parfaitement équilibrée.' : 'Les écritures que vous triez s\'afficheront ici.'}
           </p>
         </div>
-      {:else}
-        {#each displayedTxList as tx}
+      {:else if activeTab === 'pending'}
+        {#each nonTriees as tx}
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
           <div class="tx-tri-item {tx.id === $activeTxId ? 'active' : ''}" onclick={() => activeTxId.set(tx.id)}>
             <div class="tx-tri-info">
@@ -311,10 +338,6 @@
                 {#if tx.statut === 'suggere'}
                   <span class="badge badge-success" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 5px;">
                     Suggestion &bull; <span style="color: #fef08a; font-weight: bold;">{tx.compteAttribué}</span>
-                  </span>
-                {:else if tx.statut === 'attribue'}
-                  <span class="badge" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 5px; background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.4);">
-                    {tx.compteAttribué}
                   </span>
                 {/if}
               </div>
@@ -325,6 +348,31 @@
             <div class="tx-tri-amount" style="color: {tx.debit > 0 ? '#f87171' : '#34d399'};">
               {tx.debit > 0 ? '-' : '+'} {(tx.debit > 0 ? tx.debit : tx.credit).toFixed(2)} €
             </div>
+          </div>
+        {/each}
+      {:else}
+        {#each groupedTriees as group}
+          <div class="compte-group" style="margin-bottom: 25px;">
+            <div style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #a5b4fc; margin-bottom: 12px; border-left: 3px solid #6366f1; padding-left: 8px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px;">
+              <span>{group.compte} - {group.libelle}</span>
+              <span style="background: rgba(99, 102, 241, 0.15); padding: 2px 8px; border-radius: 10px; font-size: 0.75rem;">{group.txs.length}</span>
+            </div>
+            {#each group.txs as tx}
+              <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+              <div class="tx-tri-item {tx.id === $activeTxId ? 'active' : ''}" onclick={() => activeTxId.set(tx.id)} style="margin-bottom: 8px;">
+                <div class="tx-tri-info">
+                  <div class="tx-tri-title">
+                    {tx.libelle}
+                  </div>
+                  <div class="tx-tri-meta">
+                    {new Date(tx.date).toLocaleDateString('fr-FR')} &bull; {tx.debit > 0 ? 'Dépense' : 'Recette'}
+                  </div>
+                </div>
+                <div class="tx-tri-amount" style="color: {tx.debit > 0 ? '#f87171' : '#34d399'};">
+                  {tx.debit > 0 ? '-' : '+'} {(tx.debit > 0 ? tx.debit : tx.credit).toFixed(2)} €
+                </div>
+              </div>
+            {/each}
           </div>
         {/each}
       {/if}
@@ -380,15 +428,87 @@
             Ou choisissez une catégorie manuellement :
           </h4>
           
-          <div class="form-group">
+          <div class="form-group" style="position: relative;">
             <label for="compte-select" class="form-label">Catégorie cible (Plan comptable)</label>
-            <select id="compte-select" class="form-control" bind:value={selectedCompte}>
-              {#each $planComptable.filter(c => c.compte !== '699') as c}
-                <option value={c.compte}>
-                  {c.compte} - {c.libelle} {c.type === 'Charge' ? '(Dépense)' : (c.type === 'Produit' ? '(Recette)' : '(Banque/Tiers)')}
-                </option>
-              {/each}
-            </select>
+            
+            <!-- Trigger Button -->
+            <button 
+              id="compte-select"
+              type="button" 
+              class="form-control" 
+              onclick={() => dropdownOpen = !dropdownOpen} 
+              style="display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; background: rgba(0,0,0,0.4); color: white; border: 1px solid var(--border-color); padding: 10px 15px; border-radius: var(--radius-sm); cursor: pointer;"
+            >
+              <span>
+                {selectedCompte ? `${selectedCompte} - ${Categorizer.obtenirLibelleCompte(selectedCompte)}` : '-- Sélectionnez un compte --'}
+              </span>
+              <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+            </button>
+
+            <!-- Dropdown List Container -->
+            {#if dropdownOpen}
+              <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+              <div 
+                style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 998;" 
+                onclick={() => dropdownOpen = false}
+              ></div>
+              
+              <div 
+                class="glass-card" 
+                style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; max-height: 300px; overflow-y: auto; z-index: 999; padding: 8px; border: 1px solid var(--color-primary-light, #818cf8); box-shadow: 0 10px 30px rgba(0,0,0,0.6); background: #11131e;"
+              >
+                <!-- RECETTES -->
+                <div style="font-size: 0.78rem; font-weight: 700; color: #60a5fa; padding: 8px 10px; border-bottom: 1px solid rgba(96, 165, 250, 0.15); margin-top: 5px; margin-bottom: 5px; letter-spacing: 0.05em; background: rgba(96, 165, 250, 0.03);">
+                  RECETTES (Dons, Cotisations, Ventes...)
+                </div>
+                {#each listComptesTries.filter(c => c.type === 'Produit') as c}
+                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                  <div 
+                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}" 
+                    onclick={() => { selectedCompte = c.compte; dropdownOpen = false; }}
+                  >
+                    <span>{c.compte} - {c.libelle}</span>
+                    {#if selectedCompte === c.compte}
+                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
+                    {/if}
+                  </div>
+                {/each}
+
+                <!-- DÉPENSES -->
+                <div style="font-size: 0.78rem; font-weight: 700; color: #60a5fa; padding: 8px 10px; border-bottom: 1px solid rgba(96, 165, 250, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.05em; background: rgba(96, 165, 250, 0.03);">
+                  DÉPENSES (Loyers, Salaires, Achats...)
+                </div>
+                {#each listComptesTries.filter(c => c.type === 'Charge') as c}
+                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                  <div 
+                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}" 
+                    onclick={() => { selectedCompte = c.compte; dropdownOpen = false; }}
+                  >
+                    <span>{c.compte} - {c.libelle}</span>
+                    {#if selectedCompte === c.compte}
+                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
+                    {/if}
+                  </div>
+                {/each}
+
+                <!-- BANQUE & TIERS -->
+                <div style="font-size: 0.78rem; font-weight: 700; color: #60a5fa; padding: 8px 10px; border-bottom: 1px solid rgba(96, 165, 250, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.05em; background: rgba(96, 165, 250, 0.03);">
+                  BANQUE & TIERS (Banque, Fournisseurs, Clients...)
+                </div>
+                {#each listComptesTries.filter(c => c.type !== 'Charge' && c.type !== 'Produit') as c}
+                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                  <div 
+                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}" 
+                    onclick={() => { selectedCompte = c.compte; dropdownOpen = false; }}
+                  >
+                    <span>{c.compte} - {c.libelle}</span>
+                    {#if selectedCompte === c.compte}
+                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
           </div>
 
           <div class="form-group" style="background-color: rgba(255,255,255,0.02); padding: 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">

@@ -229,8 +229,7 @@
 
 <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 15px;">
   <div>
-    <h1 class="page-title">Tableau de Bord</h1>
-    <p class="page-subtitle">Visualisez la santé financière de votre structure en toute simplicité.</p>
+    <h1 class="page-title" style="margin-bottom: 0;">Tableau de Bord</h1>
   </div>
   
   <div style="display: flex; gap: 12px; background: var(--bg-card); padding: 8px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); align-items: center; min-width: 480px;">
@@ -255,23 +254,12 @@
   </div>
 </div>
 
-<div class="pedago-banner" id="dashboard-pedago-banner" style="margin-top: 25px;">
-  <div class="pedago-banner-icon">💡</div>
-  <div class="pedago-banner-text">
-    <h4>Quel est le but de la comptabilité ?</h4>
-    <p>Le but est simple : relier chaque mouvement d'argent de votre banque à une catégorie explicite (une "ligne de compte"). Une fois toutes les écritures classées, le système génère vos livres officiels en 1 clic pour votre expert-comptable ou votre Assemblée Générale. C'est propre, sans stress, et légal !</p>
-  </div>
-</div>
-
 <!-- Stats Grid -->
-<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 25px;">
   <!-- KPI 1 : Solde Trésorerie -->
   <div class="glass-card highlight-primary" id="kpi-treasury">
     <div class="stat-icon primary"><i class="fa-solid fa-wallet"></i></div>
-    <div class="stat-value" id="kpi-cash">
-      {totalTrésorerie.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-    </div>
-    <div class="stat-label">
+    <div class="stat-label" style="font-size: 1rem; font-weight: 600; color: white; margin-bottom: 8px;">
       Solde Trésorerie
       <div class="tooltip-container">
         <span class="pedago-help-btn">?</span>
@@ -281,15 +269,15 @@
         </span>
       </div>
     </div>
+    <div class="stat-value" id="kpi-cash" style="font-size: 2rem; margin: 0;">
+      {totalTrésorerie.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+    </div>
   </div>
 
   <!-- KPI 2 : Reste à encaisser -->
   <div class="glass-card highlight-success" id="kpi-receivables-card">
     <div class="stat-icon success"><i class="fa-solid fa-hand-holding-dollar"></i></div>
-    <div class="stat-value" id="kpi-receivables">
-      {resteAEncaisser.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-    </div>
-    <div class="stat-label">
+    <div class="stat-label" style="font-size: 1rem; font-weight: 600; color: white; margin-bottom: 8px;">
       Reste à encaisser
       <div class="tooltip-container">
         <span class="pedago-help-btn">?</span>
@@ -299,15 +287,15 @@
         </span>
       </div>
     </div>
+    <div class="stat-value" id="kpi-receivables" style="font-size: 2rem; margin: 0;">
+      {resteAEncaisser.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+    </div>
   </div>
 
   <!-- KPI 3 : Factures à payer -->
   <div class="glass-card highlight-warning" id="kpi-payables-card">
     <div class="stat-icon warning"><i class="fa-solid fa-file-invoice"></i></div>
-    <div class="stat-value" id="kpi-payables">
-      {dettesFournisseurs.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-    </div>
-    <div class="stat-label">
+    <div class="stat-label" style="font-size: 1rem; font-weight: 600; color: white; margin-bottom: 8px;">
       Factures à payer
       <div class="tooltip-container">
         <span class="pedago-help-btn">?</span>
@@ -317,23 +305,26 @@
         </span>
       </div>
     </div>
+    <div class="stat-value" id="kpi-payables" style="font-size: 2rem; margin: 0;">
+      {dettesFournisseurs.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+    </div>
   </div>
 
   <!-- KPI 4 : Opérations à trier -->
   <div class="glass-card highlight-danger" id="kpi-alerts">
     <div class="stat-icon danger" style="background-color: rgba(239, 68, 68, 0.15); color: #ef4444;"><i class="fa-solid fa-bell"></i></div>
-    <div class="stat-value" id="kpi-pending-count" style="color: #ef4444;">
-      {pendingTxCount}
-    </div>
-    <div class="stat-label">
+    <div class="stat-label" style="font-size: 1rem; font-weight: 600; color: white; margin-bottom: 8px;">
       Opérations à classer
       <div class="tooltip-container">
         <span class="pedago-help-btn">?</span>
         <span class="tooltip-text">
           <strong>Mouvements en attente</strong>
-          Le nombre de transactions bancaires importées qui n'ont pas encore été catégorisées. Le tri se fait dans l'onglet "Trier les lignes".
+          Le nombre de transactions bancaires importées qui n'ont pas encore été catégorisées. L'attribution se fait dans l'onglet "Attribution des libellés".
         </span>
       </div>
+    </div>
+    <div class="stat-value" id="kpi-pending-count" style="font-size: 2rem; margin: 0; color: #ef4444;">
+      {pendingTxCount}
     </div>
   </div>
 </div>
@@ -397,34 +388,7 @@
   </div>
 
   <div style="display: flex; flex-direction: column; gap: 30px;">
-    <!-- Dropzone CSV -->
-    <div class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
-      <div>
-        <h3 style="font-family: var(--font-title); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-file-import" style="color: var(--color-success);"></i> Déposer un relevé
-        </h3>
-        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 15px;">
-          Importez un relevé bancaire au format CSV pour lancer les suggestions automatiques de tri.
-        </p>
-      </div>
-      
-      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-      <div class="dropzone {dragover ? 'dragover' : ''}" 
-           onclick={() => fileInput.click()}
-           ondragover={(e) => { e.preventDefault(); dragover = true; }}
-           ondragleave={() => dragover = false}
-           ondrop={handleDrop}
-           style="padding: 20px; border-style: dashed; border-width: 2px; border-color: var(--border-color); border-radius: var(--radius-sm); text-align: center; cursor: pointer; transition: var(--transition-fast); background: rgba(0,0,0,0.1); min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px;">
-        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 1.8rem; color: var(--color-primary-light);"></i>
-        <div style="font-size: 0.85rem; font-weight: 600; color: white;">Glissez-déposez votre relevé CSV ici</div>
-        <div style="font-size: 0.72rem; color: var(--text-secondary);">ou cliquez pour explorer vos fichiers locaux</div>
-      </div>
-      <input type="file" bind:this={fileInput} onchange={handleFileChange} style="display: none;" accept=".csv">
-      
-      <button class="btn btn-primary btn-sm" onclick={chargerDemo} style="width: 100%; justify-content: center; gap: 8px;">
-        <i class="fa-solid fa-wand-magic-sparkles"></i> Charger le relevé de démonstration
-      </button>
-    </div>
+
 
     <!-- Espace Pédagogique -->
     <div class="glass-card" style="flex: 1;">

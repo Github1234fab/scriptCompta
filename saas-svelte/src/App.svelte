@@ -217,7 +217,7 @@
              id="menu-categorize" 
              class="menu-item {$activeView === 'categorize' ? 'active' : ''}" 
              onclick={() => switchView('categorize')}>
-            <i class="fa-solid fa-tags"></i> 2. Trier les lignes
+            <i class="fa-solid fa-tags"></i> 2. Attribution des libellés
             {#if pendingTxBadgeCount > 0}
               <span class="badge badge-warning" id="pending-tx-badge" style="margin-left: auto;">{pendingTxBadgeCount}</span>
             {/if}

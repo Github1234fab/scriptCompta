@@ -1003,3 +1003,56 @@ body {
   white-space: pre-wrap;
   color: var(--text-secondary);
 }
+
+/* Style contrasté et accessible pour les groupes de comptes */
+optgroup {
+  font-weight: 700 !important;
+  font-style: normal;
+  font-size: 0.85rem;
+  background-color: #11131e; /* Fond sombre pour assurer le contraste */
+  padding: 8px 0;
+}
+
+optgroup[label^="RECETTES"] {
+  color: #34d399 !important; /* Vert émeraude pour les recettes */
+}
+
+optgroup[label^="DÉPENSES"] {
+  color: #f87171 !important; /* Rouge clair pour les dépenses */
+}
+
+optgroup[label^="BANQUE"] {
+  color: #60a5fa !important; /* Bleu ciel pour la banque et les tiers */
+}
+
+optgroup option {
+  color: #ffffff !important; /* Les comptes restent en blanc pour une lisibilité parfaite */
+  font-weight: normal;
+  font-size: 0.9rem;
+  background-color: #11131e;
+  padding: 6px 12px;
+}
+
+/* Dropdown personnalisé */
+.dropdown-item-custom {
+  padding: 9px 12px;
+  font-size: 0.88rem;
+  color: #d1d5db;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.dropdown-item-custom:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+}
+
+.dropdown-item-custom.active {
+  background: var(--color-primary, #6366f1) !important;
+  color: white !important;
+  font-weight: 600;
+}
