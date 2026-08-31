@@ -21,6 +21,8 @@
   import Donations from './components/Donations.svelte';
   import Books from './components/Books.svelte';
   import Glossary from './components/Glossary.svelte';
+  import LivreRecettes from './components/LivreRecettes.svelte';
+  import PiecesManquantes from './components/PiecesManquantes.svelte';
 
   // State for creating a new entity
   let entityNameInput = $state('');
@@ -208,7 +210,7 @@
              id="menu-import" 
              class="menu-item {$activeView === 'import' ? 'active' : ''}" 
              onclick={() => switchView('import')}>
-            <i class="fa-solid fa-file-import"></i> 1. Importer relevé
+            <i class="fa-solid fa-file-import"></i> 1. Importer
           </span>
         </li>
         <li>
@@ -217,7 +219,7 @@
              id="menu-categorize" 
              class="menu-item {$activeView === 'categorize' ? 'active' : ''}" 
              onclick={() => switchView('categorize')}>
-            <i class="fa-solid fa-tags"></i> 2. Attribution des libellés
+            <i class="fa-solid fa-tags"></i> 2. Attribuer
             {#if pendingTxBadgeCount > 0}
               <span class="badge badge-warning" id="pending-tx-badge" style="margin-left: auto;">{pendingTxBadgeCount}</span>
             {/if}
@@ -226,7 +228,31 @@
         
         <div class="menu-section-title">Outils de Gestion</div>
         
-        {#if accountingModel === 'all' || accountingModel === 'members'}
+        {#if accountingModel === 'all' || accountingModel === 'micro'}
+          <li>
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+            <span 
+               id="menu-recettes" 
+               class="menu-item {$activeView === 'recettes' ? 'active' : ''}" 
+               onclick={() => switchView('recettes')}>
+              <i class="fa-solid fa-book-journal-whills"></i> Livre des recettes (Légal)
+            </span>
+          </li>
+        {/if}
+
+        {#if accountingModel === 'all' || accountingModel === 'tpe' || accountingModel === 'micro'}
+          <li>
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+            <span 
+               id="menu-pieces" 
+               class="menu-item {$activeView === 'pieces' ? 'active' : ''}" 
+               onclick={() => switchView('pieces')}>
+              <i class="fa-solid fa-receipt"></i> Pièces manquantes
+            </span>
+          </li>
+        {/if}
+
+        {#if accountingModel === 'all' || accountingModel === 'asso'}
           <li>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <span 
@@ -238,7 +264,7 @@
           </li>
         {/if}
 
-        {#if accountingModel === 'all' || accountingModel === 'sales'}
+        {#if accountingModel === 'all' || accountingModel === 'asso' || accountingModel === 'tpe'}
           <li>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <span 
@@ -250,7 +276,7 @@
           </li>
         {/if}
 
-        {#if accountingModel === 'all' || accountingModel === 'donations'}
+        {#if accountingModel === 'all' || accountingModel === 'asso'}
           <li>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <span 
@@ -317,6 +343,10 @@
       <ImportCSV />
     {:else if $activeView === 'categorize'}
       <Categorize />
+    {:else if $activeView === 'recettes'}
+      <LivreRecettes />
+    {:else if $activeView === 'pieces'}
+      <PiecesManquantes />
     {:else if $activeView === 'members'}
       <Members />
     {:else if $activeView === 'sales'}
@@ -359,10 +389,10 @@
           <div class="form-group">
             <label for="entity-model-input" class="form-label">Modèle comptable par défaut</label>
             <select id="entity-model-input" class="form-control" bind:value={entityModelInput}>
-              <option value="all">Modèle Complet (Hybride)</option>
-              <option value="members">Inscriptions & Adhésions</option>
-              <option value="sales">Ventes & Boutique</option>
-              <option value="donations">Dons & Mécénat</option>
+              <option value="all">Modèle Complet (Hybride / Tous les outils)</option>
+              <option value="micro">Micro-entreprise / Indépendant (Encaissement CA & Livre des recettes)</option>
+              <option value="tpe">Société / TPE (Comptabilité d'engagement & Rapprochement factures)</option>
+              <option value="asso">Association Loi 1901 (Adhésions, Subventions & Reçus fiscaux)</option>
             </select>
           </div>
         </div>

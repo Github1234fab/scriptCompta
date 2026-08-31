@@ -18,6 +18,17 @@
   let checkLearnRule = $state(true);
   let inputKeyword = $state('');
 
+  // Keep a copy of transactions for undo feature
+  let lastStateTransactions = $state(null);
+
+  function annulerDerniereAction() {
+    if (lastStateTransactions) {
+      updateTransactions(lastStateTransactions);
+      lastStateTransactions = null;
+      showToast('↩️ Attribution annulée avec succès !');
+    }
+  }
+
   // Computed states using Svelte 5 derived runes
   let nonTriees = $derived($transactions.filter(
     t => t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere'
@@ -100,6 +111,7 @@
 
   // Auto-class everything that has a suggestion
   function autoClasserTout() {
+    lastStateTransactions = JSON.parse(JSON.stringify($transactions));
     let count = 0;
     $transactions.forEach(tx => {
       if (tx.statut === 'suggere') {
@@ -118,6 +130,7 @@
   // Validate one-click suggestion
   function validerSuggestion() {
     if (activeTx && activeTx.suggestionMotCle) {
+      lastStateTransactions = JSON.parse(JSON.stringify($transactions));
       const type = activeTx.debit > 0 ? 'debit' : 'credit';
       Categorizer.ajouterRegleEtRecat(activeTx.suggestionMotCle, activeTx.compteAttribué, type);
       recatTout();
@@ -136,6 +149,7 @@
   // Submit manual categorization
   function soumettreCategorisation() {
     if (!activeTx) return;
+    lastStateTransactions = JSON.parse(JSON.stringify($transactions));
 
     const kw = inputKeyword.trim().toUpperCase();
     
@@ -289,13 +303,20 @@
 <div class="progress-bar-container">
   <div class="progress-bar-fill" style="width: {progressPct}%;"></div>
 </div>
-<div style="font-size: 0.88rem; display: flex; justify-content: space-between; margin-bottom: 25px; font-weight: 600;">
+<div style="font-size: 0.88rem; display: flex; justify-content: space-between; margin-bottom: 25px; font-weight: 600; align-items: center;">
   <span>{trieesCount} / {totalTx} transactions triées ({progressPct}%)</span>
-  {#if suggestionsCount > 0}
-    <button class="btn btn-secondary btn-sm" onclick={autoClasserTout}>
-      <i class="fa-solid fa-robot"></i> Classer automatiquement {suggestionsCount} écritures reconnues
-    </button>
-  {/if}
+  <div style="display: flex; gap: 10px; align-items: center;">
+    {#if lastStateTransactions}
+      <button class="btn btn-secondary btn-sm" onclick={annulerDerniereAction} style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); display: flex; align-items: center; gap: 6px;">
+        <i class="fa-solid fa-rotate-left"></i> Annuler le dernier tri
+      </button>
+    {/if}
+    {#if suggestionsCount > 0}
+      <button class="btn btn-secondary btn-sm" onclick={autoClasserTout}>
+        <i class="fa-solid fa-robot"></i> Classer automatiquement {suggestionsCount} écritures reconnues
+      </button>
+    {/if}
+  </div>
 </div>
 
 <div class="tri-container">
@@ -380,7 +401,7 @@
   </div>
 
   <!-- Right Side: Categorization actions -->
-  <div class="glass-card" id="tri-action-panel">
+  <div class="glass-card" id="tri-action-panel" style="overflow: visible;">
     <h3 style="font-family: var(--font-title); margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
       Catégoriser l'opération
     </h3>
@@ -455,11 +476,12 @@
               
               <div 
                 class="glass-card" 
-                style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; max-height: 300px; overflow-y: auto; z-index: 999; padding: 8px; border: 1px solid var(--color-primary-light, #818cf8); box-shadow: 0 10px 30px rgba(0,0,0,0.6); background: #11131e;"
+                style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; max-height: 480px; overflow-y: auto; z-index: 999; padding: 8px; border: 1px solid var(--color-primary-light, #818cf8); box-shadow: 0 10px 30px rgba(0,0,0,0.6); background: #11131e;"
               >
                 <!-- RECETTES -->
-                <div style="font-size: 0.78rem; font-weight: 700; color: #60a5fa; padding: 8px 10px; border-bottom: 1px solid rgba(96, 165, 250, 0.15); margin-top: 5px; margin-bottom: 5px; letter-spacing: 0.05em; background: rgba(96, 165, 250, 0.03);">
-                  RECETTES (Dons, Cotisations, Ventes...)
+                <div style="font-weight: 700; color: #60a5fa; padding: 10px 12px; border-bottom: 1px solid rgba(96, 165, 250, 0.15); margin-top: 5px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(96, 165, 250, 0.03); line-height: 1.4;">
+                  <div style="text-transform: capitalize; font-size: 1.05rem;">recettes</div>
+                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(dons, cotisations, ventes...)</div>
                 </div>
                 {#each listComptesTries.filter(c => c.type === 'Produit') as c}
                   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -474,11 +496,70 @@
                   </div>
                 {/each}
 
-                <!-- DÉPENSES -->
-                <div style="font-size: 0.78rem; font-weight: 700; color: #60a5fa; padding: 8px 10px; border-bottom: 1px solid rgba(96, 165, 250, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.05em; background: rgba(96, 165, 250, 0.03);">
-                  DÉPENSES (Loyers, Salaires, Achats...)
+                <!-- DÉPENSES : ACHATS & FRAIS COURANTS -->
+                <div style="font-weight: 700; color: #38bdf8; padding: 10px 12px; border-bottom: 1px solid rgba(56, 189, 248, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(56, 189, 248, 0.03); line-height: 1.4;">
+                  <div style="text-transform: capitalize; font-size: 1.05rem;">dépenses :</div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">achats & frais courants</div>
+                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(fournitures, déplacements, télécoms...)</div>
                 </div>
-                {#each listComptesTries.filter(c => c.type === 'Charge') as c}
+                {#each listComptesTries.filter(c => c.type === 'Charge' && (c.compte.startsWith('60') || c.compte.startsWith('62'))) as c}
+                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                  <div 
+                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}" 
+                    onclick={() => { selectedCompte = c.compte; dropdownOpen = false; }}
+                  >
+                    <span>{c.compte} - {c.libelle}</span>
+                    {#if selectedCompte === c.compte}
+                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
+                    {/if}
+                  </div>
+                {/each}
+
+                <!-- DÉPENSES : LOCAUX & ASSURANCES -->
+                <div style="font-weight: 700; color: #f59e0b; padding: 10px 12px; border-bottom: 1px solid rgba(245, 158, 11, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(245, 158, 11, 0.03); line-height: 1.4;">
+                  <div style="text-transform: capitalize; font-size: 1.05rem;">dépenses :</div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">locaux & assurances</div>
+                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(loyer, entretien, assurances...)</div>
+                </div>
+                {#each listComptesTries.filter(c => c.type === 'Charge' && c.compte.startsWith('61') && c.compte !== '611') as c}
+                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                  <div 
+                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}" 
+                    onclick={() => { selectedCompte = c.compte; dropdownOpen = false; }}
+                  >
+                    <span>{c.compte} - {c.libelle}</span>
+                    {#if selectedCompte === c.compte}
+                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
+                    {/if}
+                  </div>
+                {/each}
+
+                <!-- DÉPENSES : PRESTATAIRES & COTISATIONS -->
+                <div style="font-weight: 700; color: #facc15; padding: 10px 12px; border-bottom: 1px solid rgba(250, 204, 21, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(250, 204, 21, 0.03); line-height: 1.4;">
+                  <div style="text-transform: capitalize; font-size: 1.05rem;">dépenses :</div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">prestataires & cotisations</div>
+                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(intervenants, sous-traitance...)</div>
+                </div>
+                {#each listComptesTries.filter(c => c.type === 'Charge' && (c.compte === '611' || c.compte.startsWith('65'))) as c}
+                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                  <div 
+                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}" 
+                    onclick={() => { selectedCompte = c.compte; dropdownOpen = false; }}
+                  >
+                    <span>{c.compte} - {c.libelle}</span>
+                    {#if selectedCompte === c.compte}
+                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
+                    {/if}
+                  </div>
+                {/each}
+
+                <!-- DÉPENSES : PERSONNEL & SALAIRES -->
+                <div style="font-weight: 700; color: #f43f5e; padding: 10px 12px; border-bottom: 1px solid rgba(244, 63, 94, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(244, 63, 94, 0.03); line-height: 1.4;">
+                  <div style="text-transform: capitalize; font-size: 1.05rem;">dépenses :</div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">personnel & salaires</div>
+                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(salaires, charges, mutuelle...)</div>
+                </div>
+                {#each listComptesTries.filter(c => c.type === 'Charge' && c.compte.startsWith('64')) as c}
                   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
                   <div 
                     class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}" 
@@ -492,8 +573,9 @@
                 {/each}
 
                 <!-- BANQUE & TIERS -->
-                <div style="font-size: 0.78rem; font-weight: 700; color: #60a5fa; padding: 8px 10px; border-bottom: 1px solid rgba(96, 165, 250, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.05em; background: rgba(96, 165, 250, 0.03);">
-                  BANQUE & TIERS (Banque, Fournisseurs, Clients...)
+                <div style="font-weight: 700; color: #60a5fa; padding: 10px 12px; border-bottom: 1px solid rgba(96, 165, 250, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(96, 165, 250, 0.03); line-height: 1.4;">
+                  <div style="text-transform: capitalize; font-size: 1.05rem;">banque & tiers</div>
+                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(banque, fournisseurs, clients...)</div>
                 </div>
                 {#each listComptesTries.filter(c => c.type !== 'Charge' && c.type !== 'Produit') as c}
                   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->

@@ -73,6 +73,26 @@
   let recettesHeight = $derived((recettes / maxVal) * 100);
   let depensesHeight = $derived((depenses / maxVal) * 100);
 
+  // Metrics Sérénité & Prévisions
+  let urssafEstimee = $derived(recettes * 0.211); // Taux moyen de prestations micro
+  let tvaCollectee = $derived(recettes * 0.20);
+  let tvaDeductible = $derived(depenses * 0.20);
+  let tvaNetteEstimee = $derived(Math.max(0, tvaCollectee - tvaDeductible));
+  let provisionsTotales = $derived(urssafEstimee + (accountingModel === 'tpe' ? tvaNetteEstimee : 0));
+  let vraiDisponible = $derived(totalTrésorerie - provisionsTotales);
+
+  let moyDepensesMensuelles = $derived(depenses > 0 ? (depenses / 3) : 200);
+  let runwayMois = $derived(moyDepensesMensuelles > 0 ? (vraiDisponible / moyDepensesMensuelles).toFixed(1) : '12+');
+
+  // Justificatifs & Pièces manquantes
+  let debitsTotaux = $derived($transactions.filter(t => t.debit > 0 && t.statut === 'attribue'));
+  let piecesManquantesCount = $derived(debitsTotaux.filter(t => !t.factureUrl).length);
+  let scoreConformite = $derived(debitsTotaux.length > 0 ? Math.round(((debitsTotaux.length - piecesManquantesCount) / debitsTotaux.length) * 100) : 100);
+
+  // Seuils Micro-entreprise (TVA: 36 800 €, Plafond CA: 77 700 €)
+  let pctSeuilTVA = $derived(Math.min(100, Math.round((recettes / 36800) * 100)));
+  let pctSeuilCA = $derived(Math.min(100, Math.round((recettes / 77700) * 100)));
+
   // Alerts
   let retards = $derived($members.filter(m => (m.forfait - m.dejaPaye) > 0));
   let stocksFaibles = $derived($products.filter(p => p.stock < 5));
@@ -229,10 +249,10 @@
 
 <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 15px;">
   <div>
-    <h1 class="page-title" style="margin-bottom: 0;">Tableau de Bord</h1>
+    <h1 class="page-title" style="margin-bottom: 0;">Tableau de Bord Sérénité</h1>
   </div>
   
-  <div style="display: flex; gap: 12px; background: var(--bg-card); padding: 8px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); align-items: center; min-width: 480px;">
+  <div style="display: flex; gap: 12px; background: var(--bg-card); padding: 8px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); align-items: center; min-width: 520px;">
     <div style="flex: 1;">
       <label for="dash-entity-select" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 2px;">Structure active</label>
       <select id="dash-entity-select" class="form-control" style="padding: 6px 10px; font-size: 0.8rem; background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.05); height: auto; color: white;" onchange={handleEntityChange} value={$activeEntityId}>
@@ -243,243 +263,227 @@
       </select>
     </div>
     <div style="flex: 1;">
-      <label for="dash-model-select" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 2px;">Modèle comptable</label>
+      <label for="dash-model-select" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 2px;">Profil & Modèle</label>
       <select id="dash-model-select" class="form-control" style="padding: 6px 10px; font-size: 0.8rem; background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.05); height: auto; color: white;" onchange={handleModelChange} value={accountingModel}>
         <option value="all">Modèle Complet (Hybride)</option>
-        <option value="members">Inscriptions & Adhésions</option>
-        <option value="sales">Ventes & Boutique</option>
-        <option value="donations">Dons & Mécénat</option>
+        <option value="micro">Micro-entreprise / Indépendant</option>
+        <option value="tpe">Société / TPE (SASU, SARL...)</option>
+        <option value="asso">Association (Loi 1901)</option>
       </select>
     </div>
   </div>
 </div>
 
-<!-- Stats Grid -->
-<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 25px;">
-  <!-- KPI 1 : Solde Trésorerie -->
-  <div class="glass-card highlight-primary" id="kpi-treasury">
-    <div class="stat-icon primary"><i class="fa-solid fa-wallet"></i></div>
-    <div class="stat-label" style="font-size: 1rem; font-weight: 600; color: white; margin-bottom: 8px;">
-      Solde Trésorerie
-      <div class="tooltip-container">
-        <span class="pedago-help-btn">?</span>
-        <span class="tooltip-text">
-          <strong>Solde Trésorerie</strong>
-          Il s'agit du solde total cumulé de votre compte en banque et de votre caisse en espèces. C'est l'argent disponible immédiatement.
-        </span>
-      </div>
-    </div>
-    <div class="stat-value" id="kpi-cash" style="font-size: 2rem; margin: 0;">
-      {totalTrésorerie.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-    </div>
-  </div>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- BLOC 1 : OÙ J'EN SUIS ? (La Météo de Trésorerie) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div style="margin-top: 25px; margin-bottom: 30px;">
+  <h3 style="font-family: var(--font-title); font-size: 1.15rem; color: white; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+    <span style="background: rgba(99, 102, 241, 0.15); color: #818cf8; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">1</span>
+    Où j'en suis ? (Météo de Trésorerie)
+  </h3>
 
-  <!-- KPI 2 : Reste à encaisser -->
-  <div class="glass-card highlight-success" id="kpi-receivables-card">
-    <div class="stat-icon success"><i class="fa-solid fa-hand-holding-dollar"></i></div>
-    <div class="stat-label" style="font-size: 1rem; font-weight: 600; color: white; margin-bottom: 8px;">
-      Reste à encaisser
-      <div class="tooltip-container">
-        <span class="pedago-help-btn">?</span>
-        <span class="tooltip-text">
-          <strong>Reste à encaisser (Créances)</strong>
-          Il s'agit du montant total des inscriptions d'élèves/adhérents enregistrées mais pas encore totalement payées à ce jour.
-        </span>
+  <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+    <!-- Card 1.1 : Solde Bancaire Réel -->
+    <div class="glass-card highlight-primary">
+      <div class="stat-icon primary"><i class="fa-solid fa-wallet"></i></div>
+      <div class="stat-label" style="font-size: 0.9rem; font-weight: 600; color: white; margin-bottom: 6px;">
+        Solde Bancaire Brut
       </div>
+      <div class="stat-value" style="font-size: 1.8rem; margin: 0;">
+        {totalTrésorerie.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+      </div>
+      <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">Compte 512 + Caisse 530</span>
     </div>
-    <div class="stat-value" id="kpi-receivables" style="font-size: 2rem; margin: 0;">
-      {resteAEncaisser.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-    </div>
-  </div>
 
-  <!-- KPI 3 : Factures à payer -->
-  <div class="glass-card highlight-warning" id="kpi-payables-card">
-    <div class="stat-icon warning"><i class="fa-solid fa-file-invoice"></i></div>
-    <div class="stat-label" style="font-size: 1rem; font-weight: 600; color: white; margin-bottom: 8px;">
-      Factures à payer
-      <div class="tooltip-container">
-        <span class="pedago-help-btn">?</span>
-        <span class="tooltip-text">
-          <strong>Factures à payer (Dettes)</strong>
-          Il s'agit des sommes dues à vos fournisseurs ou des charges diverses en attente de règlement bancaire.
-        </span>
+    <!-- Card 1.2 : Le VRAI Disponible -->
+    <div class="glass-card highlight-success" style="border: 1px solid rgba(52, 211, 153, 0.4);">
+      <div class="stat-icon success"><i class="fa-solid fa-shield-halved"></i></div>
+      <div class="stat-label" style="font-size: 0.9rem; font-weight: 600; color: #34d399; margin-bottom: 6px;">
+        Le Vrai Disponible
+        <div class="tooltip-container">
+          <span class="pedago-help-btn">?</span>
+          <span class="tooltip-text">
+            <strong>Le Vrai Disponible</strong>
+            Solde bancaire après déduction automatique des charges et taxes déjà accumulées (Urssaf/TVA estimées). C'est l'argent que vous pouvez utiliser sans risque !
+          </span>
+        </div>
       </div>
+      <div class="stat-value" style="font-size: 1.8rem; margin: 0; color: #34d399;">
+        {vraiDisponible.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+      </div>
+      <span style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-top: 4px;">-{provisionsTotales.toFixed(0)}€ de provisionsUrssaf/TVA</span>
     </div>
-    <div class="stat-value" id="kpi-payables" style="font-size: 2rem; margin: 0;">
-      {dettesFournisseurs.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-    </div>
-  </div>
 
-  <!-- KPI 4 : Opérations à trier -->
-  <div class="glass-card highlight-danger" id="kpi-alerts">
-    <div class="stat-icon danger" style="background-color: rgba(239, 68, 68, 0.15); color: #ef4444;"><i class="fa-solid fa-bell"></i></div>
-    <div class="stat-label" style="font-size: 1rem; font-weight: 600; color: white; margin-bottom: 8px;">
-      Opérations à classer
-      <div class="tooltip-container">
-        <span class="pedago-help-btn">?</span>
-        <span class="tooltip-text">
-          <strong>Mouvements en attente</strong>
-          Le nombre de transactions bancaires importées qui n'ont pas encore été catégorisées. L'attribution se fait dans l'onglet "Attribution des libellés".
-        </span>
+    <!-- Card 1.3 : Runway / Autonomie -->
+    <div class="glass-card highlight-warning">
+      <div class="stat-icon warning"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div class="stat-label" style="font-size: 0.9rem; font-weight: 600; color: white; margin-bottom: 6px;">
+        Autonomie (Runway)
       </div>
+      <div class="stat-value" style="font-size: 1.8rem; margin: 0;">
+        {runwayMois} <span style="font-size: 1rem; font-weight: normal; color: var(--text-secondary);">mois</span>
+      </div>
+      <span style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-top: 4px;">de réserve sans aucune rentrée</span>
     </div>
-    <div class="stat-value" id="kpi-pending-count" style="font-size: 2rem; margin: 0; color: #ef4444;">
-      {pendingTxCount}
+
+    <!-- Card 1.4 : Opérations à classer -->
+    <div class="glass-card highlight-danger" onclick={() => activeView.set('categorize')} style="cursor: pointer;">
+      <div class="stat-icon danger" style="background-color: rgba(239, 68, 68, 0.15); color: #ef4444;"><i class="fa-solid fa-bell"></i></div>
+      <div class="stat-label" style="font-size: 0.9rem; font-weight: 600; color: white; margin-bottom: 6px;">
+        À Classer
+      </div>
+      <div class="stat-value" style="font-size: 1.8rem; margin: 0; color: #ef4444;">
+        {pendingTxCount} <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-secondary);">lignes</span>
+      </div>
+      <span style="font-size: 0.75rem; color: #ef4444; display: block; margin-top: 4px;">Cliquez pour attribuer en 1-clic ➔</span>
     </div>
   </div>
 </div>
 
-<!-- Dashboard Dual Column -->
-<div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px; margin-bottom: 30px;">
-  
-  <div style="display: flex; flex-direction: column; gap: 30px;">
-    <!-- Shortcuts -->
-    <div class="glass-card">
-      <h3 style="font-family: var(--font-title); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-book-open" style="color: var(--color-primary-light);"></i> Accéder à ma comptabilité
-      </h3>
-      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px;">
-        Consultez instantanément vos registres réglementaires mis à jour en temps réel à chaque tri.
-      </p>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-        <button class="btn btn-secondary" onclick={() => navigateToBook('journal')} style="justify-content: flex-start; padding: 12px 16px;">
-          <i class="fa-solid fa-book" style="color: #34a853; width: 18px;"></i> Livre-journal
-        </button>
-        <button class="btn btn-secondary" onclick={() => navigateToBook('grandlivre')} style="justify-content: flex-start; padding: 12px 16px;">
-          <i class="fa-solid fa-list-ul" style="color: #fbbc04; width: 18px;"></i> Le Grand Livre
-        </button>
-        <button class="btn btn-secondary" onclick={() => navigateToBook('balance')} style="justify-content: flex-start; padding: 12px 16px;">
-          <i class="fa-solid fa-scale-balanced" style="color: #ea4335; width: 18px;"></i> La Balance
-        </button>
-        <button class="btn btn-secondary" onclick={() => navigateToBook('bilan')} style="justify-content: flex-start; padding: 12px 16px;">
-          <i class="fa-solid fa-file-invoice-dollar" style="color: var(--color-primary-light); width: 18px;"></i> Bilan Simplifié
-        </button>
-      </div>
-    </div>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- BLOC 2 : À PAYER BIENTÔT ? (Le Radar des Échéances) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div style="margin-bottom: 30px;">
+  <h3 style="font-family: var(--font-title); font-size: 1.15rem; color: white; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+    <span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">2</span>
+    À payer bientôt ? (Radar des Échéances & Seuils)
+  </h3>
 
-    <!-- Chart -->
-    <div class="glass-card">
-      <h3 style="font-family: var(--font-title); margin-bottom: 20px;">
-        Entrées vs Sorties d'Argent (Recettes/Dépenses)
-      </h3>
-      <div style="display: flex; gap: 20px; align-items: flex-end; height: 180px; padding: 20px 0; border-bottom: 1px solid var(--border-color);">
-        <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
-          <div id="bar-recettes" style="background: linear-gradient(to top, #10b981, #34d399); width: 60px; height: {recettesHeight}%; border-radius: 6px 6px 0 0; transition: height 0.5s;"></div>
-          <span style="font-size: 0.8rem; margin-top: 10px; font-weight: 600;">Recettes (Entrées)</span>
-          <span id="bar-recettes-val" style="font-size: 0.85rem; color: var(--color-success); font-weight: 700;">
-            {recettes.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-          </span>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    
+    {#if accountingModel === 'micro' || accountingModel === 'all'}
+      <!-- Jauge Micro-entreprise : Urssaf & Seuils -->
+      <div class="glass-card">
+        <h4 style="font-family: var(--font-title); font-size: 0.95rem; color: white; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-calculator" style="color: #f59e0b;"></i> Cotisations Urssaf Estimées (Micro)
+        </h4>
+        <div style="font-size: 1.6rem; font-weight: 700; color: #f59e0b; font-family: var(--font-title); margin-bottom: 8px;">
+          {urssafEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
         </div>
-        <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
-          <div id="bar-depenses" style="background: linear-gradient(to top, #ef4444, #f87171); width: 60px; height: {depensesHeight}%; border-radius: 6px 6px 0 0; transition: height 0.5s;"></div>
-          <span style="font-size: 0.8rem; margin-top: 10px; font-weight: 600;">Dépenses (Sorties)</span>
-          <span id="bar-depenses-val" style="font-size: 0.85rem; color: #ef4444; font-weight: 700;">
-            {depenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-          </span>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px;">
+          Basé sur un taux estimé de 21,1% sur les {recettes.toFixed(0)}€ de CA encaissé.
+        </p>
+
+        <!-- Jauge Seuil TVA -->
+        <div style="margin-top: 15px;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600; margin-bottom: 4px;">
+            <span>Seuil de Franchise TVA (36 800 €)</span>
+            <span style="color: {pctSeuilTVA >= 80 ? '#f59e0b' : '#34d399'};">{pctSeuilTVA}%</span>
+          </div>
+          <div class="progress-bar-container" style="height: 6px;">
+            <div class="progress-bar-fill" style="width: {pctSeuilTVA}%; background: {pctSeuilTVA >= 80 ? '#f59e0b' : '#34d399'};"></div>
+          </div>
+        </div>
+
+        <!-- Jauge Plafond Micro -->
+        <div style="margin-top: 12px;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600; margin-bottom: 4px;">
+            <span>Plafond CA Micro (77 700 €)</span>
+            <span style="color: {pctSeuilCA >= 80 ? '#ef4444' : '#38bdf8'};">{pctSeuilCA}%</span>
+          </div>
+          <div class="progress-bar-container" style="height: 6px;">
+            <div class="progress-bar-fill" style="width: {pctSeuilCA}%; background: {pctSeuilCA >= 80 ? '#ef4444' : '#38bdf8'};"></div>
+          </div>
         </div>
       </div>
-      <div style="margin-top: 15px; text-align: center;">
-        <span style="font-size: 0.9rem; color: var(--text-secondary);">Résultat de l'exercice :</span>
-        <strong id="dashboard-result-net" style="font-family: var(--font-title); font-size: 1.1rem; margin-left: 5px; color: {resultatNet >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}">
+    {/if}
+
+    {#if accountingModel === 'tpe' || accountingModel === 'all'}
+      <!-- Estimation TVA Nette (Société/TPE) -->
+      <div class="glass-card">
+        <h4 style="font-family: var(--font-title); font-size: 0.95rem; color: white; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-file-invoice-dollar" style="color: #38bdf8;"></i> Estimation TVA Nette à Décaisser (TPE)
+        </h4>
+        <div style="font-size: 1.6rem; font-weight: 700; color: #38bdf8; font-family: var(--font-title); margin-bottom: 8px;">
+          {tvaNetteEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; gap: 15px;">
+          <span>TVA Collectée : <strong style="color: #34d399;">+{tvaCollectee.toFixed(0)}€</strong></span>
+          <span>TVA Déductible : <strong style="color: #f87171;">-{tvaDeductible.toFixed(0)}€</strong></span>
+        </div>
+      </div>
+    {/if}
+
+    {#if accountingModel === 'asso'}
+      <!-- Suivi Asso / Subventions -->
+      <div class="glass-card">
+        <h4 style="font-family: var(--font-title); font-size: 0.95rem; color: white; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-hand-holding-heart" style="color: #34d399;"></i> Reste à encaisser (Adhésions)
+        </h4>
+        <div style="font-size: 1.6rem; font-weight: 700; color: #34d399; font-family: var(--font-title); margin-bottom: 8px;">
+          {resteAEncaisser.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-secondary);">
+          Montant des cotisations d'élèves/adhérents enregistrées en attente de règlement bancaire.
+        </p>
+      </div>
+    {/if}
+
+    <!-- Graphique Synthétique Entrées vs Sorties -->
+    <div class="glass-card">
+      <h4 style="font-family: var(--font-title); font-size: 0.95rem; color: white; margin-bottom: 12px;">
+        Résultat de l'exercice
+      </h4>
+      <div style="display: flex; gap: 15px; align-items: flex-end; height: 90px; padding: 10px 0; border-bottom: 1px solid var(--border-color);">
+        <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+          <div style="background: linear-gradient(to top, #10b981, #34d399); width: 40px; height: {recettesHeight}%; border-radius: 4px 4px 0 0;"></div>
+          <span style="font-size: 0.72rem; margin-top: 6px; color: #34d399; font-weight: 700;">+{recettes.toFixed(0)}€</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+          <div style="background: linear-gradient(to top, #ef4444, #f87171); width: 40px; height: {depensesHeight}%; border-radius: 4px 4px 0 0;"></div>
+          <span style="font-size: 0.72rem; margin-top: 6px; color: #f87171; font-weight: 700;">-{depenses.toFixed(0)}€</span>
+        </div>
+      </div>
+      <div style="margin-top: 8px; text-align: center; font-size: 0.82rem;">
+        <span>Résultat Net :</span>
+        <strong style="font-size: 0.95rem; color: {resultatNet >= 0 ? '#34d399' : '#f87171'}">
           {resultatNet >= 0 ? '+' : ''} {resultatNet.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
         </strong>
       </div>
     </div>
   </div>
-
-  <div style="display: flex; flex-direction: column; gap: 30px;">
-
-
-    <!-- Espace Pédagogique -->
-    <div class="glass-card" style="flex: 1;">
-      <h3 style="font-family: var(--font-title); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-graduation-cap" style="color: var(--color-primary-light);"></i> Espace Pédagogique
-      </h3>
-      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px;">
-        Ici, pas de jargon. Nous traduisons la comptabilité dans la langue de tous les jours.
-      </p>
-      <div style="display: flex; flex-direction: column; gap: 12px;">
-        <!-- svelte-ignore a11y_invalid_attribute -->
-        <a href="#" onclick={(e) => { e.preventDefault(); activeView.set('glossary'); }} style="text-decoration: none; color: white; display: flex; gap: 12px; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); transition: var(--transition-fast);" class="pedago-resource-link">
-          <div style="background: rgba(99, 102, 241, 0.1); color: var(--color-primary-light); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-book-bookmark"></i></div>
-          <div>
-            <h5 style="font-size: 0.85rem; font-weight: 600; margin-bottom: 2px;">Dictionnaire Déjargonisé</h5>
-            <p style="font-size: 0.75rem; color: var(--text-secondary);">Traductions des mots complexes.</p>
-          </div>
-        </a>
-        
-        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-        <div style="display: flex; gap: 12px; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;" onclick={() => alert('🎥 Lancement de la vidéo : Les 5 étapes indispensables de la clôture comptable d\'association.')} class="pedago-resource-link">
-          <div style="background: rgba(16, 185, 129, 0.1); color: var(--color-success); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-circle-play"></i></div>
-          <div>
-            <h5 style="font-size: 0.85rem; font-weight: 600; margin-bottom: 2px;">Tuto : Clôturer ma saison</h5>
-            <p style="font-size: 0.75rem; color: var(--text-secondary);">Vidéo pas-à-pas de fin d'exercice.</p>
-          </div>
-        </div>
-
-        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-        <div style="display: flex; gap: 12px; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;" onclick={() => alert('📘 Téléchargement de la fiche pratique : Les subventions municipales et le dossier de demande Cerfa.')} class="pedago-resource-link">
-          <div style="background: rgba(245, 158, 11, 0.1); color: var(--color-warning); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-file-pdf"></i></div>
-          <div>
-            <h5 style="font-size: 0.85rem; font-weight: 600; margin-bottom: 2px;">Fiche : Demander une subvention</h5>
-            <p style="font-size: 0.75rem; color: var(--text-secondary);">Modèles et bonnes pratiques.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
-<!-- Actions List Card -->
-<div class="glass-card" style="margin-bottom: 30px;" id="dashboard-actions-card">
-  <h3 style="font-family: var(--font-title); margin-bottom: 15px;">Actions urgentes suggérées</h3>
-  <div id="dashboard-actions-list" style="display: flex; flex-direction: column; gap: 12px;">
-    
-    <!-- Action A : Mouvements non classés -->
-    {#if pendingTxCount > 0}
-      <div class="dashboard-action-item">
-        <i class="fa-solid fa-tags" style="font-size: 1.4rem; color: var(--color-warning); width: 25px;"></i>
-        <div style="flex: 1; margin-left: 15px;">
-          <h4 style="font-size: 0.95rem; font-weight: 600; color: white;">Il vous reste {pendingTxCount} opérations bancaires à catégoriser</h4>
-          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">Ces écritures sont en attente d'attribution. Un relevé entièrement trié garantit une comptabilité valide.</p>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick={() => activeView.set('categorize')}>Trier le relevé</button>
-      </div>
-    {/if}
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- BLOC 3 : CE QU'IL RESTE À FAIRE ? (La Boîte à Justificatifs Propre) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div>
+  <h3 style="font-family: var(--font-title); font-size: 1.15rem; color: white; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+    <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">3</span>
+    Ce qu'il reste à faire ? (La Boîte à Justificatifs Propre)
+  </h3>
 
-    <!-- Action B : Élèves en retard -->
-    {#if retards.length > 0}
-      <div class="dashboard-action-item">
-        <i class="fa-solid fa-users-slash" style="font-size: 1.4rem; color: var(--color-danger); width: 25px;"></i>
-        <div style="flex: 1; margin-left: 15px;">
-          <h4 style="font-size: 0.95rem; font-weight: 600; color: white;">{retards.length} adhérents ont un solde débiteur (reste à payer)</h4>
-          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">Leur forfait annuel n'a pas encore été entièrement réglé ou réconcilié.</p>
+  <div class="glass-card" style="border: 1px solid rgba(16, 185, 129, 0.3);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">Score de conformité justificatifs</span>
+          <span class="badge {scoreConformite >= 90 ? 'badge-success' : 'badge-warning'}">{scoreConformite}% conforme</span>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick={() => activeView.set('members')}>Voir les fiches</button>
+        <h4 style="font-family: var(--font-title); font-size: 1.2rem; color: white; margin-top: 6px;">
+          {piecesManquantesCount === 0 ? '🎉 Aucune pièce justificative manquante ! Vous êtes à jour.' : `⚠️ Vous avez ${piecesManquantesCount} dépense(s) bancaire(s) sans reçu rattaché.`}
+        </h4>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px;">
+          Un dossier justificatif 100% propre garantit zéro redressement en cas de contrôle fiscal.
+        </p>
       </div>
-    {/if}
 
-    <!-- Action C : Stocks faibles -->
-    {#if stocksFaibles.length > 0}
-      <div class="dashboard-action-item">
-        <i class="fa-solid fa-box-open" style="font-size: 1.4rem; color: var(--color-warning); width: 25px;"></i>
-        <div style="flex: 1; margin-left: 15px;">
-          <h4 style="font-size: 0.95rem; font-weight: 600; color: white;">{stocksFaibles.length} articles de votre boutique sont en rupture ou stock critique</h4>
-          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
-            Produits concernés : {stocksFaibles.map(p => `${p.nom} (${p.stock} restant)`).join(', ')}.
-          </p>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick={() => activeView.set('sales')}>Gérer le stock</button>
+      <div style="display: flex; gap: 12px;">
+        <button class="btn btn-secondary" onclick={() => activeView.set('pieces')}>
+          <i class="fa-solid fa-receipt"></i> Voir les {piecesManquantesCount} pièces manquantes
+        </button>
+        {#if accountingModel === 'micro'}
+          <button class="btn btn-primary" onclick={() => activeView.set('recettes')}>
+            <i class="fa-solid fa-file-export"></i> Exporter le Livre des Recettes
+          </button>
+        {:else}
+          <button class="btn btn-primary" onclick={() => activeView.set('books')}>
+            <i class="fa-solid fa-paper-plane"></i> Transmettre (Export FEC / CSV)
+          </button>
+        {/if}
       </div>
-    {/if}
-
-    <!-- Fallback si tout est parfait -->
-    {#if pendingTxCount === 0 && retards.length === 0 && stocksFaibles.length === 0}
-      <div style="text-align: center; padding: 20px; color: var(--color-success); font-weight: 600;">
-        <i class="fa-solid fa-circle-check" style="font-size: 1.5rem; margin-bottom: 5px;"></i><br>
-        Félicitations, tout est parfaitement à jour ! Aucun problème détecté.
-      </div>
-    {/if}
+    </div>
   </div>
 </div>
 
