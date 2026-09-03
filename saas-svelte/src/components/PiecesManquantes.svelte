@@ -1,15 +1,19 @@
 <script>
   import { transactions, updateTransactions, showToast, activeEntityId, entities } from '../lib/store.js';
 
-  let activeEntity = $derived($entities.find(e => e.id === $activeEntityId) || $entities[0]);
+  let activeEntity = $derived($entities.find((/** @type {any} */ entity) => entity.id === $activeEntityId) || $entities[0]);
 
-  let debits = $derived($transactions.filter(tx => tx.debit > 0 && tx.statut === 'attribue'));
+  let debits = $derived($transactions.filter((/** @type {any} */ tx) => tx.debit > 0 && tx.statut === 'attribue'));
   let totalDebitsCount = $derived(debits.length);
 
-  let piecesManquantes = $derived(debits.filter(tx => !tx.factureUrl));
+  let piecesManquantes = $derived(debits.filter((/** @type {any} */ tx) => !tx.factureUrl));
   let justificatifsPresentsCount = $derived(totalDebitsCount - piecesManquantes.length);
   let scoreConformite = $derived(totalDebitsCount > 0 ? Math.round((justificatifsPresentsCount / totalDebitsCount) * 100) : 100);
 
+  /**
+   * @param {any} txId
+   * @param {any} e
+   */
   function joindreFichier(txId, e) {
     const file = e.target.files[0];
     if (!file) return;

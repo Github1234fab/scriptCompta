@@ -247,29 +247,48 @@
   });
 </script>
 
-<div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 15px;">
-  <div>
-    <h1 class="page-title" style="margin-bottom: 0;">Tableau de Bord Sérénité</h1>
-  </div>
-  
-  <div style="display: flex; gap: 12px; background: var(--bg-card); padding: 8px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); align-items: center; min-width: 520px;">
-    <div style="flex: 1;">
-      <label for="dash-entity-select" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 2px;">Structure active</label>
-      <select id="dash-entity-select" class="form-control" style="padding: 6px 10px; font-size: 0.8rem; background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.05); height: auto; color: white;" onchange={handleEntityChange} value={$activeEntityId}>
-        {#each $entities as entity}
-          <option value={entity.id}>{entity.name}</option>
-        {/each}
-        <option value="create_new">➕ Créer une nouvelle structure...</option>
-      </select>
+<div class="glass-card" style="margin-bottom: 25px; padding: 15px 20px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9)); border: 1px solid var(--border-color);">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div>
+      <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--color-primary-light); letter-spacing: 0.05em;">Choix de la forme juridique & du profil</span>
+      <h2 style="font-family: var(--font-title); font-size: 1.25rem; color: white; margin-top: 2px;">
+        Pour quelle structure gérez-vous cette comptabilité ?
+      </h2>
     </div>
-    <div style="flex: 1;">
-      <label for="dash-model-select" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 2px;">Profil & Modèle</label>
-      <select id="dash-model-select" class="form-control" style="padding: 6px 10px; font-size: 0.8rem; background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.05); height: auto; color: white;" onchange={handleModelChange} value={accountingModel}>
-        <option value="all">Modèle Complet (Hybride)</option>
-        <option value="micro">Micro-entreprise / Indépendant</option>
-        <option value="tpe">Société / TPE (SASU, SARL...)</option>
-        <option value="asso">Association (Loi 1901)</option>
-      </select>
+
+    <!-- 3 Big Visual Profile Switch Buttons -->
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <button 
+        class="btn {accountingModel === 'micro' ? 'btn-primary' : 'btn-secondary'}" 
+        onclick={() => handleModelChange({ target: { value: 'micro', options: [{ text: 'Micro-entreprise / Indépendant' }], selectedIndex: 0 } })}
+        style="padding: 8px 14px; font-size: 0.85rem; font-weight: 600;"
+      >
+        🚀 Micro-entreprise / Indépendant
+      </button>
+
+      <button 
+        class="btn {accountingModel === 'tpe' ? 'btn-primary' : 'btn-secondary'}" 
+        onclick={() => handleModelChange({ target: { value: 'tpe', options: [{ text: 'Société / TPE (SASU, SARL...)' }], selectedIndex: 0 } })}
+        style="padding: 8px 14px; font-size: 0.85rem; font-weight: 600;"
+      >
+        🏢 Société / TPE (SASU, SARL...)
+      </button>
+
+      <button 
+        class="btn {accountingModel === 'asso' ? 'btn-primary' : 'btn-secondary'}" 
+        onclick={() => handleModelChange({ target: { value: 'asso', options: [{ text: 'Association (Loi 1901)' }], selectedIndex: 0 } })}
+        style="padding: 8px 14px; font-size: 0.85rem; font-weight: 600;"
+      >
+        🤝 Association (Loi 1901)
+      </button>
+
+      <button 
+        class="btn {accountingModel === 'all' ? 'btn-primary' : 'btn-secondary'}" 
+        onclick={() => handleModelChange({ target: { value: 'all', options: [{ text: 'Modèle Complet' }], selectedIndex: 0 } })}
+        style="padding: 8px 12px; font-size: 0.85rem; opacity: 0.8;"
+      >
+        ⚙️ Tous les outils
+      </button>
     </div>
   </div>
 </div>
@@ -287,19 +306,19 @@
     <!-- Card 1.1 : Solde Bancaire Réel -->
     <div class="glass-card highlight-primary">
       <div class="stat-icon primary"><i class="fa-solid fa-wallet"></i></div>
-      <div class="stat-label" style="font-size: 0.9rem; font-weight: 600; color: white; margin-bottom: 6px;">
+      <div class="stat-label" style="font-size: 1.15rem; font-weight: 700; color: white; margin-bottom: 8px;">
         Solde Bancaire Brut
       </div>
-      <div class="stat-value" style="font-size: 1.8rem; margin: 0;">
+      <div class="stat-value" style="font-size: 1.75rem; margin: 0;">
         {totalTrésorerie.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
       </div>
-      <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">Compte 512 + Caisse 530</span>
+      <span style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-top: 6px;">Compte 512 + Caisse 530</span>
     </div>
 
     <!-- Card 1.2 : Le VRAI Disponible -->
     <div class="glass-card highlight-success" style="border: 1px solid rgba(52, 211, 153, 0.4);">
       <div class="stat-icon success"><i class="fa-solid fa-shield-halved"></i></div>
-      <div class="stat-label" style="font-size: 0.9rem; font-weight: 600; color: #34d399; margin-bottom: 6px;">
+      <div class="stat-label" style="font-size: 1.15rem; font-weight: 700; color: #34d399; margin-bottom: 8px;">
         Le Vrai Disponible
         <div class="tooltip-container">
           <span class="pedago-help-btn">?</span>
@@ -309,34 +328,41 @@
           </span>
         </div>
       </div>
-      <div class="stat-value" style="font-size: 1.8rem; margin: 0; color: #34d399;">
+      <div class="stat-value" style="font-size: 1.75rem; margin: 0; color: #34d399;">
         {vraiDisponible.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
       </div>
-      <span style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-top: 4px;">-{provisionsTotales.toFixed(0)}€ de provisionsUrssaf/TVA</span>
+      <span style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-top: 6px;">-{provisionsTotales.toFixed(0)}€ de provisionsUrssaf/TVA</span>
     </div>
 
     <!-- Card 1.3 : Runway / Autonomie -->
     <div class="glass-card highlight-warning">
       <div class="stat-icon warning"><i class="fa-solid fa-hourglass-half"></i></div>
-      <div class="stat-label" style="font-size: 0.9rem; font-weight: 600; color: white; margin-bottom: 6px;">
+      <div class="stat-label" style="font-size: 1.15rem; font-weight: 700; color: white; margin-bottom: 8px;">
         Autonomie (Runway)
       </div>
-      <div class="stat-value" style="font-size: 1.8rem; margin: 0;">
-        {runwayMois} <span style="font-size: 1rem; font-weight: normal; color: var(--text-secondary);">mois</span>
+      <div class="stat-value" style="font-size: 1.75rem; margin: 0;">
+        {runwayMois} <span style="font-size: 0.95rem; font-weight: normal; color: var(--text-secondary);">mois</span>
       </div>
-      <span style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-top: 4px;">de réserve sans aucune rentrée</span>
+      <span style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-top: 6px;">de réserve sans aucune rentrée</span>
     </div>
 
     <!-- Card 1.4 : Opérations à classer -->
-    <div class="glass-card highlight-danger" onclick={() => activeView.set('categorize')} style="cursor: pointer;">
+    <div 
+      class="glass-card highlight-danger" 
+      role="button"
+      tabindex="0"
+      onclick={() => activeView.set('categorize')} 
+      onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && activeView.set('categorize')}
+      style="cursor: pointer;"
+    >
       <div class="stat-icon danger" style="background-color: rgba(239, 68, 68, 0.15); color: #ef4444;"><i class="fa-solid fa-bell"></i></div>
-      <div class="stat-label" style="font-size: 0.9rem; font-weight: 600; color: white; margin-bottom: 6px;">
+      <div class="stat-label" style="font-size: 1.15rem; font-weight: 700; color: white; margin-bottom: 8px;">
         À Classer
       </div>
-      <div class="stat-value" style="font-size: 1.8rem; margin: 0; color: #ef4444;">
-        {pendingTxCount} <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-secondary);">lignes</span>
+      <div class="stat-value" style="font-size: 1.75rem; margin: 0; color: #ef4444;">
+        {pendingTxCount} <span style="font-size: 0.95rem; font-weight: normal; color: var(--text-secondary);">lignes</span>
       </div>
-      <span style="font-size: 0.75rem; color: #ef4444; display: block; margin-top: 4px;">Cliquez pour attribuer en 1-clic ➔</span>
+      <span style="font-size: 0.82rem; color: #ef4444; display: block; margin-top: 6px;">Cliquez pour attribuer en 1-clic ➔</span>
     </div>
   </div>
 </div>

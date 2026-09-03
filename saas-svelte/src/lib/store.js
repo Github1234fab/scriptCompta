@@ -12,12 +12,13 @@ import {
 export const activeView = writable('dashboard');
 export const toastMessage = writable('');
 export const activeTxId = writable(null); // Active transaction in categorization panel
-export const showCreateEntityModal = writable(false);
 
 // Entities (Multi-structure)
 const savedEntities = localStorage.getItem('saas_compta_entities');
+export const showCreateEntityModal = writable(!savedEntities);
+
 export const entities = writable(savedEntities ? JSON.parse(savedEntities) : [
-  { id: 'entity-lyon', name: 'Club de Musique de Lyon', model: 'all' }
+  { id: 'entity-lyon', name: 'Club de Musique de Lyon', model: 'asso' }
 ]);
 
 const savedActiveEntityId = localStorage.getItem('saas_compta_active_entity_id');

@@ -23,6 +23,15 @@
   import Glossary from './components/Glossary.svelte';
   import LivreRecettes from './components/LivreRecettes.svelte';
   import PiecesManquantes from './components/PiecesManquantes.svelte';
+  import MeteoTresorerie from './components/MeteoTresorerie.svelte';
+  import RadarEcheances from './components/RadarEcheances.svelte';
+  import EspaceMicro from './components/EspaceMicro.svelte';
+  import EspaceTPE from './components/EspaceTPE.svelte';
+  import EspaceAsso from './components/EspaceAsso.svelte';
+  import DashboardMicro from './components/DashboardMicro.svelte';
+  import DashboardTPE from './components/DashboardTPE.svelte';
+  import DashboardAsso from './components/DashboardAsso.svelte';
+  import OnboardingModal from './components/OnboardingModal.svelte';
 
   // State for creating a new entity
   let entityNameInput = $state('');
@@ -64,7 +73,7 @@
   ];
 
   // Active entity details
-  let activeEntity = $derived($entities.find(e => e.id === $activeEntityId) || $entities[0]);
+  let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0]);
   let accountingModel = $derived(activeEntity ? (activeEntity.model || 'all') : 'all');
 
   // Count pending transactions
@@ -72,6 +81,7 @@
     t => t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere'
   ).length);
 
+  /** @param {string} view */
   function switchView(view) {
     activeView.set(view);
   }
@@ -79,10 +89,29 @@
   function handleResetDb() {
     if (confirm("⚠️ Voulez-vous vraiment réinitialiser toutes les données de l'application ? Cela effacera tout votre historique de tri, vos élèves, vos boutique et vos dons.")) {
       localStorage.clear();
-      window.location.reload();
+      updateEntities([]);
+      $showCreateEntityModal = true;
+      showToast("✨ Application réinitialisée ! Veuillez configurer votre premier espace.");
     }
   }
 
+  /** @param {string} modelKey */
+  function setEntityModel(modelKey) {
+    if (!activeEntity) return;
+    activeEntity.model = modelKey;
+    entities.set([...$entities]);
+    localStorage.setItem('saas_compta_entities', JSON.stringify($entities));
+    /** @type {Record<string, string>} */
+    const labels = {
+      micro: '🚀 Micro-entreprise / Indépendant',
+      tpe: '🏢 Société / TPE (SASU, SARL...)',
+      asso: '🤝 Association (Loi 1901)',
+      all: '⚙️ Modèle Complet (Hybride)'
+    };
+    showToast(`✅ Profil configuré : ${labels[modelKey] || modelKey}`);
+  }
+
+  /** @param {any} e */
   function handleCreateEntity(e) {
     e.preventDefault();
     if (!entityNameInput.trim()) return;
@@ -204,6 +233,7 @@
             <i class="fa-solid fa-house"></i> Tableau de bord
           </span>
         </li>
+        <div class="menu-section-title">Classement Bancaire</div>
         <li>
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
           <span 
@@ -228,65 +258,81 @@
         
         <div class="menu-section-title">Outils de Gestion</div>
         
-        {#if accountingModel === 'all' || accountingModel === 'micro'}
+        <li>
+          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+          <span 
+             id="menu-meteo" 
+             class="menu-item {$activeView === 'meteo' ? 'active' : ''}" 
+             onclick={() => switchView('meteo')}>
+            <i class="fa-solid fa-cloud-sun"></i> 1. Météo de trésorerie
+          </span>
+        </li>
+        <li>
+          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+          <span 
+             id="menu-radar" 
+             class="menu-item {$activeView === 'radar' ? 'active' : ''}" 
+             onclick={() => switchView('radar')}>
+            <i class="fa-solid fa-bullseye"></i> 2. Radar des échéances
+          </span>
+        </li>
+        <li>
+          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+          <span 
+             id="menu-justificatifs" 
+             class="menu-item {$activeView === 'justificatifs' ? 'active' : ''}" 
+             onclick={() => switchView('justificatifs')}>
+            <i class="fa-solid fa-box-archive"></i> 3. Boîte à justificatifs
+          </span>
+        </li>
+
+        <div class="menu-section-title">Modèle de gestion</div>
+        
+        {#if accountingModel === 'micro' || accountingModel === 'all'}
           <li>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <span 
-               id="menu-recettes" 
-               class="menu-item {$activeView === 'recettes' ? 'active' : ''}" 
-               onclick={() => switchView('recettes')}>
-              <i class="fa-solid fa-book-journal-whills"></i> Livre des recettes (Légal)
+               id="menu-ws-micro" 
+               class="menu-item {$activeView === 'workspace_micro' ? 'active' : ''}" 
+               onclick={() => switchView('workspace_micro')}>
+              <i class="fa-solid fa-rocket" style="color: #34d399;"></i> Mon Espace Micro-Entreprise
             </span>
           </li>
         {/if}
 
-        {#if accountingModel === 'all' || accountingModel === 'tpe' || accountingModel === 'micro'}
+        {#if accountingModel === 'tpe' || accountingModel === 'all'}
           <li>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <span 
-               id="menu-pieces" 
-               class="menu-item {$activeView === 'pieces' ? 'active' : ''}" 
-               onclick={() => switchView('pieces')}>
-              <i class="fa-solid fa-receipt"></i> Pièces manquantes
+               id="menu-ws-tpe" 
+               class="menu-item {$activeView === 'workspace_tpe' ? 'active' : ''}" 
+               onclick={() => switchView('workspace_tpe')}>
+              <i class="fa-solid fa-building" style="color: #38bdf8;"></i> Mon Espace Société / TPE
             </span>
           </li>
         {/if}
 
-        {#if accountingModel === 'all' || accountingModel === 'asso'}
+        {#if accountingModel === 'asso' || accountingModel === 'all'}
           <li>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <span 
-               id="menu-members" 
-               class="menu-item {$activeView === 'members' ? 'active' : ''}" 
-               onclick={() => switchView('members')}>
-              <i class="fa-solid fa-users"></i> Adhérents & Élèves
+               id="menu-ws-asso" 
+               class="menu-item {$activeView === 'workspace_asso' ? 'active' : ''}" 
+               onclick={() => switchView('workspace_asso')}>
+              <i class="fa-solid fa-handshake-angle" style="color: #c084fc;"></i> Mon Espace Association
             </span>
           </li>
         {/if}
 
-        {#if accountingModel === 'all' || accountingModel === 'asso' || accountingModel === 'tpe'}
-          <li>
-            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-            <span 
-               id="menu-sales" 
-               class="menu-item {$activeView === 'sales' ? 'active' : ''}" 
-               onclick={() => switchView('sales')}>
-              <i class="fa-solid fa-basket-shopping"></i> Ventes & Stocks
-            </span>
-          </li>
-        {/if}
-
-        {#if accountingModel === 'all' || accountingModel === 'asso'}
-          <li>
-            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-            <span 
-               id="menu-donations" 
-               class="menu-item {$activeView === 'donations' ? 'active' : ''}" 
-               onclick={() => switchView('donations')}>
-              <i class="fa-solid fa-hand-holding-heart"></i> Dons & Reçus Fiscaux
-            </span>
-          </li>
-        {/if}
+        <li>
+          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+          <span 
+             class="menu-item" 
+             style="color: var(--color-primary-light); font-size: 0.82rem; margin-top: 4px;"
+             onclick={() => $showCreateEntityModal = true}>
+            <i class="fa-solid fa-plus-circle"></i> ➕ Ajouter une gestion...
+          </span>
+        </li>
         
         <div class="menu-section-title">Comptabilité Pure</div>
         <li>
@@ -323,30 +369,100 @@
   <!-- MAIN CONTENT CONTAINER -->
   <main class="app-content">
     
-    <!-- Top Header -->
-    <header class="content-header">
-      <div style="margin-right: auto; display: flex; align-items: center; gap: 10px;">
-        <button class="btn btn-secondary btn-sm" onclick={startTour} id="start-tour-btn">
-          <i class="fa-solid fa-circle-play" style="color: var(--color-primary-light);"></i> Lancer le guide d'onboarding
-        </button>
+    <!-- Top Header Bar with Profile Switcher -->
+    <header class="content-header" style="gap: 15px; flex-wrap: wrap; padding: 12px 24px;">
+      <!-- Structure & Profile Picker -->
+      <div style="display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 6px 14px; border-radius: var(--radius-md);">
+        <i class="fa-solid fa-building-user" style="color: var(--color-primary-light); font-size: 1.1rem;"></i>
+        
+        <div style="display: flex; flex-direction: column;">
+          <span style="font-size: 0.68rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em;">Structure active & Profil</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <!-- Select Structure -->
+            <select 
+              value={$activeEntityId} 
+              onchange={(e) => {
+                const target = /** @type {HTMLSelectElement} */ (e.target);
+                if (target && target.value === 'create_new') {
+                  $showCreateEntityModal = true;
+                  target.value = $activeEntityId;
+                } else if (target) {
+                  updateActiveEntityId(target.value);
+                }
+              }} 
+              style="background: transparent; border: none; color: white; font-weight: 700; font-size: 0.92rem; cursor: pointer; padding: 0; outline: none;"
+            >
+              {#each $entities as entity}
+                <option value={entity.id} style="background: #11131e; color: white;">{entity.name}</option>
+              {/each}
+              <option value="create_new" style="background: #11131e; color: #a5b4fc;">➕ Créer une structure...</option>
+            </select>
+
+            <span style="color: var(--text-muted); opacity: 0.5;">|</span>
+
+            <!-- Static Profile Model Badge (Locked by Onboarding) -->
+            {#if accountingModel === 'micro'}
+              <span style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(52, 211, 153, 0.4); color: #34d399; font-weight: 600; font-size: 0.78rem; border-radius: 4px; padding: 3px 10px; display: inline-flex; align-items: center; gap: 6px;">
+                🚀 Micro-entreprise / Indépendant
+              </span>
+            {:else if accountingModel === 'tpe'}
+              <span style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 600; font-size: 0.78rem; border-radius: 4px; padding: 3px 10px; display: inline-flex; align-items: center; gap: 6px;">
+                🏢 Société / TPE (SASU, SARL...)
+              </span>
+            {:else if accountingModel === 'asso'}
+              <span style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(192, 132, 252, 0.4); color: #c084fc; font-weight: 600; font-size: 0.78rem; border-radius: 4px; padding: 3px 10px; display: inline-flex; align-items: center; gap: 6px;">
+                🤝 Association (Loi 1901)
+              </span>
+            {:else}
+              <span style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(129, 140, 248, 0.4); color: #a5b4fc; font-weight: 600; font-size: 0.78rem; border-radius: 4px; padding: 3px 10px; display: inline-flex; align-items: center; gap: 6px;">
+                ⚙️ Modèle Hybride
+              </span>
+            {/if}
+          </div>
+        </div>
       </div>
-      <div class="user-badge">
-        <div class="user-avatar">FM</div>
-        <span style="font-size: 0.9rem; font-weight: 600;">{activeEntity ? activeEntity.name : ''}</span>
+
+      <!-- Right Header Actions -->
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+        <button class="btn btn-secondary btn-sm" onclick={startTour} id="start-tour-btn">
+          <i class="fa-solid fa-circle-play" style="color: var(--color-primary-light);"></i> Guide d'onboarding
+        </button>
+        <div class="user-badge">
+          <div class="user-avatar">FM</div>
+          <span style="font-size: 0.88rem; font-weight: 600;">{activeEntity ? activeEntity.name : ''}</span>
+        </div>
       </div>
     </header>
 
     <!-- Content render area based on activeView -->
     {#if $activeView === 'dashboard'}
-      <Dashboard />
+      {#if accountingModel === 'micro'}
+        <DashboardMicro />
+      {:else if accountingModel === 'tpe'}
+        <DashboardTPE />
+      {:else if accountingModel === 'asso'}
+        <DashboardAsso />
+      {:else}
+        <DashboardTPE />
+      {/if}
     {:else if $activeView === 'import'}
       <ImportCSV />
     {:else if $activeView === 'categorize'}
       <Categorize />
+    {:else if $activeView === 'meteo'}
+      <MeteoTresorerie />
+    {:else if $activeView === 'radar'}
+      <RadarEcheances />
+    {:else if $activeView === 'justificatifs' || $activeView === 'pieces'}
+      <PiecesManquantes />
+    {:else if $activeView === 'workspace_micro'}
+      <EspaceMicro />
+    {:else if $activeView === 'workspace_tpe'}
+      <EspaceTPE />
+    {:else if $activeView === 'workspace_asso'}
+      <EspaceAsso />
     {:else if $activeView === 'recettes'}
       <LivreRecettes />
-    {:else if $activeView === 'pieces'}
-      <PiecesManquantes />
     {:else if $activeView === 'members'}
       <Members />
     {:else if $activeView === 'sales'}
@@ -370,40 +486,10 @@
   </div>
 {/if}
 
-<!-- MODAL : CREATE ENTITY -->
-{#if $showCreateEntityModal}
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="modal-overlay active" onclick={handleCancelEntity}>
-    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-    <div class="modal-box" onclick={(e) => e.stopPropagation()} style="max-width: 500px;">
-      <div class="modal-header">
-        <h3 class="modal-title">Créer une nouvelle structure</h3>
-        <button class="modal-close-btn" onclick={handleCancelEntity}>&times;</button>
-      </div>
-      <form onsubmit={handleCreateEntity}>
-        <div style="padding: 10px 0;">
-          <div class="form-group">
-            <label for="entity-name-input" class="form-label">Nom de l'association / structure</label>
-            <input type="text" id="entity-name-input" class="form-control" bind:value={entityNameInput} required placeholder="ex: Club d'Échecs de Paris">
-          </div>
-          <div class="form-group">
-            <label for="entity-model-input" class="form-label">Modèle comptable par défaut</label>
-            <select id="entity-model-input" class="form-control" bind:value={entityModelInput}>
-              <option value="all">Modèle Complet (Hybride / Tous les outils)</option>
-              <option value="micro">Micro-entreprise / Indépendant (Encaissement CA & Livre des recettes)</option>
-              <option value="tpe">Société / TPE (Comptabilité d'engagement & Rapprochement factures)</option>
-              <option value="asso">Association Loi 1901 (Adhésions, Subventions & Reçus fiscaux)</option>
-            </select>
-          </div>
-        </div>
-        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
-          <button type="button" class="btn btn-secondary" onclick={handleCancelEntity}>Annuler</button>
-          <button type="submit" class="btn btn-primary">Créer la structure</button>
-        </div>
-      </form>
-    </div>
-  </div>
-{/if}
+<!-- MODAL : ONBOARDING "QUE GÉREZ-VOUS ?" -->
+<OnboardingModal />
+
+
 
 <!-- ONBOARDING TOUR OVERLAY AND POPOVER -->
 {#if tourActive}
