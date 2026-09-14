@@ -286,7 +286,7 @@
           </span>
         </li>
 
-        <div class="menu-section-title">Modèle de gestion</div>
+        <div class="menu-section-title">Administration</div>
         
         {#if accountingModel === 'micro' || accountingModel === 'all'}
           <li>
@@ -323,16 +323,6 @@
             </span>
           </li>
         {/if}
-
-        <li>
-          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-          <span 
-             class="menu-item" 
-             style="color: var(--color-primary-light); font-size: 0.82rem; margin-top: 4px;"
-             onclick={() => $showCreateEntityModal = true}>
-            <i class="fa-solid fa-plus-circle"></i> ➕ Ajouter une gestion...
-          </span>
-        </li>
         
         <div class="menu-section-title">Comptabilité Pure</div>
         <li>
@@ -377,7 +367,7 @@
         
         <div style="display: flex; flex-direction: column;">
           <span style="font-size: 0.68rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em;">Structure active & Profil</span>
-          <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
             <!-- Select Structure -->
             <select 
               value={$activeEntityId} 
@@ -397,6 +387,15 @@
               {/each}
               <option value="create_new" style="background: #11131e; color: #a5b4fc;">➕ Créer une structure...</option>
             </select>
+
+            <!-- Bouton Ajouter une gestion -->
+            <button 
+              onclick={() => $showCreateEntityModal = true}
+              style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; border-radius: 8px; padding: 4px 10px; font-weight: 700; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 6px rgba(99, 102, 241, 0.35); transition: all 0.2s;"
+              title="Ajouter une nouvelle gestion / structure"
+            >
+              <i class="fa-solid fa-circle-plus" style="font-size: 0.95rem;"></i> Ajouter une gestion
+            </button>
 
             <span style="color: var(--text-muted); opacity: 0.5;">|</span>
 

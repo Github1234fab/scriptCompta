@@ -249,6 +249,81 @@ export const Categorizer = {
   },
 
   /**
+   * Vérifie si une transaction est en conflit avec une règle existante ou une autre opération déjà vue
+   */
+  detecterConflitMotCle(tx, transactionsList) {
+    if (!tx || !tx.libelle) return false;
+    const currentRules = get(rules);
+    const libelleNorm = this.normaliserTexte(tx.libelle);
+    const firstWord = libelleNorm.split(' ')[0];
+
+    if (!firstWord || firstWord.length < 2) return false;
+
+    // 1. Conflit avec une règle existante
+    const ruleConflict = currentRules.some(r => {
+      const rMot = this.normaliserTexte(r.motCle);
+      return rMot === firstWord || (rMot.length > 2 && libelleNorm.includes(rMot));
+    });
+
+    if (ruleConflict) return true;
+
+    // 2. Conflit avec une autre transaction déjà attribuée dans la liste avec le même début
+    const txConflict = transactionsList.some(otherTx => {
+      if (otherTx.id === tx.id || otherTx.statut !== 'attribue') return false;
+      const otherNorm = this.normaliserTexte(otherTx.libelle);
+      return otherNorm.startsWith(firstWord);
+    });
+
+    return txConflict;
+  },
+
+  /**
+   * Propose des nuances de mots-clés structurées par intention (Tiers, Combinaison, Mode de paiement)
+   */
+  obtenirNuancesStructurees(libelle) {
+    if (!libelle) return { tiers: null, combo: null, mode: null };
+    const normalized = this.normaliserTexte(libelle);
+    const words = normalized.split(/\s+/).filter(w => w.length >= 2);
+    
+    if (words.length <= 1) {
+      return { tiers: normalized, combo: null, mode: null };
+    }
+
+    let mode = null;
+    let tiers = null;
+
+    // 1. Identification du type de paiement (Mode)
+    if (words.length >= 2 && ['VIR', 'SEPA', 'INST', 'CB', 'PRVT', 'CHEQUE', 'PAIEMENT'].includes(words[0])) {
+      if (['INST', 'SEPA', 'RECURR'].includes(words[1])) {
+        mode = `${words[0]} ${words[1]}`;
+      } else {
+        mode = words[0];
+      }
+    }
+
+    // 2. Identification du nom du Tiers (Tiers)
+    const startIndex = mode ? mode.split(' ').length : 0;
+    const remainingWords = words.slice(startIndex);
+    
+    // Ignorer les civilités courantes (MELLE, MME, MR) si présentes au début du tiers
+    const cleanTiersWords = remainingWords.filter(w => !['MELLE', 'MME', 'MR', 'MONSIEUR', 'MADAME'].includes(w));
+    if (cleanTiersWords.length > 0) {
+      tiers = cleanTiersWords.join(' ');
+    } else if (remainingWords.length > 0) {
+      tiers = remainingWords.join(' ');
+    }
+
+    // 3. Combinaison Mode + Tiers (Combinaison complète)
+    const combo = (mode && tiers) ? `${mode} ${tiers}` : (normalized !== tiers ? normalized : null);
+
+    return {
+      tiers: tiers && tiers !== normalized ? tiers : null,
+      combo: combo && combo !== mode && combo !== tiers ? combo : normalized,
+      mode: mode && mode !== normalized ? mode : null
+    };
+  },
+
+  /**
    * Retourne le nom du compte à partir de son numéro
    */
   obtenirLibelleCompte(numCompte) {
