@@ -1,15 +1,53 @@
 <script>
   import { onMount } from "svelte";
-  import { transactions, planComptable, rules, activeTxId, members, updateTransactions, updateRules, updateMembers, showToast } from "../lib/store.js";
+  import { 
+    transactions, 
+    planComptable, 
+    rules, 
+    activeTxId, 
+    updateTransactions, 
+    updateRules, 
+    showToast 
+  } from "../lib/store.js";
   import { Categorizer } from "../lib/categorizer.js";
 
-  let selectedCompte = $state("");
-  let dropdownOpen = $state(false);
-  let checkLearnRule = $state(true);
-  let inputKeyword = $state("");
+  // Active tab filter: 'pending' vs 'categorized'
+  let activeTab = $state('pending');
 
-  // Keep a copy of transactions for undo feature
+  // Similar transactions modal state
+  let showSimilarTxModal = $state(false);
+  let targetSimilarCategory = $state('');
+  let pendingPrimaryTx = $state(null);
+  let matchingSimilarTxList = $state([]);
+  let selectedSimilarTxIds = $state(new Set());
+
+
+  // Pedagogical onboarding modal state
+  let showPedagogicalModal = $state(false);
+  let dontShowAgain = $state(false);
+
+  // Selected state per transaction for manual overrides
+    // Active custom dropdown row ID
+  let activeDropdownTxId = $state(null);
+
+  let selectedCategoryMap = $state({});
+
+  // Keep copy for undo
   let lastStateTransactions = $state(null);
+
+  onMount(() => {
+    const hideModal = localStorage.getItem("hide_categorize_pedagogical_modal");
+    if (!hideModal) {
+      showPedagogicalModal = true;
+    }
+  });
+
+  function closePedagogicalModal() {
+    if (dontShowAgain) {
+      localStorage.setItem("hide_categorize_pedagogical_modal", "true");
+    }
+    showPedagogicalModal = false;
+  }
 
   function annulerDerniereAction() {
     if (lastStateTransactions) {
@@ -19,21 +57,51 @@
     }
   }
 
-  // Computed states using Svelte 5 derived runes
+  // Reactive transaction lists
   let nonTriees = $derived($transactions.filter((t) => t.compteAttribué === "699" || t.statut === "non_attribue" || t.statut === "suggere"));
-
-  let totalTx = $derived($transactions.length);
-  let trieesCount = $derived(totalTx - nonTriees.length);
-  let progressPct = $derived(totalTx > 0 ? Math.round((trieesCount / totalTx) * 100) : 0);
-
-  let suggestionsCount = $derived(nonTriees.filter((t) => t.statut === "suggere").length);
-
-  // Active transaction state
-  let activeTx = $derived($transactions.find((t) => t.id === $activeTxId));
-
-  let activeTab = $state("pending"); // 'pending' ou 'categorized'
   let triees = $derived($transactions.filter((t) => t.compteAttribué !== "699" && t.statut === "attribue"));
   let displayedTxList = $derived(activeTab === "pending" ? nonTriees : triees);
+
+  // Auto-recognized transactions ready for 1-click batch validation
+  let recognizedList = $derived(
+    nonTriees.filter(t => t.statut === 'suggere' || t.autoRecognized)
+  );
+
+  let totalRecognizedAmount = $derived(
+    recognizedList.reduce((sum, t) => sum + (t.credit > 0 ? t.credit : t.debit), 0)
+  );
+
+  
+  
+  // Formatted Label Helper: "Nom de la catégorie (Code)"
+  function formatAccountLabel(numCompte) {
+    if (!numCompte || numCompte === '699') return '« Choisir une catégorie... »';
+    const cpt = $planComptable.find(p => p.compte === String(numCompte));
+    if (!cpt) return `Compte (${numCompte})`;
+    const cleanName = cpt.libelle.replace(/\s*\(\d+\)\s*/g, '').trim();
+    return `${cleanName} (${cpt.compte})`;
+  }
+
+  // 1. 🟢 ENTRÉES D'ARGENT
+  let groupEntrees = $derived(
+    $planComptable.filter(c => c.compte !== "699" && (c.group === 'entrees' || c.compte.startsWith("7") || c.type === "Produit"))
+  );
+
+  // 2. 🔴 DÉPENSES COURANTES
+  let groupDepensesCourantes = $derived(
+    $planComptable.filter(c => c.compte !== "699" && (c.group === 'depenses_courantes' || ['606', '613', '6132', '615', '616', '625', '626', '627'].includes(c.compte)))
+  );
+
+  // 3. 👥 ÉQUIPE & INTERVENANTS
+  let groupEquipe = $derived(
+    $planComptable.filter(c => c.compte !== "699" && (c.group === 'equipe' || ['611', '641', '645', '6453', '658'].includes(c.compte)))
+  );
+
+  // 4. 🔄 COMPTES & TRANSFERTS
+  let groupTransferts = $derived(
+    $planComptable.filter(c => c.compte !== "699" && (c.group === 'transferts' || c.compte.startsWith("4") || c.compte.startsWith("5")))
+  );
+
 
   let listComptesTries = $derived(
     $planComptable
@@ -42,765 +110,486 @@
       .sort((a, b) => a.compte.localeCompare(b.compte, undefined, { numeric: true })),
   );
 
-  // Regroupement des transactions attribuées par compte
-  let groupedTriees = $derived(getGroupedTriees(triees));
+  // BATCH VALIDATION: Validate ALL recognized transactions in 1 Click!
+  function validerToutEnUnClic() {
+    if (recognizedList.length === 0) return;
 
-  /** @param {any[]} txList */
-  function getGroupedTriees(txList) {
-    /** @type {Record<string, { compte: string, libelle: string, txs: any[] }>} */
-    const groups = {};
-    txList.forEach((tx) => {
-      const cat = tx.compteAttribué || "699";
-      if (!groups[cat]) {
-        groups[cat] = {
-          compte: cat,
-          libelle: Categorizer.obtenirLibelleCompte(cat),
-          txs: [],
-        };
-      }
-      groups[cat].txs.push(tx);
-    });
-    return Object.values(groups).sort((a, b) => a.compte.localeCompare(b.compte));
-  }
-
-  // Automatically select first transaction of the active tab list if current is not in the list
-  $effect(() => {
-    if (displayedTxList.length > 0) {
-      const isCurrentActiveValid = displayedTxList.some((t) => t.id === $activeTxId);
-      if (!isCurrentActiveValid) {
-        activeTxId.set(displayedTxList[0].id);
-      }
-    }
-  });
-
-  // Pre-select category and keyword based on active transaction
-  $effect(() => {
-    if (activeTx) {
-      // Set default keyword suggestion
-      const cleanWord = Categorizer.normaliserTexte(activeTx.libelle);
-      const fragments = cleanWord.split(" ").slice(0, 3).join(" ");
-      inputKeyword = activeTx.suggestionMotCle || fragments;
-
-      // Utiliser le compte suggéré par l'IA s'il existe et est valide, sinon repli par défaut
-      if (activeTx.compteAttribué && activeTx.compteAttribué !== "699") {
-        selectedCompte = activeTx.compteAttribué;
-      } else {
-        const matchingCpts = $planComptable.filter((c) => c.compte !== "699");
-        if (activeTx.debit > 0) {
-          const chargeCpt = matchingCpts.find((c) => c.type === "Charge");
-          selectedCompte = chargeCpt ? chargeCpt.compte : "";
-        } else {
-          const prodCpt = matchingCpts.find((c) => c.type === "Produit");
-          selectedCompte = prodCpt ? prodCpt.compte : "";
-        }
-      }
-    }
-  });
-
-  // Auto-class everything that has a suggestion
-  function autoClasserTout() {
     lastStateTransactions = JSON.parse(JSON.stringify($transactions));
     let count = 0;
-    $transactions.forEach((tx) => {
-      if (tx.statut === "suggere") {
-        const type = tx.debit > 0 ? "debit" : "credit";
-        Categorizer.ajouterRegleEtRecat(tx.suggestionMotCle, tx.compteAttribué, type);
+
+    const updated = $transactions.map(tx => {
+      const isRecognized = recognizedList.some(r => r.id === tx.id);
+      if (!isRecognized && tx.statut === 'attribue') return tx;
+
+      if (isRecognized || selectedCategoryMap[tx.id]) {
         count++;
+        const targetCategory = selectedCategoryMap[tx.id] || tx.compteAttribué || (tx.credit > 0 ? '756' : '606');
+
+        // Create rule if transaction had keyword
+        const kw = Categorizer.normaliserTexte(tx.libelle).split(' ').slice(0, 3).join(' ');
+        if (kw) {
+          Categorizer.ajouterRegle(kw, targetCategory, tx.debit > 0 ? 'debit' : 'credit');
+        }
+
+        return {
+          ...tx,
+          compteAttribué: targetCategory,
+          statut: 'attribue',
+          regleAppliquee: tx.regleAppliquee || `Auto (1-Clic)`
+        };
       }
+
+      return tx;
     });
 
-    if (count > 0) {
-      showToast(`🤖 Succès : ${count} règles d'attribution créées et appliquées automatiquement !`);
-      recatTout();
-    }
+    updateTransactions(updated);
+    showToast(`🎉 Succès : ${count} écritures attribuées automatiquement en 1 clic !`);
   }
 
-  // Validate one-click suggestion
-  function validerSuggestion() {
-    if (activeTx && activeTx.suggestionMotCle) {
-      lastStateTransactions = JSON.parse(JSON.stringify($transactions));
-      const type = activeTx.debit > 0 ? "debit" : "credit";
-      Categorizer.ajouterRegleEtRecat(activeTx.suggestionMotCle, activeTx.compteAttribué, type);
-      recatTout();
-      showToast(`Règle créée : "${activeTx.suggestionMotCle}" associée au compte ${activeTx.compteAttribué}`);
+  // Helper to find similar pending transactions sharing vendor / label words
+  function trouverOpérationsSimilaires(targetTx) {
+    if (!targetTx || !targetTx.libelle) return [];
+    const kw = Categorizer.normaliserTexte(targetTx.libelle).split(' ')[0];
+    if (!kw || kw.length < 3 || ['VIR', 'PRLV', 'SEPA', 'CHEQUE', 'PAIEMENT', 'CARTES'].includes(kw)) {
+      // Use second word if first is generic bank prefix
+      const words = Categorizer.normaliserTexte(targetTx.libelle).split(' ').filter(w => w.length >= 3 && !['VIR', 'PRLV', 'SEPA', 'CHEQUE', 'PAIEMENT', 'CARTES'].includes(w));
+      if (words.length === 0) return [];
+      const coreWord = words[0];
+      return nonTriees.filter(t => t.id !== targetTx.id && Categorizer.normaliserTexte(t.libelle).includes(coreWord));
     }
+    return nonTriees.filter(t => t.id !== targetTx.id && Categorizer.normaliserTexte(t.libelle).includes(kw));
   }
 
-  // États pour les modales
-  let showBulkModal = $state(false);
-  let showNuanceModal = $state(false);
-  let bulkCount = $state(0);
-  let bulkKeyword = $state("");
-  let bulkCompte = $state("");
-  /** @type {any[]} */
-  let tempPendingTxList = $state([]);
-  let checkedCount = $derived(tempPendingTxList.filter((t) => t.selected).length);
-
-  // Submit manual categorization
-  function soumettreCategorisation() {
-    if (!activeTx) return;
-
-    // Si la règle risque d'être ambiguë/en conflit, ouvrir la modale bloquante pour trancher avant d'enregistrer
-    if (checkLearnRule && Categorizer.detecterConflitMotCle(activeTx, $transactions)) {
-      showNuanceModal = true;
-      return;
-    }
-
+  // Validate single row with similar transactions detection modal
+  function validerLigneSeule(tx) {
     lastStateTransactions = JSON.parse(JSON.stringify($transactions));
 
-    const kw = inputKeyword.trim().toUpperCase();
+    const targetCategory = selectedCategoryMap[tx.id] || tx.compteAttribué || (tx.credit > 0 ? '756' : '606');
+    const isDebit = tx.debit > 0;
+    const type = isDebit ? 'debit' : 'credit';
 
-    // Rechercher les transactions similaires non triées (ou triées différemment) dans la liste
-    if (kw !== "") {
-      tempPendingTxList = $transactions.filter((t) => t.id !== activeTx.id && (t.statut !== "attribue" || t.compteAttribué !== selectedCompte) && t.libelle.toUpperCase().includes(kw)).map((t) => ({ ...t, selected: true })); // Ajouter la sélection par défaut
-    } else {
-      tempPendingTxList = [];
+    const kw = Categorizer.normaliserTexte(tx.libelle).split(' ').slice(0, 3).join(' ');
+    if (kw) {
+      Categorizer.ajouterRegle(kw, targetCategory, type);
     }
 
-    if (tempPendingTxList.length > 0) {
-      // Afficher la modale de validation groupée
-      bulkCount = tempPendingTxList.length;
-      bulkKeyword = inputKeyword.trim();
-      bulkCompte = selectedCompte;
-      showBulkModal = true;
-    } else {
-      // Exécuter l'attribution normalement (pas d'autres transactions similaires)
-      executerAttributionUnique();
-    }
-  }
+    // Find similar unassigned transactions
+    const similarMatches = trouverOpérationsSimilaires(tx);
 
-  function executerAttributionUnique() {
-    if (checkLearnRule && inputKeyword.trim() !== "") {
-      const type = activeTx.debit > 0 ? "debit" : "credit";
-      Categorizer.ajouterRegleEtRecat(inputKeyword.trim(), selectedCompte, type);
-      showToast(`Apprentissage réussi ! Règle "${inputKeyword.trim().toUpperCase()}" enregistrée.`);
+    if (similarMatches.length > 0) {
+      pendingPrimaryTx = tx;
+      targetSimilarCategory = targetCategory;
+      matchingSimilarTxList = similarMatches;
+      selectedSimilarTxIds = new Set(similarMatches.map(m => m.id));
+      showSimilarTxModal = true;
     } else {
-      // Attribution ponctuelle (Immuable)
-      const updatedTx = $transactions.map((t) => {
-        if (t.id === activeTx.id) {
+      // Update single transaction directly
+      const updated = $transactions.map(t => {
+        if (t.id === tx.id) {
           return {
             ...t,
-            compteAttribué: selectedCompte,
-            statut: "attribue",
-            regleAppliquee: "Attribution ponctuelle",
+            compteAttribué: targetCategory,
+            statut: 'attribue',
+            regleAppliquee: kw || 'Manuelle'
           };
         }
         return t;
       });
-      updateTransactions(updatedTx);
-      showToast("Opération catégorisée avec succès !");
+      updateTransactions(updated);
+      showToast(`✅ Écriture attribuée au compte ${targetCategory} !`);
     }
-
-    finaliserAttribution(activeTx, selectedCompte);
   }
 
-  /**
-   * @param {any} tx
-   * @param {string} compte
-   */
-  function finaliserAttribution(tx, compte) {
-    // Check for member registration link
-    if (tx.credit > 0 && (compte === "756" || compte === "706")) {
-      const reconciliation = reconcilierTransactionEleve(tx);
-      if (reconciliation) {
-        showToast(`💰 Liaison Adhérent : Inscription de ${reconciliation.membre} mise à jour (+${reconciliation.montant}€) !`);
-      }
-    }
-    recatTout();
-  }
+  function validerAttributionGroupéeSimilaire() {
+    if (!pendingPrimaryTx) return;
 
-  function validerAttributionGroupee() {
-    const isDebit = activeTx.debit > 0;
-    const type = isDebit ? "debit" : "credit";
+    const idsToAssign = new Set([pendingPrimaryTx.id, ...Array.from(selectedSimilarTxIds)]);
+    const kw = Categorizer.normaliserTexte(pendingPrimaryTx.libelle).split(' ').slice(0, 3).join(' ');
 
-    // 1. Ajouter la règle d'apprentissage si cochée
-    if (checkLearnRule && bulkKeyword !== "") {
-      Categorizer.ajouterRegleEtRecat(bulkKeyword, bulkCompte, type);
-    }
-
-    // 2. Mettre à jour la transaction active et TOUTES les transactions similaires COCHÉES dans le store (Immuable)
-    const selectedIds = new Set(tempPendingTxList.filter((t) => t.selected).map((t) => t.id));
-
-    const updatedTx = $transactions.map((t) => {
-      const isTargetTx = t.id === activeTx.id || selectedIds.has(t.id);
-
-      if (isTargetTx) {
-        // Liaison adhérent pour chaque transaction créditée concernée
-        if (t.credit > 0 && (bulkCompte === "756" || bulkCompte === "706")) {
-          reconcilierTransactionEleve(t);
-        }
+    const updated = $transactions.map(t => {
+      if (idsToAssign.has(t.id)) {
         return {
           ...t,
-          compteAttribué: bulkCompte,
-          statut: "attribue",
-          regleAppliquee: checkLearnRule ? bulkKeyword : "Attribution ponctuelle",
+          compteAttribué: targetSimilarCategory,
+          statut: 'attribue',
+          regleAppliquee: kw ? `Règle : ${kw}` : 'Attribution groupée'
         };
       }
       return t;
     });
 
-    updateTransactions(updatedTx);
-    showToast(`✅ ${selectedIds.size + 1} opérations classées vers le compte ${bulkCompte} !`);
-
-    // Fermer la modale et rafraîchir
-    showBulkModal = false;
-    recatTout();
+    updateTransactions(updated);
+    showToast(`✅ ${idsToAssign.size} opérations attribuées au compte ${targetSimilarCategory} !`);
+    
+    showSimilarTxModal = false;
+    pendingPrimaryTx = null;
+    matchingSimilarTxList = [];
+    selectedSimilarTxIds = new Set();
   }
 
-  function annulerAttributionGroupee() {
-    // N'appliquer que sur la transaction active
-    executerAttributionUnique();
-    showBulkModal = false;
-  }
-
-  function fermerModal() {
-    // Fermer sans rien faire
-    showBulkModal = false;
-  }
-
-  // Re-run categorization on all transactions
-  function recatTout() {
-    const recatted = Categorizer.categoriserTransactions($transactions);
-    updateTransactions(recatted);
-  }
-
-  /**
-   * Member reconciliation logic
-   * @param {any} tx
-   * @returns {{ membre: string, montant: number, nouveauTotal: number } | null}
-   */
-  function reconcilierTransactionEleve(tx) {
-    if (tx.credit <= 0) return null;
-    const labelUpper = tx.libelle.toUpperCase();
-    /** @type {{ membre: string, montant: number, nouveauTotal: number } | null} */
-    let result = null;
-    let updated = false;
-
-    const list = $members.map((m) => {
-      const nomFamille = m.nom.split(" ")[0].toUpperCase();
-      if (labelUpper.includes(nomFamille)) {
-        m.dejaPaye = (m.dejaPaye || 0) + tx.credit;
-        updated = true;
-        result = {
-          membre: m.nom,
-          montant: tx.credit,
-          nouveauTotal: m.dejaPaye,
-        };
-      }
-      return m;
-    });
-
-    if (updated) {
-      updateMembers(list);
+  function toggleSimilarTxCheck(id) {
+    const nextSet = new Set(selectedSimilarTxIds);
+    if (nextSet.has(id)) {
+      nextSet.delete(id);
+    } else {
+      nextSet.add(id);
     }
-    return result;
+    selectedSimilarTxIds = nextSet;
   }
 </script>
 
-<div class="page-title-section">
-  <h1 class="page-title">Attribuer les numéros de compte aux libellés</h1>
-  <p class="page-subtitle">Associez chaque mouvement bancaire à son compte comptable pour générer vos registres.</p>
-</div>
+<div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+  <div>
+    <h1 class="page-title">Attribuer les numéros de compte aux libellés</h1>
+    <p class="page-subtitle">Associez chaque mouvement bancaire à son numéro de compte comptable. La machine apprend automatiquement de vos choix !</p>
+  </div>
 
-<div class="progress-bar-container">
-  <div class="progress-bar-fill" style="width: {progressPct}%;"></div>
-</div>
-<div style="font-size: 0.88rem; display: flex; justify-content: space-between; margin-bottom: 25px; font-weight: 600; align-items: center;">
-  <span>{trieesCount} / {totalTx} transactions triées ({progressPct}%)</span>
   <div style="display: flex; gap: 10px; align-items: center;">
     {#if lastStateTransactions}
       <button class="btn btn-secondary btn-sm" onclick={annulerDerniereAction} style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); display: flex; align-items: center; gap: 6px;">
         <i class="fa-solid fa-rotate-left"></i> Annuler le dernier tri
       </button>
     {/if}
-    {#if suggestionsCount > 0}
-      <button class="btn btn-secondary btn-sm" onclick={autoClasserTout}>
-        <i class="fa-solid fa-robot"></i> Classer automatiquement {suggestionsCount} écritures reconnues
-      </button>
-    {/if}
   </div>
 </div>
 
-<div class="tri-container">
-  <!-- Left Side: List of pending transactions -->
-  <div class="glass-card tri-list-card">
-    <div style="background: rgba(99, 102, 241, 0.12); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(99, 102, 241, 0.25); margin-bottom: 15px;">
-      <h3 style="font-family: var(--font-title); color: white; margin: 0; font-size: 1.1rem;">
-        Opérations bancaires
-      </h3>
+<!-- Master Batch Header Metrics & Action Button -->
+<div style="background: rgba(99, 102, 241, 0.12); border: 1.5px solid rgba(99, 102, 241, 0.4); border-radius: 16px; padding: 20px 24px; margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+  <div>
+    <div style="font-size: 0.85rem; color: #a5b4fc; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+      🤖 Reconnaissance Intelligente des Écritures
     </div>
-    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-      <button
-        style="flex: 1; border: 1px solid {activeTab === 'pending' ? '#6366f1' : 'var(--border-color)'}; background: {activeTab === 'pending'
-          ? 'rgba(99, 102, 241, 0.25)'
-          : 'rgba(255, 255, 255, 0.04)'}; color: {activeTab === 'pending' ? '#a5b4fc' : 'var(--text-secondary)'}; font-family: var(--font-title); font-size: 0.9rem; padding: 8px 12px; border-radius: var(--radius-sm, 6px); cursor: pointer; font-weight: 600; transition: all 0.2s;"
-        onclick={() => (activeTab = "pending")}
-      >
-        À attribuer ({nonTriees.length})
-      </button>
-      <button
-        style="flex: 1; border: 1px solid {activeTab === 'categorized' ? '#10b981' : 'var(--border-color)'}; background: {activeTab === 'categorized'
-          ? 'rgba(16, 185, 129, 0.25)'
-          : 'rgba(255, 255, 255, 0.04)'}; color: {activeTab === 'categorized' ? '#6ee7b7' : 'var(--text-secondary)'}; font-family: var(--font-title); font-size: 0.9rem; padding: 8px 12px; border-radius: var(--radius-sm, 6px); cursor: pointer; font-weight: 600; transition: all 0.2s;"
-        onclick={() => (activeTab = "categorized")}
-      >
-        Attribuées ({triees.length})
-      </button>
-    </div>
-
-    <div id="tri-list-container">
-      {#if displayedTxList.length === 0}
-        <div style="text-align: center; padding: 40px 20px; color: var(--color-success);">
-          <i class="fa-solid fa-circle-check" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.8;"></i>
-          <h4 style="font-family: var(--font-title); font-size: 1.1em; color: white; margin-bottom: 5px;">
-            {activeTab === "pending" ? "Toutes les écritures sont classées !" : "Aucune écriture classée"}
-          </h4>
-          <p style="font-size: 0.85rem; color: var(--text-secondary);">
-            {activeTab === "pending" ? "Votre comptabilité est parfaitement équilibrée." : "Les écritures que vous triez s'afficheront ici."}
-          </p>
-        </div>
-      {:else if activeTab === "pending"}
-        {#each nonTriees as tx}
-          {@const hasConflict = Categorizer.detecterConflitMotCle(tx, $transactions)}
-          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-          <div 
-            class="tx-tri-item {tx.id === $activeTxId ? 'active' : ''}" 
-            onclick={() => {
-              activeTxId.set(tx.id);
-              if (hasConflict) {
-                showNuanceModal = true;
-              }
-            }}
-            style={hasConflict ? 'background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444;' : ''}
-          >
-            <div class="tx-tri-info">
-              <div class="tx-tri-title">
-                {tx.libelle}
-                {#if hasConflict}
-                  <span class="badge" style="background: #ef4444; color: white; font-size: 0.65rem; padding: 2px 6px; margin-left: 6px; font-weight: bold;">
-                    ⚠️ Libellé similaire déjà attribué
-                  </span>
-                {:else if tx.statut === "suggere"}
-                  <span class="badge badge-success" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 5px;">
-                    Suggestion &bull; <span style="color: #fef08a; font-weight: bold;">{tx.compteAttribué}</span>
-                  </span>
-                {/if}
-              </div>
-              <div class="tx-tri-meta">
-                {new Date(tx.date).toLocaleDateString("fr-FR")} &bull; {tx.debit > 0 ? "Dépense" : "Recette"}
-              </div>
-            </div>
-            <div class="tx-tri-amount" style="color: {tx.debit > 0 ? '#f87171' : '#34d399'};">
-              {tx.debit > 0 ? "-" : "+"}
-              {(tx.debit > 0 ? tx.debit : tx.credit).toFixed(2)} €
-            </div>
-          </div>
-        {/each}
-      {:else}
-        {#each groupedTriees as group}
-          <div class="compte-group" style="margin-bottom: 25px;">
-            <div
-              style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #a5b4fc; margin-bottom: 12px; border-left: 3px solid #6366f1; padding-left: 8px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px;"
-            >
-              <span>{group.compte} - {group.libelle}</span>
-              <span style="background: rgba(99, 102, 241, 0.15); padding: 2px 8px; border-radius: 10px; font-size: 0.75rem;">{group.txs.length}</span>
-            </div>
-            {#each group.txs as tx}
-              <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-              <div class="tx-tri-item {tx.id === $activeTxId ? 'active' : ''}" onclick={() => activeTxId.set(tx.id)} style="margin-bottom: 8px;">
-                <div class="tx-tri-info">
-                  <div class="tx-tri-title">
-                    {tx.libelle}
-                  </div>
-                  <div class="tx-tri-meta">
-                    {new Date(tx.date).toLocaleDateString("fr-FR")} &bull; {tx.debit > 0 ? "Dépense" : "Recette"}
-                  </div>
-                </div>
-                <div class="tx-tri-amount" style="color: {tx.debit > 0 ? '#f87171' : '#34d399'};">
-                  {tx.debit > 0 ? "-" : "+"}
-                  {(tx.debit > 0 ? tx.debit : tx.credit).toFixed(2)} €
-                </div>
-              </div>
-            {/each}
-          </div>
-        {/each}
-      {/if}
+    <div style="font-size: 1.3rem; font-weight: 700; color: white; margin-top: 4px;">
+      {recognizedList.length} sur {nonTriees.length} écritures identifiées avec certitude ({totalRecognizedAmount.toFixed(2)} €)
     </div>
   </div>
 
-  <!-- Right Side: Categorization actions -->
-  <div class="glass-card" id="tri-action-panel" style="overflow: visible;">
-    <div style="background: rgba(139, 92, 246, 0.12); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(139, 92, 246, 0.25); margin-bottom: 20px;">
-      <h3 style="font-family: var(--font-title); color: white; margin: 0; font-size: 1.1rem;">
-        Attribution des libellés bancaires
-      </h3>
-    </div>
-
-    {#if !activeTx}
-      <div id="no-tx-selected" style="text-align: center; padding: 40px 0; color: var(--text-secondary);">
-        <i class="fa-solid fa-arrow-left" style="font-size: 2rem; margin-bottom: 15px; color: var(--text-muted);"></i>
-        <p>Sélectionnez une opération dans la liste de gauche pour l'affecter à sa catégorie.</p>
-      </div>
-    {:else}
-      <div id="tx-details-area">
-        <!-- Suggestion box -->
-        {#if activeTx.statut === "suggere"}
-          <div class="suggestion-box" style="display: flex; margin-bottom: 25px;">
-            <div class="suggestion-content">
-              <span style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; color: var(--color-success);">💡 SUGGESTION :</span><br />
-              <span style="font-size: 0.9rem;">Associer à : <strong>{activeTx.compteAttribué} ({Categorizer.obtenirLibelleCompte(activeTx.compteAttribué)})</strong> ?</span>
-            </div>
-            <button class="btn btn-success btn-sm" onclick={validerSuggestion}>
-              <i class="fa-solid fa-check"></i> Valider
-            </button>
-          </div>
-        {/if}
-
-        <!-- Manual form -->
-        <div style="margin-top: 15px;">
-          <h4 style="font-family: var(--font-title); font-size: 0.95em; color: white; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">ATTRIBUER</h4>
-
-          <div class="form-group" style="position: relative;">
-            <label for="compte-select" class="form-label">Catégorie cible (Plan comptable)</label>
-
-            <!-- Trigger Button -->
-            <button
-              id="compte-select"
-              type="button"
-              class="form-control"
-              onclick={() => (dropdownOpen = !dropdownOpen)}
-              style="display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; background: rgba(0,0,0,0.4); color: white; border: 1px solid var(--border-color); padding: 10px 15px; border-radius: var(--radius-sm); cursor: pointer;"
-            >
-              <span>
-                {selectedCompte ? `${selectedCompte} - ${Categorizer.obtenirLibelleCompte(selectedCompte)}` : "-- Sélectionnez un compte --"}
-              </span>
-              <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
-            </button>
-
-            <!-- Dropdown List Container -->
-            {#if dropdownOpen}
-              <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-              <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 998;" onclick={() => (dropdownOpen = false)}></div>
-
-              <div class="glass-card" style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; max-height: 480px; overflow-y: auto; z-index: 999; padding: 8px; border: 1px solid var(--color-primary-light, #818cf8); box-shadow: 0 10px 30px rgba(0,0,0,0.6); background: #11131e;">
-                <!-- RECETTES -->
-                <div style="font-weight: 700; color: #60a5fa; padding: 10px 12px; border-bottom: 1px solid rgba(96, 165, 250, 0.15); margin-top: 5px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(96, 165, 250, 0.03); line-height: 1.4;">
-                  <div style="text-transform: capitalize; font-size: 1.05rem;">recettes</div>
-                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(dons, cotisations, ventes...)</div>
-                </div>
-                {#each listComptesTries.filter((c) => c.type === "Produit") as c}
-                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-                  <div
-                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}"
-                    onclick={() => {
-                      selectedCompte = c.compte;
-                      dropdownOpen = false;
-                    }}
-                  >
-                    <span>{c.compte} - {c.libelle}</span>
-                    {#if selectedCompte === c.compte}
-                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
-                    {/if}
-                  </div>
-                {/each}
-
-                <!-- DÉPENSES : ACHATS & FRAIS COURANTS -->
-                <div style="font-weight: 700; color: #38bdf8; padding: 10px 12px; border-bottom: 1px solid rgba(56, 189, 248, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(56, 189, 248, 0.03); line-height: 1.4;">
-                  <div style="text-transform: capitalize; font-size: 1.05rem;">dépenses :</div>
-                  <div style="font-weight: 600; font-size: 0.9rem;">achats & frais courants</div>
-                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(fournitures, déplacements, télécoms...)</div>
-                </div>
-                {#each listComptesTries.filter((c) => c.type === "Charge" && (c.compte.startsWith("60") || c.compte.startsWith("62"))) as c}
-                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-                  <div
-                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}"
-                    onclick={() => {
-                      selectedCompte = c.compte;
-                      dropdownOpen = false;
-                    }}
-                  >
-                    <span>{c.compte} - {c.libelle}</span>
-                    {#if selectedCompte === c.compte}
-                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
-                    {/if}
-                  </div>
-                {/each}
-
-                <!-- DÉPENSES : LOCAUX & ASSURANCES -->
-                <div style="font-weight: 700; color: #f59e0b; padding: 10px 12px; border-bottom: 1px solid rgba(245, 158, 11, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(245, 158, 11, 0.03); line-height: 1.4;">
-                  <div style="text-transform: capitalize; font-size: 1.05rem;">dépenses :</div>
-                  <div style="font-weight: 600; font-size: 0.9rem;">locaux & assurances</div>
-                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(loyer, entretien, assurances...)</div>
-                </div>
-                {#each listComptesTries.filter((c) => c.type === "Charge" && c.compte.startsWith("61") && c.compte !== "611") as c}
-                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-                  <div
-                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}"
-                    onclick={() => {
-                      selectedCompte = c.compte;
-                      dropdownOpen = false;
-                    }}
-                  >
-                    <span>{c.compte} - {c.libelle}</span>
-                    {#if selectedCompte === c.compte}
-                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
-                    {/if}
-                  </div>
-                {/each}
-
-                <!-- DÉPENSES : PRESTATAIRES & COTISATIONS -->
-                <div style="font-weight: 700; color: #facc15; padding: 10px 12px; border-bottom: 1px solid rgba(250, 204, 21, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(250, 204, 21, 0.03); line-height: 1.4;">
-                  <div style="text-transform: capitalize; font-size: 1.05rem;">dépenses :</div>
-                  <div style="font-weight: 600; font-size: 0.9rem;">prestataires & cotisations</div>
-                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(intervenants, sous-traitance...)</div>
-                </div>
-                {#each listComptesTries.filter((c) => c.type === "Charge" && (c.compte === "611" || c.compte.startsWith("65"))) as c}
-                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-                  <div
-                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}"
-                    onclick={() => {
-                      selectedCompte = c.compte;
-                      dropdownOpen = false;
-                    }}
-                  >
-                    <span>{c.compte} - {c.libelle}</span>
-                    {#if selectedCompte === c.compte}
-                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
-                    {/if}
-                  </div>
-                {/each}
-
-                <!-- DÉPENSES : PERSONNEL & SALAIRES -->
-                <div style="font-weight: 700; color: #f43f5e; padding: 10px 12px; border-bottom: 1px solid rgba(244, 63, 94, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(244, 63, 94, 0.03); line-height: 1.4;">
-                  <div style="text-transform: capitalize; font-size: 1.05rem;">dépenses :</div>
-                  <div style="font-weight: 600; font-size: 0.9rem;">personnel & salaires</div>
-                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(salaires, charges, mutuelle...)</div>
-                </div>
-                {#each listComptesTries.filter((c) => c.type === "Charge" && c.compte.startsWith("64")) as c}
-                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-                  <div
-                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}"
-                    onclick={() => {
-                      selectedCompte = c.compte;
-                      dropdownOpen = false;
-                    }}
-                  >
-                    <span>{c.compte} - {c.libelle}</span>
-                    {#if selectedCompte === c.compte}
-                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
-                    {/if}
-                  </div>
-                {/each}
-
-                <!-- BANQUE & TIERS -->
-                <div style="font-weight: 700; color: #60a5fa; padding: 10px 12px; border-bottom: 1px solid rgba(96, 165, 250, 0.15); margin-top: 15px; margin-bottom: 5px; letter-spacing: 0.02em; background: rgba(96, 165, 250, 0.03); line-height: 1.4;">
-                  <div style="text-transform: capitalize; font-size: 1.05rem;">banque & tiers</div>
-                  <div style="font-size: 0.76rem; font-weight: normal; opacity: 0.75; margin-top: 2px;">(banque, fournisseurs, clients...)</div>
-                </div>
-                {#each listComptesTries.filter((c) => c.type !== "Charge" && c.type !== "Produit") as c}
-                  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-                  <div
-                    class="dropdown-item-custom {selectedCompte === c.compte ? 'active' : ''}"
-                    onclick={() => {
-                      selectedCompte = c.compte;
-                      dropdownOpen = false;
-                    }}
-                  >
-                    <span>{c.compte} - {c.libelle}</span>
-                    {#if selectedCompte === c.compte}
-                      <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </div>
-
-          <div class="form-group" style="background-color: rgba(255,255,255,0.02); padding: 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-            <label class="form-label" style="display: flex; align-items: center; justify-content: space-between;">
-              <span>Apprentissage de la machine</span>
-              <input type="checkbox" bind:checked={checkLearnRule} style="width: 16px; height: 16px; cursor: pointer;" />
-            </label>
-            <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 10px;">Enregistrer ce choix comme une règle. À l'avenir, toutes les opérations contenant ce mot-clé seront classées automatiquement !</p>
-            
-            <label for="keyword-input" class="form-label">Mot-clé déclencheur</label>
-            <input type="text" id="keyword-input" class="form-control" bind:value={inputKeyword} placeholder="ex: AUCHAN" />
-          </div>
-
-          <button class="btn btn-primary" onclick={soumettreCategorisation} style="width: 100%; justify-content: center;">
-            <i class="fa-solid fa-tags"></i> Enregistrer la catégorie
-          </button>
-        </div>
-      </div>
-    {/if}
-  </div>
+  <button 
+    class="btn btn-primary"
+    onclick={validerToutEnUnClic}
+    disabled={recognizedList.length === 0}
+    style="padding: 14px 28px; font-size: 1.05rem; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4); cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;"
+  >
+    <i class="fa-solid fa-check-double" style="font-size: 1.2rem;"></i>
+    Tout valider ({recognizedList.length} opérations reconnues)
+  </button>
 </div>
 
-{#if showBulkModal}
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px);" onclick={fermerModal}>
-    <div class="glass-card" style="max-width: 480px; width: 90%; padding: 25px; border: 1px solid var(--border-color); box-shadow: 0 20px 40px rgba(0,0,0,0.5); background: #11131e; position: relative;" onclick={(e) => e.stopPropagation()}>
-      <!-- Bouton de fermeture X -->
-      <button class="modal-close-btn" onclick={fermerModal} aria-label="Fermer">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-
-      <h3 style="font-family: var(--font-title); color: white; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; font-size: 1.2rem; padding-right: 20px;">
-        <i class="fa-solid fa-layer-group" style="color: #6366f1;"></i>
-        Attribution groupée détectée
-      </h3>
-      <p style="font-size: 0.95rem; color: #d1d5db; line-height: 1.5; margin-bottom: 12px;">
-        <strong>{bulkCount} autres opérations</strong> comportant le même libellé/mot-clé <strong>"{bulkKeyword}"</strong> viennent d'être détectées :
-      </p>
-
-      <!-- Liste scrollable des opérations similaires avec cases à cocher -->
-      <div style="max-height: 150px; overflow-y: auto; background: rgba(0, 0, 0, 0.3); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 20px;">
-        {#each tempPendingTxList as tx}
-          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; padding: 6px 0; border-bottom: 1px dashed rgba(255, 255, 255, 0.05); color: #d1d5db;">
-            <label style="display: flex; align-items: center; gap: 8px; width: 75%; cursor: pointer; margin: 0; font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              <input type="checkbox" bind:checked={tx.selected} style="width: 14px; height: 14px; cursor: pointer; margin: 0;" />
-              <span title={tx.libelle}>📅 {new Date(tx.date).toLocaleDateString("fr-FR")} &bull; {tx.libelle}</span>
-            </label>
-            <span style="font-weight: 600; color: {tx.debit > 0 ? '#f87171' : '#34d399'};">
-              {tx.debit > 0 ? "-" : "+"}
-              {(tx.debit > 0 ? tx.debit : tx.credit).toFixed(2)} €
-            </span>
-          </div>
-        {/each}
-      </div>
-
-      <p style="font-size: 0.9rem; color: #9ca3af; line-height: 1.5; margin-bottom: 25px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: var(--radius-sm); border-left: 3px solid #6366f1;">
-        Souhaitez-vous attribuer automatiquement la catégorie <strong>{bulkCompte} ({Categorizer.obtenirLibelleCompte(bulkCompte)})</strong> à ces {checkedCount + 1} opérations sélectionnées ?
-        <br /><br />
-        <span style="font-size: 0.8rem; opacity: 0.8;">💡 Elles seront immédiatement rangées et modifiables à tout moment dans l'onglet <strong>"Classées"</strong>.</span>
-      </p>
-      <div style="display: flex; gap: 8px; justify-content: flex-end; width: 100%;">
-        <button class="btn btn-secondary" onclick={fermerModal} style="background: none; border: 1px solid var(--border-color); color: var(--text-secondary);"> Annuler </button>
-        <button class="btn btn-secondary" onclick={annulerAttributionGroupee} style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: white;"> Uniquement celle-ci </button>
-        <button class="btn btn-primary" onclick={validerAttributionGroupee} disabled={checkedCount === 0 && checkLearnRule}>
-          Appliquer aux {checkedCount + 1} lignes
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-{#if showNuanceModal && activeTx}
-  {@const struct = Categorizer.obtenirNuancesStructurees(activeTx.libelle)}
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px);" onclick={() => showNuanceModal = false}>
-    <div class="glass-card" style="max-width: 560px; width: 90%; padding: 25px; border: 1px solid rgba(239, 68, 68, 0.4); box-shadow: 0 20px 40px rgba(0,0,0,0.6); background: #11131e; position: relative;" onclick={(e) => e.stopPropagation()}>
-      <button class="modal-close-btn" onclick={() => showNuanceModal = false} aria-label="Fermer">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-
-      <h3 style="font-family: var(--font-title); color: #fca5a5; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; font-size: 1.2rem; padding-right: 20px;">
-        <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i>
-        Précision du mot-clé requise
-      </h3>
-
-      <p style="font-size: 0.88rem; color: #d1d5db; line-height: 1.5; margin-bottom: 20px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: var(--radius-sm); border-left: 3px solid #ef4444;">
-        Le système a détecté une similitude avec des opérations existantes. Choisissez le niveau de précision pour enseigner au système comment traiter ces écritures à l'avenir :
-      </p>
-
-      <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 25px;">
-        {#if struct.tiers}
-          <button
-            type="button"
-            onclick={() => {
-              if (struct.tiers) inputKeyword = struct.tiers;
-              showNuanceModal = false;
-              soumettreCategorisation();
-            }}
-            style="display: flex; flex-direction: column; background: rgba(99, 102, 241, 0.15); border: 1px solid #6366f1; color: white; padding: 12px 16px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; text-align: left;"
-          >
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-              <span style="font-size: 0.95rem; font-weight: 700;">👤 Par le Nom du Tiers / Personne : <strong>"{struct.tiers}"</strong></span>
-              <i class="fa-solid fa-arrow-right" style="color: #818cf8;"></i>
-            </div>
-            <span style="font-size: 0.78rem; color: #a5b4fc; margin-top: 4px;">
-              Classera automatiquement toutes les futures opérations de cet émetteur/destinataire.
-            </span>
-          </button>
-        {/if}
-
-        {#if struct.combo}
-          <button
-            type="button"
-            onclick={() => {
-              if (struct.combo) inputKeyword = struct.combo;
-              showNuanceModal = false;
-              soumettreCategorisation();
-            }}
-            style="display: flex; flex-direction: column; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: white; padding: 12px 16px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; text-align: left;"
-          >
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-              <span style="font-size: 0.95rem; font-weight: 700;">🔒 Par l'Opération Exacte (Mode + Tiers) : <strong>"{struct.combo}"</strong></span>
-              <i class="fa-solid fa-arrow-right" style="color: var(--text-secondary);"></i>
-            </div>
-            <span style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px;">
-              S'appliquera uniquement aux paiements stricts portant ce libellé complet.
-            </span>
-          </button>
-        {/if}
-
-        {#if struct.mode}
-          <button
-            type="button"
-            onclick={() => {
-              if (struct.mode) inputKeyword = struct.mode;
-              showNuanceModal = false;
-              soumettreCategorisation();
-            }}
-            style="display: flex; flex-direction: column; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: white; padding: 12px 16px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; text-align: left;"
-          >
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-              <span style="font-size: 0.95rem; font-weight: 700;">💳 Par le Type de Paiement uniquement : <strong>"{struct.mode}"</strong></span>
-              <i class="fa-solid fa-arrow-right" style="color: var(--text-secondary);"></i>
-            </div>
-            <span style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px;">
-              Classera tous les futurs virements de ce type (quel que soit le destinataire) dans ce compte.
-            </span>
-          </button>
-        {/if}
-      </div>
-
-      <div style="display: flex; gap: 10px; justify-content: flex-end; width: 100%;">
-        <button class="btn btn-secondary" onclick={() => showNuanceModal = false} style="background: none; border: 1px solid var(--border-color); color: var(--text-secondary);">
-          Annuler
+<div style="display: block; width: 100%; margin-top: 24px;">
+  <div class="glass-card" style="padding: 24px; width: 100%;">
+    
+    <!-- Filter Tabs -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px;">
+      <div style="display: flex; gap: 12px; background: rgba(0, 0, 0, 0.3); padding: 4px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
+        <button
+          style="border: none; background: {activeTab === 'pending' ? '#6366f1' : 'transparent'}; color: {activeTab === 'pending' ? 'white' : 'var(--text-secondary)'}; font-family: var(--font-title); font-size: 0.9rem; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;"
+          onclick={() => (activeTab = "pending")}
+        >
+          À attribuer ({nonTriees.length})
         </button>
         <button
-          class="btn btn-secondary"
-          onclick={() => {
-            showNuanceModal = false;
-            // Forcer l'attribution sans re-déclencher la modale
-            executerAttributionUnique();
-          }}
-          style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: white;"
+          style="border: none; background: {activeTab === 'categorized' ? '#10b981' : 'transparent'}; color: {activeTab === 'categorized' ? 'white' : 'var(--text-secondary)'}; font-family: var(--font-title); font-size: 0.9rem; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;"
+          onclick={() => (activeTab = "categorized")}
         >
-          Conserver le mot-clé générique ("{inputKeyword}")
+          Attribuées ({triees.length})
         </button>
       </div>
+
+      <div style="font-size: 0.85rem; color: #86efac; background: rgba(16, 185, 129, 0.1); padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+        🟢 <strong>Attribution par Lot</strong> : Sélectionnez le numéro de compte du plan comptable puis validez.
+      </div>
+    </div>
+
+    <!-- Batch Table -->
+    <div class="table-container" style="width: 100%;">
+      <table class="custom-table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th style="width: 45%;">Opération brute (CSV)</th>
+            <th style="width: 38%;">Attribution proposée (Compte)</th>
+            <th style="width: 17%; text-align: right;">Statut & Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#if displayedTxList.length === 0}
+            <tr>
+              <td colspan="3" style="text-align: center; color: var(--color-success); padding: 50px 10px;">
+                <i class="fa-solid fa-circle-check" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.8; display: block;"></i>
+                <strong>{activeTab === "pending" ? "Toutes les écritures sont attribuées !" : "Aucune écriture attribuée"}</strong>
+              </td>
+            </tr>
+          {:else if activeTab === "pending"}
+            {#each nonTriees as tx}
+              {@const isRecognized = tx.statut === 'suggere' || tx.autoRecognized}
+              {@const currentCat = selectedCategoryMap[tx.id] || tx.compteAttribué || (tx.credit > 0 ? '756' : '606')}
+
+              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: {isRecognized ? 'rgba(16, 185, 129, 0.03)' : 'transparent'}; transition: background 0.2s;">
+                
+                <!-- 1. Opération brute CSV -->
+                <td style="padding: 16px 14px; vertical-align: middle;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                    <div>
+                      <div style="font-weight: 600; color: white; font-size: 0.95rem;">{tx.libelle}</div>
+                      {#if tx.info || tx.reference}
+                        <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 3px;">
+                          {tx.info} {tx.reference ? `• Ref: ${tx.reference}` : ''}
+                        </div>
+                      {/if}
+                      <div style="font-size: 0.75rem; color: #a5b4fc; margin-top: 4px;">
+                        {new Date(tx.date).toLocaleDateString("fr-FR")} &bull; {tx.debit > 0 ? "Dépense" : "Recette"}
+                      </div>
+                    </div>
+                    
+                    <div style="font-size: 1.1rem; font-weight: 700; color: {tx.debit > 0 ? '#f87171' : '#34d399'}; white-space: nowrap;">
+                      {tx.debit > 0 ? "-" : "+"}
+                      {(tx.debit > 0 ? tx.debit : tx.credit).toFixed(2)} €
+                    </div>
+                  </div>
+                </td>
+
+                <!-- 2. Attribution proposée (Compte) -->
+                <td style="padding: 16px 14px; vertical-align: middle;">
+                  <div style="position: relative; width: 100%;">
+                    <!-- Custom Trigger Button -->
+                    <button
+                      type="button"
+                      onclick={() => activeDropdownTxId = (activeDropdownTxId === tx.id ? null : tx.id)}
+                      style="display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; background: #11131e; color: white; border: 1.5px solid rgba(129, 140, 248, 0.5); padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.92rem;"
+                    >
+                      <span>
+                        {formatAccountLabel(currentCat)}
+                      </span>
+                      <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; color: #a5b4fc;"></i>
+                    </button>
+
+                    <!-- Custom Glassmorphic Popover Dropdown -->
+                    {#if activeDropdownTxId === tx.id}
+                      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                      <div style="position: fixed; inset: 0; z-index: 998;" onclick={() => activeDropdownTxId = null}></div>
+
+                      <div style="position: absolute; top: calc(100% + 6px); left: 0; right: 0; max-height: 420px; overflow-y: auto; z-index: 999; padding: 10px; border: 1.5px solid #818cf8; border-radius: 10px; box-shadow: 0 15px 40px rgba(0,0,0,0.9); background: #0b0d17;">
+                        
+                        <!-- 1. 🟢 ENTRÉES D'ARGENT -->
+                        <div style="color: #4ade80; font-weight: 800; font-size: 0.95rem; text-transform: uppercase; padding: 8px 12px; background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 4px; margin-bottom: 6px; margin-top: 2px; display: flex; align-items: center; gap: 8px;">
+                          🟢 ENTRÉES D'ARGENT
+                        </div>
+                        {#each groupEntrees as c}
+                          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                          <div 
+                            onclick={() => { selectedCategoryMap[tx.id] = c.compte; activeDropdownTxId = null; }}
+                            style="padding: 9px 14px; border-radius: 6px; cursor: pointer; color: {currentCat === c.compte ? '#34d399' : 'white'}; font-weight: {currentCat === c.compte ? '700' : '500'}; background: {currentCat === c.compte ? 'rgba(16, 185, 129, 0.2)' : 'transparent'}; margin-bottom: 2px; transition: background 0.15s;"
+                          >
+                            <strong>{c.libelle}</strong> <span style="color: #a5b4fc; font-size: 0.85rem; font-weight: 400;">({c.compte})</span>
+                          </div>
+                        {/each}
+
+                        <!-- 2. 🔴 DÉPENSES COURANTES -->
+                        <div style="color: #fca5a5; font-weight: 800; font-size: 0.95rem; text-transform: uppercase; padding: 8px 12px; background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 4px; margin-bottom: 6px; margin-top: 14px; display: flex; align-items: center; gap: 8px;">
+                          🔴 DÉPENSES COURANTES
+                        </div>
+                        {#each groupDepensesCourantes as c}
+                          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                          <div 
+                            onclick={() => { selectedCategoryMap[tx.id] = c.compte; activeDropdownTxId = null; }}
+                            style="padding: 9px 14px; border-radius: 6px; cursor: pointer; color: {currentCat === c.compte ? '#f87171' : 'white'}; font-weight: {currentCat === c.compte ? '700' : '500'}; background: {currentCat === c.compte ? 'rgba(239, 68, 68, 0.2)' : 'transparent'}; margin-bottom: 2px; transition: background 0.15s;"
+                          >
+                            <strong>{c.libelle}</strong> <span style="color: #a5b4fc; font-size: 0.85rem; font-weight: 400;">({c.compte})</span>
+                          </div>
+                        {/each}
+
+                        <!-- 3. 👥 ÉQUIPE & INTERVENANTS -->
+                        <div style="color: #c084fc; font-weight: 800; font-size: 0.95rem; text-transform: uppercase; padding: 8px 12px; background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 4px; margin-bottom: 6px; margin-top: 14px; display: flex; align-items: center; gap: 8px;">
+                          👥 ÉQUIPE & INTERVENANTS
+                        </div>
+                        {#each groupEquipe as c}
+                          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                          <div 
+                            onclick={() => { selectedCategoryMap[tx.id] = c.compte; activeDropdownTxId = null; }}
+                            style="padding: 9px 14px; border-radius: 6px; cursor: pointer; color: {currentCat === c.compte ? '#c084fc' : 'white'}; font-weight: {currentCat === c.compte ? '700' : '500'}; background: {currentCat === c.compte ? 'rgba(168, 85, 247, 0.2)' : 'transparent'}; margin-bottom: 2px; transition: background 0.15s;"
+                          >
+                            <strong>{c.libelle}</strong> <span style="color: #a5b4fc; font-size: 0.85rem; font-weight: 400;">({c.compte})</span>
+                          </div>
+                        {/each}
+
+                        <!-- 4. 🔄 COMPTES & TRANSFERTS -->
+                        <div style="color: #93c5fd; font-weight: 800; font-size: 0.95rem; text-transform: uppercase; padding: 8px 12px; background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 4px; margin-bottom: 6px; margin-top: 14px; display: flex; align-items: center; gap: 8px;">
+                          🔄 COMPTES & TRANSFERTS
+                        </div>
+                        {#each groupTransferts as c}
+                          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                          <div 
+                            onclick={() => { selectedCategoryMap[tx.id] = c.compte; activeDropdownTxId = null; }}
+                            style="padding: 9px 14px; border-radius: 6px; cursor: pointer; color: {currentCat === c.compte ? '#60a5fa' : 'white'}; font-weight: {currentCat === c.compte ? '700' : '500'}; background: {currentCat === c.compte ? 'rgba(59, 130, 246, 0.2)' : 'transparent'}; margin-bottom: 2px; transition: background 0.15s;"
+                          >
+                            <strong>{c.libelle}</strong> <span style="color: #a5b4fc; font-size: 0.85rem; font-weight: 400;">({c.compte})</span>
+                          </div>
+                        {/each}
+
+                      </div>
+                    {/if}
+                  </div>
+                </td>
+
+                <!-- 3. Statut & Action -->
+                <td style="padding: 16px 14px; vertical-align: middle; text-align: right;">
+                  <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                    {#if isRecognized}
+                      <span class="badge badge-success" style="font-size: 0.75rem; padding: 4px 10px;">
+                        🟢 Reconnu automatiquement
+                      </span>
+                    {:else}
+                      <span class="badge" style="background: rgba(234, 179, 8, 0.2); color: #fef08a; border: 1px solid rgba(234, 179, 8, 0.4); font-size: 0.75rem; padding: 4px 10px;">
+                        🟡 À vérifier
+                      </span>
+                    {/if}
+
+                    <button 
+                      class="btn btn-primary btn-sm"
+                      onclick={() => validerLigneSeule(tx)}
+                      style="padding: 7px 16px; font-weight: 600; font-size: 0.88rem;"
+                    >
+                      <i class="fa-solid fa-check"></i> Valider
+                    </button>
+                  </div>
+                </td>
+
+              </tr>
+            {/each}
+          {:else}
+            <!-- Categorized List -->
+            {#each triees as tx}
+              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
+                <td style="padding: 14px 12px;">
+                  <div style="font-weight: 600; color: white;">{tx.libelle}</div>
+                  <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">
+                    {new Date(tx.date).toLocaleDateString("fr-FR")} &bull; Règle : {tx.regleAppliquee || 'Manuelle'}
+                  </div>
+                </td>
+                <td style="padding: 14px 12px; color: #a5b4fc; font-weight: 600;">
+                  {tx.compteAttribué} - {Categorizer.obtenirLibelleCompte(tx.compteAttribué)}
+                </td>
+                <td style="padding: 14px 12px; text-align: right; font-weight: 700; color: {tx.debit > 0 ? '#f87171' : '#34d399'};">
+                  {tx.debit > 0 ? "-" : "+"}
+                  {(tx.debit > 0 ? tx.debit : tx.credit).toFixed(2)} €
+                </td>
+              </tr>
+            {/each}
+          {/if}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- Pedagogical Onboarding Modal -->
+{#if showPedagogicalModal}
+  <div class="modal-backdrop" style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px;">
+    <div class="glass-card" style="width: 100%; max-width: 580px; padding: 30px; border: 1.5px solid rgba(129, 140, 248, 0.5); box-shadow: 0 25px 60px rgba(0,0,0,0.8); background: #11131e; border-radius: 16px;">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 15px;">
+        <h3 style="margin: 0; font-size: 1.3rem; font-family: var(--font-title); color: white; display: flex; align-items: center; gap: 10px;">
+          <i class="fa-solid fa-graduation-cap" style="color: #818cf8; font-size: 1.4rem;"></i>
+          Attribution de libellé
+        </h3>
+        <button onclick={closePedagogicalModal} style="background: none; border: none; color: rgba(255, 255, 255, 0.6); font-size: 1.4rem; cursor: pointer;">✕</button>
+      </div>
+
+      <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px;">
+        <p style="margin-top: 0; margin-bottom: 14px;">
+          L'attribution est l'étape clef de votre gestion. Cette étape cruciale consiste à attribuer à chaque opération bancaire, un numéro de compte du plan comptable. Par exemple, un abonnement web correspondra au compte 613. Un restaurant au compte 625. De cette manière, le plan de compte peut s'organiser, chaque opération est reliée à un compte et votre gestion peut enfin débuter !
+        </p>
+
+        <p style="font-weight: 700; color: #a5b4fc; font-size: 1.05rem; margin-bottom: 10px;">
+          À vous de jouer.
+        </p>
+
+        <p style="margin-bottom: 14px;">
+          C'est simple, pour chaque opération, cliquez sur le menu déroulant et attribuez un compte puis validez.
+        </p>
+
+        <p style="margin-bottom: 0; background: rgba(99, 102, 241, 0.12); border-left: 4px solid #6366f1; padding: 12px 14px; border-radius: 6px; color: rgba(255, 255, 255, 0.85); font-size: 0.9rem;">
+          💡 <strong>Rassurez-vous</strong> : le système apprendra au fur et à mesure de votre aventure sur <strong>ScriptCompta</strong> et vous n'aurez, au fur et à mesure de vos imports, de moins en moins d'attributions à effectuer.
+        </p>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 18px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: rgba(255, 255, 255, 0.7); font-size: 0.85rem;">
+          <input type="checkbox" bind:checked={dontShowAgain} style="width: 16px; height: 16px; accent-color: #6366f1;" />
+          Ne plus afficher, j'ai compris !
+        </label>
+
+        <button 
+          class="btn btn-primary" 
+          onclick={closePedagogicalModal}
+          style="padding: 10px 24px; font-weight: 600; background: #6366f1; border: none; border-radius: 8px; font-size: 0.95rem; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);"
+        >
+          C'est parti !
+        </button>
+      </div>
+
     </div>
   </div>
 {/if}
 
-<style>
-  .modal-close-btn {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 5px;
-    opacity: 0.8;
-    transition: opacity 0.2s;
-  }
-  .modal-close-btn:hover {
-    opacity: 1;
-    color: white;
-  }
-</style>
+
+<!-- Similar Transactions Detection Modal -->
+{#if showSimilarTxModal && pendingPrimaryTx}
+  <div class="modal-backdrop" style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px;">
+    <div class="glass-card" style="width: 100%; max-width: 580px; padding: 26px; border: 1.5px solid rgba(99, 102, 241, 0.5); box-shadow: 0 25px 60px rgba(0,0,0,0.85); background: #11131e; border-radius: 16px;">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 1.2rem; font-family: var(--font-title); color: white; display: flex; align-items: center; gap: 10px;">
+          <i class="fa-solid fa-layer-group" style="color: #818cf8;"></i>
+          Opérations similaires détectées !
+        </h3>
+        <button onclick={() => showSimilarTxModal = false} style="background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer;">✕</button>
+      </div>
+
+      <p style="font-size: 0.92rem; color: rgba(255, 255, 255, 0.9); line-height: 1.5; margin-bottom: 16px;">
+        Le système a identifié <strong>{matchingSimilarTxList.length} autre(s) opération(s) similaire(s)</strong> à <em>"{pendingPrimaryTx.libelle}"</em>.<br/>
+        Souhaitez-vous les attribuer également au compte <strong>{formatAccountLabel(targetSimilarCategory)}</strong> ?
+      </p>
+
+      <!-- Checkboxes List -->
+      <div style="max-height: 220px; overflow-y: auto; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 10px; margin-bottom: 20px;">
+        {#each matchingSimilarTxList as item}
+          <label style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 6px; background: rgba(255,255,255,0.03); margin-bottom: 6px; cursor: pointer;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <input 
+                type="checkbox" 
+                checked={selectedSimilarTxIds.has(item.id)}
+                onchange={() => toggleSimilarTxCheck(item.id)}
+                style="width: 17px; height: 17px; accent-color: #6366f1;"
+              />
+              <div>
+                <div style="font-weight: 600; color: white; font-size: 0.88rem;">{item.libelle}</div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">{new Date(item.date).toLocaleDateString("fr-FR")}</div>
+              </div>
+            </div>
+            <div style="font-weight: 700; color: {item.debit > 0 ? '#f87171' : '#34d399'}; font-size: 0.9rem;">
+              {item.debit > 0 ? "-" : "+"}{(item.debit > 0 ? item.debit : item.credit).toFixed(2)} €
+            </div>
+          </label>
+        {/each}
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick={() => {
+          // Validate only primary tx
+          const updated = $transactions.map(t => t.id === pendingPrimaryTx.id ? { ...t, compteAttribué: targetSimilarCategory, statut: 'attribue' } : t);
+          updateTransactions(updated);
+          showToast(`✅ Écriture seule attribuée au compte ${targetSimilarCategory} !`);
+          showSimilarTxModal = false;
+        }} style="padding: 10px 16px;">
+          Valider uniquement cette écriture
+        </button>
+
+        <button class="btn btn-primary" onclick={validerAttributionGroupéeSimilaire} style="padding: 10px 22px; background: #6366f1; border: none; font-weight: 600;">
+          <i class="fa-solid fa-check-double"></i> Attribué aux {selectedSimilarTxIds.size + 1} opérations
+        </button>
+      </div>
+
+    </div>
+  </div>
+{/if}

@@ -684,9 +684,8 @@ body {
 
 /* Centre de Tri de Catégorisation */
 .tri-container {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 30px;
+  display: block;
+  width: 100%;
   margin-top: 20px;
 }
 

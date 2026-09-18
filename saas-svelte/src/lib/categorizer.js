@@ -1,88 +1,149 @@
 import { get } from 'svelte/store';
-import { rules, planComptable, updateRules } from './store.js';
+import { 
+  rules, 
+  planComptable, 
+  members,
+  activeEntityId,
+  updateRules 
+} from './store.js';
 
 export const Categorizer = {
   /**
-   * Normalise le texte pour faciliter le matching (sans accents, en majuscules)
+   * Nettoie et normalise une chaîne de texte
    */
-  normaliserTexte(text) {
-    if (!text) return '';
-    return String(text)
+  normaliserTexte(txt) {
+    if (!txt) return '';
+    return String(txt)
       .toUpperCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Supprime les accents
-      .replace(/[^A-Z0-9\s]/g, ' ') // Remplace les caractères spéciaux par des espaces
-      .replace(/\s+/g, ' ') // Supprime les espaces multiples
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^A-Z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
   },
 
   /**
-   * Découpe le texte en mots significatifs (tokens)
+   * Récupère la carte des alias sauvegardés (Parent -> Élève / Motif -> Entité)
    */
-  tokenize(text) {
-    return this.normaliserTexte(text)
-      .split(/\s+/)
-      .filter(w => w.length > 2); // Ignore les mots très courts de moins de 3 lettres
+  obtenirAliasMap() {
+    const entityId = get(activeEntityId);
+    const saved = localStorage.getItem(`saas_compta_aliases_${entityId}`);
+    return saved ? JSON.parse(saved) : {};
   },
 
   /**
-   * Tente de catégoriser une liste de transactions en fonction des règles et de l'IA locale
+   * Sauvegarde un alias (ex: "DUPONT MARC" -> memberId 102)
    */
-  categoriserTransactions(transactionsList) {
-    const currentRules = get(rules);
-    
-    // --- ENTRAÎNEMENT DE L'IA LOCALE (NAIVE BAYES) ---
-    const model = {
-      docCount: 0,
-      vocab: new Set(),
-      classes: {} // compte -> { docCount, wordCounts: {}, totalWords: 0 }
-    };
+  sauvegarderAlias(rawPattern, memberId) {
+    const cleanPattern = this.normaliserTexte(rawPattern);
+    if (!cleanPattern) return;
 
-    transactionsList.forEach(tx => {
-      // On entraîne l'IA sur toutes les transactions déjà triées et valides (hors compte temporaire 699)
-      if (tx.statut === 'attribue' && tx.compteAttribué && tx.compteAttribué !== '699') {
-        const tokens = this.tokenize(tx.libelle + ' ' + (tx.info || ''));
-        if (tokens.length === 0) return;
+    const entityId = get(activeEntityId);
+    const currentMap = this.obtenirAliasMap();
+    currentMap[cleanPattern] = memberId;
+    localStorage.setItem(`saas_compta_aliases_${entityId}`, JSON.stringify(currentMap));
+  },
 
-        const cat = tx.compteAttribué;
-        if (!model.classes[cat]) {
-          model.classes[cat] = { docCount: 0, wordCounts: {}, totalWords: 0 };
+  /**
+   * Rapprochement d'entité : tente d'associer une écriture bancaire à un membre/élève
+   */
+  détecterEntité(tx, membersList = null) {
+    if (!tx) return null;
+    const currentMembers = membersList || get(members);
+    if (!currentMembers || currentMembers.length === 0) return null;
+
+    const textComplet = this.normaliserTexte(
+      `${tx.libelle || ''} ${tx.rawLibelle || ''} ${tx.info || ''} ${tx.reference || ''}`
+    );
+
+    // 1. Vérifier si un alias explicite existe
+    const aliasMap = this.obtenirAliasMap();
+    for (const [pattern, memberId] of Object.entries(aliasMap)) {
+      if (textComplet.includes(pattern)) {
+        const found = currentMembers.find(m => m.id === memberId);
+        if (found) {
+          return {
+            member: found,
+            confidence: 100,
+            reason: `Alias mémorisé : "${pattern}"`
+          };
+        }
+      }
+    }
+
+    // 2. Recherche par nom d'élève dans le texte complet
+    for (const m of currentMembers) {
+      const nomNorm = this.normaliserTexte(m.nom);
+      if (!nomNorm || nomNorm.length < 3) continue;
+
+      // Match exact du nom dans le texte complet
+      if (textComplet.includes(nomNorm)) {
+        return {
+          member: m,
+          confidence: 100,
+          reason: `Nom détecté : "${m.nom}"`
+        };
+      }
+
+      // Match inversé (Prénom Nom au lieu de Nom Prénom)
+      const parts = nomNorm.split(' ').filter(p => p.length >= 3);
+      if (parts.length >= 2) {
+        const nomInversé = `${parts[1]} ${parts[0]}`;
+        if (textComplet.includes(nomInversé)) {
+          return {
+            member: m,
+            confidence: 95,
+            reason: `Nom détecté (inversé) : "${m.nom}"`
+          };
         }
 
-        model.docCount++;
-        model.classes[cat].docCount++;
-
-        tokens.forEach(tok => {
-          model.vocab.add(tok);
-          model.classes[cat].wordCounts[tok] = (model.classes[cat].wordCounts[tok] || 0) + 1;
-          model.classes[cat].totalWords++;
-        });
+        // Match si TOUS les mots clés du nom sont présents séparément dans le texte
+        const allPartsPresent = parts.every(part => textComplet.includes(part));
+        if (allPartsPresent) {
+          return {
+            member: m,
+            confidence: 90,
+            reason: `Mots-clés détectés : "${m.nom}"`
+          };
+        }
       }
-    });
+    }
 
-    // --- PRÉDICTION ET MATCHING DES TRANSACTIONS ---
+    return null;
+  },
+
+  /**
+   * Catégorise une liste d'écritures bancaires et effectue le rapprochement d'entités
+   */
+  categoriserTransactions(transactionsList) {
+    if (!Array.isArray(transactionsList)) return [];
+
+    const reglesActuelles = get(rules);
+    const membersList = get(members);
+
     return transactionsList.map(tx => {
-      // Si la transaction est déjà triée manuellement (attribuée ponctuellement),
-      // on ne l'écrase pas avec les règles automatiques
-      if (tx.statut === 'attribue' && tx.regleAppliquee === 'Attribution ponctuelle') {
+      // Conservation stricte de l'écriture d'origine si déjà attribuée manuellement
+      if (tx.statut === 'attribue' && tx.compteAttribué && tx.compteAttribué !== '699') {
         return tx;
       }
 
-      const textComplet = this.normaliserTexte(tx.libelle + ' ' + (tx.info || ''));
-      let regleTrouvee = null;
+      const textComplet = this.normaliserTexte(
+        `${tx.libelle || ''} ${tx.rawLibelle || ''} ${tx.info || ''} ${tx.reference || ''}`
+      );
 
-      // 1. Recherche d'une règle exacte dans le store (triée par longueur de mot-clé décroissante pour privilégier les règles plus spécifiques)
-      const sortedRules = [...currentRules].sort((a, b) => b.motCle.length - a.motCle.length);
-      const isDebit = tx.debit > 0;
-      for (const rule of sortedRules) {
-        const motCleNormalise = this.normaliserTexte(rule.motCle);
-        if (textComplet.includes(motCleNormalise)) {
-          if (isDebit && rule.debit) {
-            regleTrouvee = { compte: rule.debit, regle: rule };
+      // 1. Rapprochement d'entité Élève / Membre
+      const entiteDetectee = this.détecterEntité(tx, membersList);
+
+      // 2. Recherche par règles métiers enregistrées
+      let regleTrouvee = null;
+      for (const regle of reglesActuelles) {
+        const motCleClean = this.normaliserTexte(regle.motCle);
+        if (motCleClean && textComplet.includes(motCleClean)) {
+          if (tx.debit > 0 && regle.debit) {
+            regleTrouvee = { compte: regle.debit, motCle: regle.motCle };
             break;
           }
-          if (!isDebit && rule.credit) {
-            regleTrouvee = { compte: rule.credit, regle: rule };
+          if (tx.credit > 0 && regle.credit) {
+            regleTrouvee = { compte: regle.credit, motCle: regle.motCle };
             break;
           }
         }
@@ -92,79 +153,55 @@ export const Categorizer = {
         return {
           ...tx,
           compteAttribué: regleTrouvee.compte,
-          regleAppliquee: regleTrouvee.regle.motCle,
-          statut: 'attribue'
+          regleAppliquee: `Règle : ${regleTrouvee.motCle}`,
+          statut: 'suggere',
+          autoRecognized: true,
+          confidence: 100,
+          matchedMemberId: entiteDetectee ? entiteDetectee.member.id : (tx.matchedMemberId || null),
+          matchedMemberNom: entiteDetectee ? entiteDetectee.member.nom : (tx.matchedMemberNom || null)
         };
-      } else {
-        // 2. Pas de règle exacte. On tente une suggestion intelligente via notre IA locale (si elle est entraînée)
-        let suggestionIA = null;
-        if (model.docCount > 0) {
-          const tokens = this.tokenize(tx.libelle + ' ' + (tx.info || ''));
-          if (tokens.length > 0) {
-            let bestCat = null;
-            let maxScore = -Infinity;
-            const vocabSize = model.vocab.size;
-
-            for (const cat of Object.keys(model.classes)) {
-              const cls = model.classes[cat];
-              // Prior log prob
-              let score = Math.log(cls.docCount / model.docCount);
-              
-              // Likelihood log prob (Laplace smoothing)
-              tokens.forEach(tok => {
-                const count = cls.wordCounts[tok] || 0;
-                const prob = (count + 1) / (cls.totalWords + vocabSize + 1);
-                score += Math.log(prob);
-              });
-
-              if (score > maxScore) {
-                maxScore = score;
-                bestCat = cat;
-              }
-            }
-            if (bestCat) {
-              suggestionIA = bestCat;
-            }
-          }
-        }
-
-        if (suggestionIA) {
-          return {
-            ...tx,
-            compteAttribué: suggestionIA,
-            regleAppliquee: `Apprentissage IA`,
-            statut: 'suggere',
-            suggestionMotCle: this.tokenize(tx.libelle)[0] || tx.libelle
-          };
-        } else {
-          // 3. Fallback sur le dictionnaire d'heuristiques universelles si l'IA n'a pas encore de données
-          const suggestionDic = this.obtenirSuggestionDictionnaire(tx);
-          if (suggestionDic) {
-            return {
-              ...tx,
-              compteAttribué: suggestionDic.compte,
-              regleAppliquee: `Heuristique: ${suggestionDic.motCle}`,
-              statut: 'suggere',
-              suggestionMotCle: suggestionDic.motCle
-            };
-          } else {
-            // Si déjà attribuée avant mais pas par règle, on garde, sinon compte 699 non classé
-            if (tx.compteAttribué && tx.compteAttribué !== '699') {
-              return {
-                ...tx,
-                statut: 'attribue'
-              };
-            } else {
-              return {
-                ...tx,
-                compteAttribué: '699', // Compte temporaire "Non Classé"
-                regleAppliquee: null,
-                statut: 'non_attribue'
-              };
-            }
-          }
-        }
       }
+
+      // 3. Si entité élève détectée en recette (+), affecter par défaut au compte 756 (Cotisation) ou 706
+      if (entiteDetectee && tx.credit > 0) {
+        return {
+          ...tx,
+          compteAttribué: tx.compteAttribué || '756',
+          regleAppliquee: entiteDetectee.reason,
+          statut: 'suggere',
+          autoRecognized: true,
+          confidence: entiteDetectee.confidence,
+          matchedMemberId: entiteDetectee.member.id,
+          matchedMemberNom: entiteDetectee.member.nom
+        };
+      }
+
+      // 4. Dictionnaire d'heuristiques universelles
+      const suggestionDic = this.obtenirSuggestionDictionnaire(tx);
+      if (suggestionDic) {
+        return {
+          ...tx,
+          compteAttribué: suggestionDic.compte,
+          regleAppliquee: `Heuristique : ${suggestionDic.motCle}`,
+          statut: 'suggere',
+          autoRecognized: true,
+          confidence: 85,
+          matchedMemberId: entiteDetectee ? entiteDetectee.member.id : null,
+          matchedMemberNom: entiteDetectee ? entiteDetectee.member.nom : null
+        };
+      }
+
+      // 5. Opération non reconnue automatiquement
+      return {
+        ...tx,
+        compteAttribué: tx.compteAttribué || '699',
+        regleAppliquee: null,
+        statut: 'non_attribue',
+        autoRecognized: false,
+        confidence: 0,
+        matchedMemberId: entiteDetectee ? entiteDetectee.member.id : null,
+        matchedMemberNom: entiteDetectee ? entiteDetectee.member.nom : null
+      };
     });
   },
 
@@ -172,7 +209,9 @@ export const Categorizer = {
    * Moteur de suggestions de dictionnaire (cold start)
    */
   obtenirSuggestionDictionnaire(tx) {
-    const textComplet = this.normaliserTexte(tx.libelle + ' ' + (tx.info || ''));
+    const textComplet = this.normaliserTexte(
+      `${tx.libelle || ''} ${tx.rawLibelle || ''} ${tx.info || ''} ${tx.reference || ''}`
+    );
 
     const suggestionsHeuristiques = [
       { mot: 'SUPERU', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
@@ -184,16 +223,15 @@ export const Categorizer = {
       { mot: 'ENGIE', debit: '613', credit: '', note: 'Électricité / Énergie' },
       { mot: 'SUEZ', debit: '613', credit: '', note: 'Eau courante' },
       { mot: 'VEOLIA', debit: '613', credit: '', note: 'Eau courante' },
-      { mot: 'PAYPAL', debit: '606', credit: '', note: 'Achat en ligne (Vérifiez le reçu)' },
-      { mot: 'ADOBE', debit: '613', credit: '', note: 'Abonnement Logiciel Créatif' },
-      { mot: 'CANVA', debit: '613', credit: '', note: 'Abonnement Design Canva' },
-      { mot: 'TOTAL', debit: '625', credit: '', note: 'Carburant déplacement' },
-      { mot: 'SHELL', debit: '625', credit: '', note: 'Carburant déplacement' },
+      { mot: 'PAYPAL', debit: '606', credit: '', note: 'Achat en ligne' },
+      { mot: 'ADOBE', debit: '613', credit: '', note: 'Abonnement Logiciel' },
+      { mot: 'CANVA', debit: '613', credit: '', note: 'Abonnement Design' },
+      { mot: 'TOTAL', debit: '625', credit: '', note: 'Carburant' },
+      { mot: 'SHELL', debit: '625', credit: '', note: 'Carburant' },
       { mot: 'SNCF', debit: '625', credit: '', note: 'Billets de train' },
-      { mot: 'UBER', debit: '625', credit: '', note: 'Frais de transport VTC' },
+      { mot: 'UBER', debit: '625', credit: '', note: 'Frais VTC' },
       { mot: 'COTIS', debit: '', credit: '756', note: 'Cotisation adhérent' },
-      { mot: 'DONATION', debit: '', credit: '758', note: 'Don d\'un particulier' },
-      { mot: 'CADEAU', debit: '606', credit: '', note: 'Cadeaux / Récompenses' }
+      { mot: 'DONATION', debit: '', credit: '758', note: 'Don particulier' }
     ];
 
     for (const sug of suggestionsHeuristiques) {
@@ -207,26 +245,21 @@ export const Categorizer = {
       }
     }
 
-    if (tx.debit > 0 && (textComplet.includes('SALAIRE') || textComplet.includes('PROF'))) {
-      return { compte: '641', motCle: 'SALAIRE', note: 'Rémunérations' };
-    }
-
     return null;
   },
 
   /**
    * Crée une règle de catégorisation définitive et l'enregistre dans le store rules
    */
-  ajouterRegleEtRecat(motCle, compteSelectionne, typeTransaction) {
-    const cleanMotCle = motCle.trim().toUpperCase();
+  ajouterRegle(motCle, compteSelectionne, typeTransaction) {
+    const cleanMotCle = this.normaliserTexte(motCle);
     if (!cleanMotCle) return false;
 
-    // Détermine si c'est pour un Débit (Dépense) ou Crédit (Recette)
     const debit = typeTransaction === 'debit' ? compteSelectionne : '';
     const credit = typeTransaction === 'credit' ? compteSelectionne : '';
 
     const currentRules = [...get(rules)];
-    const indexExistant = currentRules.findIndex(r => r.motCle.toUpperCase() === cleanMotCle);
+    const indexExistant = currentRules.findIndex(r => this.normaliserTexte(r.motCle) === cleanMotCle);
     
     const currentPlan = get(planComptable);
     const descriptionCompte = currentPlan.find(p => p.compte === compteSelectionne)?.libelle || 'Catégorie personnalisée';
@@ -241,93 +274,21 @@ export const Categorizer = {
     if (indexExistant !== -1) {
       currentRules[indexExistant] = nouvelleRegle;
     } else {
-      currentRules.unshift(nouvelleRegle); // Ajoute en premier pour lui donner la priorité
+      currentRules.unshift(nouvelleRegle);
     }
 
     updateRules(currentRules);
     return true;
   },
 
-  /**
-   * Vérifie si une transaction est en conflit avec une règle existante ou une autre opération déjà vue
-   */
-  detecterConflitMotCle(tx, transactionsList) {
-    if (!tx || !tx.libelle) return false;
-    const currentRules = get(rules);
-    const libelleNorm = this.normaliserTexte(tx.libelle);
-    const firstWord = libelleNorm.split(' ')[0];
-
-    if (!firstWord || firstWord.length < 2) return false;
-
-    // 1. Conflit avec une règle existante
-    const ruleConflict = currentRules.some(r => {
-      const rMot = this.normaliserTexte(r.motCle);
-      return rMot === firstWord || (rMot.length > 2 && libelleNorm.includes(rMot));
-    });
-
-    if (ruleConflict) return true;
-
-    // 2. Conflit avec une autre transaction déjà attribuée dans la liste avec le même début
-    const txConflict = transactionsList.some(otherTx => {
-      if (otherTx.id === tx.id || otherTx.statut !== 'attribue') return false;
-      const otherNorm = this.normaliserTexte(otherTx.libelle);
-      return otherNorm.startsWith(firstWord);
-    });
-
-    return txConflict;
-  },
-
-  /**
-   * Propose des nuances de mots-clés structurées par intention (Tiers, Combinaison, Mode de paiement)
-   */
-  obtenirNuancesStructurees(libelle) {
-    if (!libelle) return { tiers: null, combo: null, mode: null };
-    const normalized = this.normaliserTexte(libelle);
-    const words = normalized.split(/\s+/).filter(w => w.length >= 2);
-    
-    if (words.length <= 1) {
-      return { tiers: normalized, combo: null, mode: null };
-    }
-
-    let mode = null;
-    let tiers = null;
-
-    // 1. Identification du type de paiement (Mode)
-    if (words.length >= 2 && ['VIR', 'SEPA', 'INST', 'CB', 'PRVT', 'CHEQUE', 'PAIEMENT'].includes(words[0])) {
-      if (['INST', 'SEPA', 'RECURR'].includes(words[1])) {
-        mode = `${words[0]} ${words[1]}`;
-      } else {
-        mode = words[0];
-      }
-    }
-
-    // 2. Identification du nom du Tiers (Tiers)
-    const startIndex = mode ? mode.split(' ').length : 0;
-    const remainingWords = words.slice(startIndex);
-    
-    // Ignorer les civilités courantes (MELLE, MME, MR) si présentes au début du tiers
-    const cleanTiersWords = remainingWords.filter(w => !['MELLE', 'MME', 'MR', 'MONSIEUR', 'MADAME'].includes(w));
-    if (cleanTiersWords.length > 0) {
-      tiers = cleanTiersWords.join(' ');
-    } else if (remainingWords.length > 0) {
-      tiers = remainingWords.join(' ');
-    }
-
-    // 3. Combinaison Mode + Tiers (Combinaison complète)
-    const combo = (mode && tiers) ? `${mode} ${tiers}` : (normalized !== tiers ? normalized : null);
-
-    return {
-      tiers: tiers && tiers !== normalized ? tiers : null,
-      combo: combo && combo !== mode && combo !== tiers ? combo : normalized,
-      mode: mode && mode !== normalized ? mode : null
-    };
-  },
-
-  /**
-   * Retourne le nom du compte à partir de son numéro
+    /**
+   * Retourne le nom du compte au format : "Nom de la catégorie (Code)"
    */
   obtenirLibelleCompte(numCompte) {
-    const cpt = get(planComptable).find(p => p.compte === numCompte);
-    return cpt ? cpt.libelle : `Compte ${numCompte}`;
+    if (!numCompte || numCompte === '699') return '« Choisir une catégorie... »';
+    const cpt = get(planComptable).find(p => p.compte === String(numCompte));
+    if (!cpt) return `Compte (${numCompte})`;
+    const cleanName = cpt.libelle.replace(/\s*\(\d+\)\s*/g, '').trim();
+    return `${cleanName} (${cpt.compte})`;
   }
 };

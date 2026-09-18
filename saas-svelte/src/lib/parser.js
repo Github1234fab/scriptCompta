@@ -25,6 +25,7 @@ export const CSVParser = {
     }
 
     let indexDate, indexLibelle, indexDebit, indexCredit, indexMontant, indexInfo, indexTypeOp, indexReference;
+    let selectedConcatBlocks = null;
     let modeMontant = 'double';
 
     if (mappingConfig) {
@@ -37,17 +38,17 @@ export const CSVParser = {
       indexInfo = mappingConfig.indexInfo;
       indexTypeOp = mappingConfig.indexTypeOp;
       indexReference = mappingConfig.indexReference;
+      selectedConcatBlocks = mappingConfig.selectedConcatBlocks || null;
       modeMontant = mappingConfig.modeMontant || 'double';
     } else {
-      // Extraction et normalisation des en-têtes (sans accents, sans caractères spéciaux pour contrer les encodages brisés)
+      // Extraction et normalisation des en-têtes
       const entetes = premiereLigne.split(separateur).map(h => {
         return h.toLowerCase()
           .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Enlève les accents
-          .replace(/[^a-z0-9]/g, '') // Conserve uniquement l'alphanumérique (ex: dÃ©bit -> dbit)
+          .replace(/[^a-z0-9]/g, '') // Conserve uniquement l'alphanumérique
           .trim();
       });
       
-      // Détection des indices des colonnes par racines sémantiques ultra-résilientes
       indexDate = entetes.findIndex(h => h.includes('dat'));
       indexLibelle = entetes.findIndex(h => h.includes('lib') || h.includes('tex') || h.includes('des'));
       indexDebit = entetes.findIndex(h => h.includes('deb') || h.includes('dep') || h.includes('sor'));
@@ -67,16 +68,29 @@ export const CSVParser = {
       if (cellules.length < 2) continue; // Ligne invalide
 
       const rawDate = indexDate !== -1 ? cellules[indexDate] || '' : '';
-      const rawLibelle = indexLibelle !== -1 ? cellules[indexLibelle] || 'Opération sans libellé' : 'Opération sans libellé';
+      const rawLibelle = indexLibelle !== -1 ? cellules[indexLibelle] || '' : '';
       const rawInfo = indexInfo !== -1 ? cellules[indexInfo] || '' : '';
       const rawTypeOp = indexTypeOp !== -1 && indexTypeOp !== undefined ? cellules[indexTypeOp] || '' : '';
       const rawReference = indexReference !== -1 && indexReference !== undefined ? cellules[indexReference] || '' : '';
 
       const dateStr = this.normaliserDate(rawDate);
-      const libelle = rawLibelle.trim();
       const info = rawInfo.trim();
       const typeOperation = rawTypeOp.trim();
       const reference = rawReference.trim();
+      
+      // Assemblage dynamique des blocs sélectionnés par l'utilisateur
+      let compositeBlocks = [];
+      if (selectedConcatBlocks && Array.isArray(selectedConcatBlocks) && selectedConcatBlocks.length > 0) {
+        compositeBlocks = selectedConcatBlocks
+          .map(idx => cellules[idx] ? cellules[idx].trim() : '')
+          .filter(b => b.length > 0);
+      } else {
+        if (rawLibelle) compositeBlocks.push(rawLibelle.trim());
+        if (reference) compositeBlocks.push(reference);
+        if (info) compositeBlocks.push(info);
+      }
+
+      const finalLibelle = compositeBlocks.length > 0 ? compositeBlocks.join(' | ') : (rawLibelle || 'Opération sans libellé');
       
       let debit = 0;
       let credit = 0;
@@ -105,12 +119,14 @@ export const CSVParser = {
       transactions.push({
         id: 'tx-' + i + '-' + Date.now(),
         date: dateStr,
-        libelle: libelle,
+        libelle: finalLibelle,
+        rawLibelle: rawLibelle.trim(),
         info: info,
         debit: debit,
         credit: credit,
         typeOperation: typeOperation,
         reference: reference,
+        blocks: compositeBlocks,
         compteAttribué: null, // Sera défini par le catégoriseur
         regleAppliquee: null,
         statut: 'non_attribue', // 'attribue', 'non_attribue', 'suggere'
@@ -122,7 +138,7 @@ export const CSVParser = {
   },
 
   /**
-   * Sépare les cellules d'une ligne en respectant les guillemets (si champs textuels entourés de guillemets)
+   * Sépare les cellules d'une ligne en respectant les guillemets
    */
   splitLineRespectingQuotes(line, separator) {
     const result = [];
@@ -151,15 +167,13 @@ export const CSVParser = {
   parseMontant(val) {
     if (val === undefined || val === null) return 0;
     
-    // Nettoyage de la chaîne
     let str = String(val).trim()
       .replace('€', '')
-      .replace(/\s/g, '') // Supprime les espaces (séparateurs de milliers)
-      .replace(/\u00a0/g, ''); // Espace insécable
+      .replace(/\s/g, '')
+      .replace(/\u00a0/g, '');
       
     if (str === '' || str === '-') return 0;
     
-    // Si format français (ex: 1250,50) : on remplace la virgule par un point
     str = str.replace(',', '.');
     
     const num = parseFloat(str);
@@ -167,13 +181,12 @@ export const CSVParser = {
   },
 
   /**
-   * Normalise les dates au format standard AAAA-MM-JJ pour manipulation facile
+   * Normalise les dates au format standard AAAA-MM-JJ
    */
   normaliserDate(val) {
     if (!val) return '';
     const str = String(val).trim();
 
-    // Format DD/MM/YYYY
     const matchFR = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
     if (matchFR) {
       const jour = matchFR[1].padStart(2, '0');
@@ -182,7 +195,6 @@ export const CSVParser = {
       return `${annee}-${mois}-${jour}`;
     }
 
-    // Format YYYY-MM-DD
     const matchISO = str.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
     if (matchISO) {
       const annee = matchISO[1];
