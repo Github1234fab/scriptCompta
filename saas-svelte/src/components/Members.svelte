@@ -201,30 +201,7 @@
   }
 </script>
 
-<div class="space-header" style="margin-bottom: 24px; padding: 20px; border-radius: 12px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2);">
-  <div style="font-size: 0.75rem; text-transform: uppercase; tracking: 1px; color: #a5b4fc; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-    <i class="fa-solid fa-crown"></i> ESPACE SUR-MESURE ASSOCIATION
-  </div>
-  <h2 style="font-size: 1.8rem; font-family: var(--font-title); margin: 0 0 6px 0; color: white;">Espace Association Loi 1901</h2>
-  <p style="margin: 0 0 16px 0; color: rgba(255, 255, 255, 0.7); font-size: 0.95rem;">Gestion des adhésions d'élèves, émission des reçus fiscaux Cerfa et ventes événementielles.</p>
-  
-  <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-    <button 
-      class="btn" 
-      style="padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; {currentSubView === 'operations' ? 'background: #6366f1; color: white;' : 'background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.7); border: 1px solid rgba(255, 255, 255, 0.1);'}"
-      onclick={() => currentSubView = "operations"}
-    >
-      <i class="fa-solid fa-university"></i> Opérations Bancaires (756/706)
-    </button>
-    <button 
-      class="btn" 
-      style="padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; {currentSubView === 'tableau_gestion' ? 'background: #6366f1; color: white;' : 'background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.7); border: 1px solid rgba(255, 255, 255, 0.1);'}"
-      onclick={() => currentSubView = "tableau_gestion"}
-    >
-      <i class="fa-solid fa-users"></i> Tableau de gestion des élèves
-    </button>
-  </div>
-</div>
+
 
 {#if currentSubView === "operations"}
   <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
@@ -351,79 +328,79 @@
     </div>
   </div>
 
-  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
-    <div class="glass-card">
-      <h3 style="font-family: var(--font-title); margin-bottom: 20px;">Registre des élèves</h3>
-      
-      <div class="table-container">
-        <table class="custom-table">
-          <thead>
-            <tr>
-              <th>Nom de l'adhérent</th>
-              <th>Montant forfait</th>
-              <th>Déjà versé</th>
-              <th>Reste à régler</th>
-              <th>Statut</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#if report.length === 0}
-              <tr>
-                <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 30px;">
-                  Aucun élève enregistré pour le moment.
-                </td>
-              </tr>
-            {:else}
-              {#each report as m}
-                <tr>
-                  <td style="font-weight: 600; color: white;">{m.nom}</td>
-                  <td>{m.forfait} €</td>
-                  <td style="color: #34d399; font-weight: 600;">{m.dejaPaye} €</td>
-                  <td style="color: {m.resteAPayer > 0 ? '#f87171' : 'var(--text-secondary)'}; font-weight: 600;">
-                    {m.resteAPayer.toFixed(2)} €
-                  </td>
-                  <td>
-                    <span class="badge {m.badgeClass}">{m.statut}</span>
-                  </td>
-                  <td>
-                    {#if m.resteAPayer > 0}
-                      <button class="btn btn-secondary btn-sm" onclick={() => relancerMembre(m)}>
-                        <i class="fa-solid fa-paper-plane"></i> Relancer
-                      </button>
-                    {/if}
-                  </td>
-                </tr>
-              {/each}
-            {/if}
-          </tbody>
-        </table>
+  <!-- Import Banner Full Width -->
+  <div class="glass-card" style="margin-bottom: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
+      <div style="max-width: 600px;">
+        <h3 style="font-family: var(--font-title); margin-bottom: 6px; display: flex; align-items: center; gap: 10px;">
+          <i class="fa-solid fa-file-import" style="color: #818cf8;"></i> Importer la liste des adhérents & élèves
+        </h3>
+        <p style="font-size: 0.88rem; color: rgba(255, 255, 255, 0.7); margin: 0; line-height: 1.4;">
+          Importez votre fichier CSV de registre d'élèves pour calculer automatiquement les statuts (cotisations dues, manquantes, etc.).
+        </p>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 16px; flex-grow: 1; justify-content: flex-end;">
+        <div class="file-upload-zone" style="border: 2px dashed rgba(99, 102, 241, 0.4); background: rgba(99, 102, 241, 0.05); padding: 12px 24px; border-radius: 10px; text-align: center; cursor: pointer;">
+          <div style="font-weight: 600; font-size: 0.88rem; color: white; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-cloud-arrow-up" style="color: #818cf8;"></i> Glisser le fichier CSV ici
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary" style="padding: 12px 20px; display: flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap;" onclick={() => showToast("ℹ️ Sélectionnez votre fichier CSV pour mettre à jour la liste des adhérents.")}>
+          <i class="fa-solid fa-upload"></i> Importer & Mettre à jour la liste
+        </button>
       </div>
     </div>
+  </div>
 
-    <div class="glass-card">
-      <h3 style="font-family: var(--font-title); margin-bottom: 20px;">Ajouter un nouvel élève</h3>
-      
-      <form onsubmit={handleCreateMember}>
-        <div class="form-group" style="margin-bottom: 16px;">
-          <label class="form-label" for="member-nom">Nom Complet</label>
-          <input id="member-nom" type="text" class="input-field" placeholder="ex: Dupont Jean" bind:value={newNom} required />
-        </div>
-
-        <div class="form-group" style="margin-bottom: 16px;">
-          <label class="form-label" for="member-email">Adresse Email</label>
-          <input id="member-email" type="email" class="input-field" placeholder="ex: jean.dupont@email.com" bind:value={newEmail} required />
-        </div>
-
-        <div class="form-group" style="margin-bottom: 20px;">
-          <label class="form-label" for="member-forfait">Montant du Forfait (€)</label>
-          <input id="member-forfait" type="number" class="input-field" placeholder="ex: 350" bind:value={newForfait} required />
-        </div>
-
-        <button type="submit" class="btn btn-primary" style="width: 100%;">
-          <i class="fa-solid fa-user-plus"></i> Inscrire l'élève
-        </button>
-      </form>
+  <!-- Full Width Student Register -->
+  <div class="glass-card">
+    <h3 style="font-family: var(--font-title); margin-bottom: 20px;">Registre des élèves</h3>
+    
+    <div class="table-container">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Nom de l'adhérent</th>
+            <th>Montant forfait</th>
+            <th>Déjà versé</th>
+            <th>Reste à régler</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#if report.length === 0}
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 30px;">
+                Aucun élève enregistré pour le moment.
+              </td>
+            </tr>
+          {:else}
+            {#each report as m}
+              <tr>
+                <td style="font-weight: 600; color: white;">{m.nom}</td>
+                <td>{m.forfait} €</td>
+                <td style="color: #34d399; font-weight: 600;">{m.dejaPaye} €</td>
+                <td style="color: {m.resteAPayer > 0 ? '#f87171' : 'var(--text-secondary)'}; font-weight: 600;">
+                  {m.resteAPayer.toFixed(2)} €
+                </td>
+                <td>
+                  <span class="badge {m.badgeClass}">{m.statut}</span>
+                </td>
+                <td>
+                  {#if m.resteAPayer > 0}
+                    <button class="btn btn-secondary btn-sm" onclick={() => relancerMembre(m)}>
+                      <i class="fa-solid fa-paper-plane"></i> Relancer
+                    </button>
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          {/if}
+        </tbody>
+      </table>
     </div>
   </div>
 {/if}
