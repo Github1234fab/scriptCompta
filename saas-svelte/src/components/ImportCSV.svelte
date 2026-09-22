@@ -12,10 +12,13 @@
   import { DEMO_CSV_DATA } from '../lib/data-sample.js';
 
   let dragover = $state(false);
-  let fileInput;
+  /** @type {any} */
+  let fileInput = $state(null);
   let rawPreview = $state('');
+  /** @type {Array<any>} */
   let importedPreviewList = $state([]);
   let showPreview = $state(false);
+  /** @type {Array<any>} */
   let importsHistory = $state([]);
   let isRecalculating = $state(false);
 
@@ -26,10 +29,14 @@
   let uploadedRawText = $state('');
   let uploadedFileName = $state('');
   let uploadedFileSize = $state(0);
+  /** @type {Array<string>} */
   let csvHeaders = $state([]);
+  /** @type {Array<any>} */
   let csvPreviewLines = $state([]);
   let separateur = $state(';');
+  /** @type {Record<string, any>} */
   let mappingConfig = $state({
+    separateur: ';',
     indexDate: 0,
     indexLibelle: 1,
     modeMontant: 'double',
@@ -47,6 +54,7 @@
     return saved ? JSON.parse(saved) : [];
   }
 
+  /** @param {any} history */
   function saveImportsHistory(history) {
     localStorage.setItem(`saas_compta_imports_${$activeEntityId}`, JSON.stringify(history));
     importsHistory = history;
@@ -57,20 +65,22 @@
   }
 
   // Handle drop CSV
+  /** @param {any} e */
   function handleDrop(e) {
     e.preventDefault();
     dragover = false;
-    if (e.dataTransfer.files.length > 0) {
+    if (e.dataTransfer?.files?.length > 0) {
       traiterFichierCSV(e.dataTransfer.files[0]);
     }
   }
 
   // Process CSV file and open Column Mapping assistant
+  /** @param {any} file */
   function traiterFichierCSV(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const rawText = e.target.result;
-      const lignes = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      const rawText = /** @type {string} */ (e.target?.result || "");
+      const lignes = rawText.split(/\r\n|\r|\n/).map((/** @type {string} */ l) => l.trim()).filter((/** @type {string} */ l) => l.length > 0);
       
       if (lignes.length < 2) {
         showToast("⚠️ Fichier CSV vide ou format non supporté.");
@@ -86,11 +96,11 @@
       separateur = sep;
 
       // Extraction des en-têtes
-      const headers = premiereLigne.split(sep).map(h => h.trim());
+      const headers = premiereLigne.split(sep).map((/** @type {string} */ h) => h.trim());
       csvHeaders = headers;
 
       // Extraction des lignes de prévisualisation (max 4 lignes)
-      csvPreviewLines = lignes.slice(1, 5).map(line => CSVParser.splitLineRespectingQuotes(line, sep));
+      csvPreviewLines = lignes.slice(1, 5).map((/** @type {string} */ line) => CSVParser.splitLineRespectingQuotes(line, sep));
 
       // Essayer d'appliquer une configuration de mappage précédemment sauvegardée pour cette entité
       const savedConfigRaw = localStorage.getItem(`saas_compta_csv_mapping_${$activeEntityId}`);
@@ -126,7 +136,7 @@
         mappingConfig = configAppliquee;
       } else {
         // Auto-détection intelligente des colonnes pour prérégler l'assistant
-        const entetesNorm = headers.map(h => {
+        const entetesNorm = headers.map((/** @type {string} */ h) => {
           return h.toLowerCase()
             .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
             .replace(/[^a-z0-9]/g, '')
@@ -134,17 +144,17 @@
         });
 
         // Fonction d'aide pour trouver la meilleure colonne en évitant les collisions
-        const findBestColumn = (specificKeys, generalRoots) => {
+        const findBestColumn = (/** @type {string[]} */ specificKeys, /** @type {string[]} */ generalRoots) => {
           // 1. Match exact
-          let idx = entetesNorm.findIndex(h => specificKeys.some(k => h === k));
+          let idx = entetesNorm.findIndex((/** @type {string} */ h) => specificKeys.some((/** @type {string} */ k) => h === k));
           if (idx !== -1) return idx;
 
           // 2. Commencer par ou se terminer par (plus spécifique)
-          idx = entetesNorm.findIndex(h => generalRoots.some(r => h.startsWith(r) || h.endsWith(r)));
+          idx = entetesNorm.findIndex((/** @type {string} */ h) => generalRoots.some((/** @type {string} */ r) => h.startsWith(r) || h.endsWith(r)));
           if (idx !== -1) return idx;
 
           // 3. Inclusions partielles (dernier recours)
-          return entetesNorm.findIndex(h => generalRoots.some(r => h.includes(r)));
+          return entetesNorm.findIndex((/** @type {string} */ h) => generalRoots.some((/** @type {string} */ r) => h.includes(r)));
         };
         
         const d = findBestColumn(['date', 'datecomptable', 'dateoperation', 'datedevaleur'], ['dat']);
@@ -258,10 +268,11 @@
       return `${tx.date}_${tx.libelle}_${amount}`;
     }));
 
+    /** @type {Array<any>} */
     const newTransactions = [];
     const importId = 'import_' + Date.now();
 
-    transactionsImp.forEach(tx => {
+    transactionsImp.forEach((/** @type {any} */ tx) => {
       const amount = (tx.debit > 0 ? -tx.debit : tx.credit).toFixed(2);
       const hash = `${tx.date}_${tx.libelle}_${amount}`;
       if (!existingHashes.has(hash)) {
@@ -307,6 +318,7 @@
     }, 2000);
   }
 
+  /** @param {any} e */
   function handleFileChange(e) {
     if (e.target.files.length > 0) {
       traiterFichierCSV(e.target.files[0]);
@@ -317,13 +329,13 @@
   function chargerDemo() {
     const demoTx = CSVParser.parse(DEMO_CSV_DATA);
     const importId = 'import_demo';
-    demoTx.forEach(tx => tx.importId = importId);
+    demoTx.forEach((/** @type {any} */ tx) => tx.importId = importId);
 
     const categorized = Categorizer.categoriserTransactions(demoTx);
     updateTransactions(categorized);
 
     const history = getImportsHistory();
-    if (!history.some(h => h.id === importId)) {
+    if (!history.some((/** @type {any} */ h) => h.id === importId)) {
       history.unshift({
         id: importId,
         fileName: 'releve_demo_25_lignes.csv',
@@ -340,12 +352,17 @@
   }
 
   // Delete import (rollback transactions)
+  /** 
+   * @param {string} importId 
+   * @param {string} fileName 
+   * @param {number} linesCount 
+   */
   function supprimerImport(importId, fileName, linesCount) {
     if (confirm(`⚠️ Voulez-vous vraiment annuler l'import "${fileName}" ? Cela supprimera définitivement les ${linesCount} transactions associées.`)) {
       const filteredTx = $transactions.filter(t => t.importId !== importId);
       updateTransactions(filteredTx);
 
-      const history = getImportsHistory().filter(h => h.id !== importId);
+      const history = getImportsHistory().filter((/** @type {any} */ h) => h.id !== importId);
       saveImportsHistory(history);
 
       // Re-trigger categorization to clean up references if needed
@@ -376,6 +393,7 @@
   });
 
   // Déterminer le rôle d'une colonne sous forme de texte pour l'affichage explicite dans l'en-tête
+  /** @param {number} colIdx */
   function getColumnRoleName(colIdx) {
     if (colIdx === mappingConfig.indexDate) return 'Date';
     if (colIdx === mappingConfig.indexLibelle) return 'Libellé';
@@ -392,6 +410,7 @@
   }
 
   // Vérifier si une colonne est activement extraite
+  /** @param {number} colIdx */
   function isColumnExtracted(colIdx) {
     return colIdx === mappingConfig.indexDate ||
            colIdx === mappingConfig.indexLibelle ||
@@ -403,6 +422,7 @@
   }
 
   // Style de surbrillance unique et accessible pour toutes les colonnes importées
+  /** @param {number} colIdx */
   function getHeaderStyle(colIdx) {
     if (isColumnExtracted(colIdx)) {
       return 'background-color: rgba(99, 102, 241, 0.15); color: white; border-bottom: 2.5px solid #6366f1; text-align: left; padding: 12px;';

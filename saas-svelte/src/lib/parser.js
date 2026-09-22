@@ -12,7 +12,7 @@ export const CSVParser = {
     if (!rawCsvText || rawCsvText.trim() === '') return [];
 
     // Détection du séparateur (point-virgule ou virgule)
-    let lignes = rawCsvText.split(/\r?\n/);
+    let lignes = rawCsvText.split(/\r\n|\r|\n/);
     if (lignes.length === 0) return [];
 
     // On ignore les lignes vides

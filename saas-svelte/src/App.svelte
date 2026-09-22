@@ -83,7 +83,7 @@
 
   /** @param {string} view */
   function switchView(view) {
-    activeView.set(view);
+    $activeView = view;
   }
 
   function handleResetDb() {
