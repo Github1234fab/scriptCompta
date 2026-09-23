@@ -391,7 +391,7 @@
             <!-- Bouton Ajouter une gestion -->
             <button 
               onclick={() => $showCreateEntityModal = true}
-              style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; border-radius: 8px; padding: 4px 10px; font-weight: 700; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 6px rgba(99, 102, 241, 0.35); transition: all 0.2s;"
+              style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border: 1px solid #38bdf8; color: white; border-radius: 8px; padding: 5px 12px; font-weight: 700; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4); transition: all 0.2s;"
               title="Ajouter une nouvelle gestion / structure"
             >
               <i class="fa-solid fa-circle-plus" style="font-size: 0.95rem;"></i> Ajouter une gestion

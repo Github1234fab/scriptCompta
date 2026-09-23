@@ -138,7 +138,7 @@
                 </td>
                 <td class="amount credit">{(p.prixVente - p.prixAchat).toFixed(2)} €</td>
                 <td>
-                  <button class="btn btn-success btn-sm" onclick={() => vendreUn(p)} disabled={p.stock <= 0}>Vendre 1</button>
+                  <button class="btn btn-cta-sales btn-sm" onclick={() => vendreUn(p)} disabled={p.stock <= 0}>Vendre 1</button>
                   <button class="btn btn-secondary btn-sm" onclick={() => reapprovisionner(p)} style="margin-left: 5px;">+5</button>
                 </td>
               </tr>
@@ -171,7 +171,7 @@
         <label for="product-stock" class="form-label">Stock Initial (Unités)</label>
         <input type="number" id="product-stock" class="form-control" bind:value={stockInitial} required placeholder="ex: 15">
       </div>
-      <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+      <button type="submit" class="btn btn-cta-sales" style="width: 100%; justify-content: center;">
         <i class="fa-solid fa-plus"></i> Ajouter à la boutique
       </button>
     </form>

@@ -144,7 +144,7 @@
                   {/if}
                 </td>
                 <td>
-                  <button class="btn btn-primary btn-sm" onclick={() => openCerfaModal(d)}>
+                  <button class="btn btn-cta-donations btn-sm" onclick={() => openCerfaModal(d)}>
                     <i class="fa-solid fa-receipt"></i> Générer reçu Cerfa
                   </button>
                 </td>
@@ -172,7 +172,7 @@
         <label for="donor-amount" class="form-label">Montant du Don (€)</label>
         <input type="number" id="donor-amount" class="form-control" bind:value={montant} required placeholder="ex: 250">
       </div>
-      <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+      <button type="submit" class="btn btn-cta-donations" style="width: 100%; justify-content: center;">
         <i class="fa-solid fa-heart"></i> Enregistrer le don
       </button>
     </form>

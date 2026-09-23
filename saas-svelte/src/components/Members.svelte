@@ -226,6 +226,25 @@
     return true;
   }));
 
+  let currentPage = $state(1);
+  let pageSize = $state(12);
+  let viewMode = $state("pagination"); // "pagination" (Feuillets) or "scroll" (Vue globale)
+
+  $effect(() => {
+    searchQuery;
+    memberFilter;
+    currentPage = 1;
+  });
+
+  let totalPages = $derived(Math.ceil(filteredMembers.length / pageSize) || 1);
+  let paginatedMembers = $derived(
+    filteredMembers.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  );
+
+  let displayedMembers = $derived(
+    viewMode === "pagination" ? paginatedMembers : filteredMembers
+  );
+
   /** @param {any} tx */
   function openAssociationModal(tx) {
     selectedTx = tx;
@@ -637,11 +656,11 @@
     </div>
 
     <button 
-      class="btn btn-primary" 
+      class="btn btn-secondary" 
       onclick={() => currentSubView = "tableau_gestion"}
-      style="padding: 12px 20px; font-weight: 600; font-size: 0.95rem; background: #6366f1; border: none; border-radius: 10px; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);"
+      style="padding: 10px 18px; font-weight: 600; font-size: 0.9rem; background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); color: white; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
     >
-      <i class="fa-solid fa-table-list"></i> Accéder au tableau de gestion
+      <i class="fa-solid fa-arrow-left"></i> Accéder au registre des élèves
     </button>
   </div>
 
@@ -654,8 +673,7 @@
       <div style="display: flex; align-items: center; gap: 12px;">
         {#if activeTab === "a_attribuer" && filteredOperations.length > 0}
           <button 
-            class="btn btn-primary"
-            style="padding: 8px 16px; font-size: 0.88rem; border-radius: 8px; font-weight: 600; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: none; color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 3px 10px rgba(99, 102, 241, 0.3);"
+            class="btn btn-cta-magic"
             onclick={toutAssocier}
           >
             <i class="fa-solid fa-wand-magic-sparkles"></i> Tout associer ({filteredOperations.length})
@@ -712,7 +730,7 @@
                 <td class="amount credit" style="font-weight: 700; font-size: 1.05rem;">+{tx.credit.toFixed(2)} €</td>
                 <td>
                   {#if !tx.memberAssociated}
-                    <button class="btn btn-primary btn-sm" onclick={() => openAssociationModal(tx)} style="white-space: nowrap;">
+                    <button class="btn btn-cta-members btn-sm" onclick={() => openAssociationModal(tx)} style="white-space: nowrap;">
                       <i class="fa-solid fa-link"></i> Associer à la gestion
                     </button>
                   {:else}
@@ -731,119 +749,182 @@
 {/if}
 
 {#if currentSubView === "tableau_gestion"}
-  <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
-    <div>
-      <h1 class="page-title">Gestion des Élèves et Adhérents</h1>
-      <p class="page-subtitle">Suivez le statut de règlement des inscriptions et gérez les relances.</p>
-    </div>
-
-    <button 
-      class="btn" 
-      onclick={() => currentSubView = "operations"}
-      style="padding: 12px 20px; font-weight: 600; font-size: 0.95rem; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: white; border-radius: 10px; display: flex; align-items: center; gap: 10px;"
-    >
-      <i class="fa-solid fa-university"></i> Voir les opérations bancaires
-    </button>
-  </div>
-
-  <!-- KPI Cards Header -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
-    <div class="glass-card" style="padding: 18px; display: flex; flex-direction: column; gap: 6px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2);">
-      <div style="font-size: 0.78rem; color: rgba(255, 255, 255, 0.6); font-weight: 700; text-transform: uppercase;">Total attendu (Forfaits)</div>
-      <div style="font-size: 1.6rem; font-weight: 800; color: white;">{kpiTotalAttendu.toFixed(2)} €</div>
-    </div>
-
-    <div class="glass-card" style="padding: 18px; display: flex; flex-direction: column; gap: 6px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2);">
-      <div style="font-size: 0.78rem; color: rgba(255, 255, 255, 0.6); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between;">
-        <span>Déjà encaissé</span>
-        <span style="color: #34d399;">({kpiPercentEncaisse}%)</span>
+  <!-- BLOC B : MÉTÉO FINANCIÈRE / TABLEAU DE BORD INSTRUMENTÉ (Cockpit Style) -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    
+    <!-- Card 1: Total attendu -->
+    <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">TOTAL ATTENDU (FORFAITS)</span>
+        <i class="fa-solid fa-calculator" style="color: #64748b; font-size: 0.85rem;"></i>
       </div>
-      <div style="font-size: 1.6rem; font-weight: 800; color: #34d399;">{kpiTotalEncaisse.toFixed(2)} €</div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 800; color: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+          {kpiTotalAttendu.toFixed(2)} €
+        </div>
+      </div>
     </div>
 
-    <div class="glass-card" style="padding: 18px; display: flex; flex-direction: column; gap: 6px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2);">
-      <div style="font-size: 0.78rem; color: rgba(255, 255, 255, 0.6); font-weight: 700; text-transform: uppercase;">Reste à recouvrer</div>
-      <div style="font-size: 1.6rem; font-weight: 800; color: {kpiRestant > 0 ? '#fbbf24' : 'white'};">{kpiRestant.toFixed(2)} €</div>
+    <!-- Card 2: Déjà encaissé -->
+    <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">DÉJÀ ENCAISSÉ</span>
+        <span style="font-size: 0.78rem; font-weight: 700; color: #cbd5e1; background: #1e293b; padding: 2px 8px; border-radius: 12px; font-family: ui-monospace, monospace;">{kpiPercentEncaisse}%</span>
+      </div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 800; color: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px; margin-bottom: 8px;">
+          {kpiTotalEncaisse.toFixed(2)} €
+        </div>
+        <!-- Mini dashboard progress gauge -->
+        <div style="width: 100%; height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden;">
+          <div style="width: {kpiPercentEncaisse}%; height: 100%; background: #94a3b8; border-radius: 2px;"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="glass-card" style="padding: 18px; display: flex; flex-direction: column; gap: 6px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2);">
-      <div style="font-size: 0.78rem; color: rgba(255, 255, 255, 0.6); font-weight: 700; text-transform: uppercase;">Élèves en retard / impayés</div>
-      <div style="font-size: 1.6rem; font-weight: 800; color: {kpiImpayesCount > 0 ? '#f87171' : '#34d399'};">{kpiImpayesCount} élève{kpiImpayesCount > 1 ? 's' : ''}</div>
+    <!-- Card 3: Reste à recouvrer -->
+    <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">RESTE À RECOUVRER</span>
+        <i class="fa-solid fa-clock-rotate-left" style="color: #64748b; font-size: 0.85rem;"></i>
+      </div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 800; color: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+          {kpiRestant.toFixed(2)} €
+        </div>
+      </div>
     </div>
+
+    <!-- Card 4: Élèves en retard / impayés -->
+    <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">ÉLÈVES EN RETARD / IMPAYÉS</span>
+        <i class="fa-solid fa-user-clock" style="color: #64748b; font-size: 0.85rem;"></i>
+      </div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 800; color: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+          {kpiImpayesCount} <span style="font-size: 1rem; font-weight: 600; color: #94a3b8;">élève{kpiImpayesCount > 1 ? 's' : ''}</span>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <!-- Full Width Student Register with Top Filter Controls -->
-  <div class="glass-card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 16px;">
-      <!-- Filter Tabs -->
-      <div style="display: flex; background: rgba(0, 0, 0, 0.3); padding: 4px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
+  <!-- BLOC C : REGISTRE DE L'ESPACE DE TRAVAIL (Conteneur principal en boîte Slate-900) -->
+  <div style="background: #0f172a; border: 1px solid rgba(51, 65, 85, 0.6); border-radius: 14px; padding: 24px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);">
+    
+    <!-- Barre d'outils supérieure avec respiration et alignement parfait -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; padding-bottom: 6px;">
+      <!-- Côté Gauche (Filtrer & Trouver) : Filtres de statut -->
+      <div style="display: flex; gap: 8px; align-items: center;">
         <button 
-          class="tab-btn"
-          style="padding: 8px 16px; font-size: 0.88rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: all 0.2s; {memberFilter === 'tous' ? 'background: #6366f1; color: white;' : 'background: transparent; color: rgba(255, 255, 255, 0.6);'}"
+          class="chip-filter-btn"
+          style="padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; {memberFilter === 'tous' ? 'background: rgba(255, 255, 255, 0.12); color: white; border: 1px solid rgba(255, 255, 255, 0.3);' : 'background: rgba(0, 0, 0, 0.4); color: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255, 255, 255, 0.08);'}"
           onclick={() => memberFilter = 'tous'}
         >
-          Tous ({report.length})
+          Tous <span style="background: rgba(255,255,255,0.15); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">{report.length}</span>
         </button>
+
         <button 
-          class="tab-btn"
-          style="padding: 8px 16px; font-size: 0.88rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: all 0.2s; {memberFilter === 'payes' ? 'background: #10b981; color: white;' : 'background: transparent; color: rgba(255, 255, 255, 0.6);'}"
+          class="chip-filter-btn"
+          style="padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; {memberFilter === 'payes' ? 'background: rgba(255, 255, 255, 0.12); color: white; border: 1px solid rgba(255, 255, 255, 0.3);' : 'background: rgba(0, 0, 0, 0.4); color: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255, 255, 255, 0.08);'}"
           onclick={() => memberFilter = 'payes'}
         >
-          À jour ({report.filter(m => m.resteAPayer === 0).length})
+          À jour <span style="background: rgba(255, 255, 255, 0.15); color: #e2e8f0; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">{report.filter(m => m.resteAPayer === 0).length}</span>
         </button>
+
         <button 
-          class="tab-btn"
-          style="padding: 8px 16px; font-size: 0.88rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: all 0.2s; {memberFilter === 'impayes' ? 'background: #ef4444; color: white;' : 'background: transparent; color: rgba(255, 255, 255, 0.6);'}"
+          class="chip-filter-btn"
+          style="padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; {memberFilter === 'impayes' ? 'background: rgba(255, 255, 255, 0.12); color: white; border: 1px solid rgba(255, 255, 255, 0.3);' : 'background: rgba(0, 0, 0, 0.4); color: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255, 255, 255, 0.08);'}"
           onclick={() => memberFilter = 'impayes'}
         >
-          ⚠️ Impayés / Partiels ({kpiImpayesCount})
+          Impayés <span style="background: rgba(255, 255, 255, 0.15); color: #e2e8f0; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">{kpiImpayesCount}</span>
         </button>
+
+        <!-- Display Mode Switcher (Feuillets vs Scroll) -->
+        <div style="display: flex; background: rgba(0, 0, 0, 0.4); padding: 3px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); margin-left: 8px;">
+          <button 
+            type="button"
+            class="view-mode-btn"
+            style="padding: 5px 12px; font-size: 0.8rem; font-weight: 600; border-radius: 16px; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; {viewMode === 'pagination' ? 'background: #334155; color: white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);' : 'background: transparent; color: rgba(255, 255, 255, 0.5);'}"
+            onclick={() => viewMode = 'pagination'}
+            title="Affichage page par page (Feuillets)"
+          >
+            <i class="fa-solid fa-file-lines"></i> Feuillets
+          </button>
+
+          <button 
+            type="button"
+            class="view-mode-btn"
+            style="padding: 5px 12px; font-size: 0.8rem; font-weight: 600; border-radius: 16px; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; {viewMode === 'scroll' ? 'background: #334155; color: white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);' : 'background: transparent; color: rgba(255, 255, 255, 0.5);'}"
+            onclick={() => viewMode = 'scroll'}
+            title="Vue globale en défilement continu"
+          >
+            <i class="fa-solid fa-scroll"></i> Vue globale (Scroll)
+          </button>
+        </div>
       </div>
 
-      <!-- Action buttons & Search input -->
+      <!-- Côté Droit : Search Input + Ghost Button + Primary CTA -->
       <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <div style="position: relative;">
+        <!-- Search Input with Loupe Icon -->
+        <div style="position: relative; display: flex; align-items: center;">
+          <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; color: rgba(255, 255, 255, 0.4); font-size: 0.85rem; pointer-events: none;"></i>
           <input 
             type="text" 
-            placeholder="🔍 Rechercher un élève..." 
+            placeholder="Rechercher par nom..." 
             bind:value={searchQuery}
-            style="padding: 8px 14px 8px 14px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); color: white; font-size: 0.88rem; width: 220px;"
+            style="padding: 9px 14px 9px 38px; border-radius: 8px; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.15); color: white; font-size: 0.88rem; width: 230px; outline: none; transition: border-color 0.2s;"
           />
         </div>
 
+        <!-- Ghost Action button -->
         <button 
-          class="btn btn-primary"
-          style="padding: 8px 16px; font-size: 0.88rem; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 8px;"
-          onclick={() => showImportModal = true}
+          class="btn btn-secondary" 
+          onclick={() => currentSubView = "operations"}
+          style="padding: 9px 16px; font-weight: 600; font-size: 0.88rem; background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); color: white; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
         >
-          <i class="fa-solid fa-file-import"></i> + Import des données de gestion
+          <i class="fa-solid fa-university" style="color: var(--text-secondary);"></i> Voir les opérations bancaires
+        </button>
+
+        <!-- Primary CTA Action button -->
+        <button 
+          class="btn btn-cta-import"
+          onclick={() => showImportModal = true}
+          style="padding: 9px 18px; font-weight: 700; font-size: 0.88rem; border-radius: 8px; display: flex; align-items: center; gap: 8px;"
+        >
+          <i class="fa-solid fa-file-import"></i> + Importer la liste des élèves
         </button>
       </div>
     </div>
 
-    <div class="table-container">
-      <table class="custom-table">
+    <!-- Table Container with Border and Alternating Rows -->
+    <div style="border: 1px solid rgba(51, 65, 85, 0.6); border-radius: 10px; overflow: hidden; background: rgba(15, 23, 42, 0.6); {viewMode === 'scroll' ? 'max-height: 530px; overflow-y: auto;' : ''}">
+      <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
-          <tr>
-            <th>Nom de l'adhérent</th>
-            <th>Montant forfait</th>
-            <th>Déjà versé</th>
-            <th>Reste à régler</th>
-            <th>Statut</th>
-            <th>Actions</th>
+          <tr style="background: #1e293b; border-bottom: 2px solid #334155; {viewMode === 'scroll' ? 'position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.3);' : ''}">
+            <th style="padding: 14px 18px; text-align: left; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Nom de l'adhérent</th>
+            <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Montant forfait</th>
+            <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Déjà versé</th>
+            <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Reste à régler</th>
+            <th style="padding: 14px 18px; text-align: center; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Statut</th>
+            <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {#if filteredMembers.length === 0}
+          {#if displayedMembers.length === 0}
             <tr>
-              <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 40px 10px;">
+              <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 45px 10px;">
                 Aucun élève ne correspond aux critères de recherche.
               </td>
             </tr>
           {:else}
-            {#each filteredMembers as m}
-              <tr>
-                <td style="padding: 12px 16px;">
+            {#each displayedMembers as m, index}
+              <tr 
+                class="student-row"
+                style="border-bottom: 1px solid #334155; background: {index % 2 === 0 ? '#0f172a' : '#1e293b'}; transition: all 0.15s ease;"
+              >
+                <td style="padding: 14px 18px; text-align: left;">
                   <div style="font-weight: 700; color: white; font-size: 0.98rem;">{m.cleanName}</div>
                   {#if m.rawRef}
                     <div style="font-size: 0.76rem; color: rgba(255, 255, 255, 0.45); margin-top: 2px;">
@@ -851,20 +932,28 @@
                     </div>
                   {/if}
                 </td>
-                <td style="font-weight: 600; color: white;">{m.forfait.toFixed(2)} €</td>
-                <td style="color: #34d399; font-weight: 700;">{m.dejaPaye.toFixed(2)} €</td>
-                <td style="color: {m.resteAPayer > 0 ? '#f87171' : 'var(--text-secondary)'}; font-weight: 700;">
-                  {m.resteAPayer.toFixed(2)} €
+                
+                <!-- Financial Columns Right Aligned with Monospace tabular-nums in crisp monochrome -->
+                <td style="padding: 14px 18px; text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 600; color: #f8fafc; font-size: 0.95rem;">
+                  {m.forfait.toFixed(2)} €
                 </td>
-                <td>
-                  <span class="badge {m.badgeClass}" style="font-weight: 700; padding: 5px 10px; font-size: 0.8rem;">{m.statut}</span>
+
+                <td style="padding: 14px 18px; text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 600; color: {m.dejaPaye > 0 ? '#f8fafc' : '#64748b'}; font-size: 0.95rem;">
+                  {m.dejaPaye > 0 ? `${m.dejaPaye.toFixed(2)} €` : '0,00 €'}
                 </td>
-                <td style="white-space: nowrap;">
-                  <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-secondary btn-sm" onclick={() => openDrawerModal(m)} title="Voir le détail des règlements">
-                      <i class="fa-solid fa-list-check"></i> Détails
-                    </button>
-                  </div>
+
+                <td style="padding: 14px 18px; text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 600; color: {m.resteAPayer > 0 ? '#f8fafc' : '#64748b'}; font-size: 0.95rem;">
+                  {m.resteAPayer > 0 ? `${m.resteAPayer.toFixed(2)} €` : '0,00 €'}
+                </td>
+
+                <td style="padding: 14px 18px; text-align: center;">
+                  <span class="badge {m.badgeClass}" style="font-weight: 700; padding: 5px 12px; font-size: 0.78rem;">{m.statut}</span>
+                </td>
+
+                <td style="padding: 14px 18px; text-align: right; white-space: nowrap;">
+                  <button class="btn btn-secondary btn-sm" onclick={() => openDrawerModal(m)} title="Voir le détail des règlements" style="padding: 5px 12px; font-size: 0.8rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);">
+                    <i class="fa-solid fa-list-check"></i> Détails
+                  </button>
                 </td>
               </tr>
             {/each}
@@ -872,6 +961,62 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Footer Controls (Pagination when in 'pagination' mode, or Scroll info when in 'scroll' mode) -->
+    {#if filteredMembers.length > 0}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(51, 65, 85, 0.5); font-size: 0.88rem; color: rgba(255, 255, 255, 0.6);">
+        {#if viewMode === 'pagination'}
+          <div>
+            Affichage <strong>{Math.min((currentPage - 1) * pageSize + 1, filteredMembers.length)}</strong> à <strong>{Math.min(currentPage * pageSize, filteredMembers.length)}</strong> sur <strong>{filteredMembers.length}</strong> élèves
+          </div>
+
+          {#if totalPages > 1}
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button 
+                class="btn btn-secondary btn-sm"
+                disabled={currentPage === 1}
+                onclick={() => currentPage--}
+                style="padding: 5px 12px; font-size: 0.82rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: white;"
+              >
+                <i class="fa-solid fa-chevron-left"></i> Précédent
+              </button>
+
+              {#each Array.from({ length: totalPages }) as _, i}
+                <button 
+                  onclick={() => currentPage = i + 1}
+                  style="width: 32px; height: 32px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: 1px solid {currentPage === i + 1 ? '#6366f1' : 'rgba(255,255,255,0.12)'}; background: {currentPage === i + 1 ? '#6366f1' : 'rgba(255,255,255,0.05)'}; color: white; transition: all 0.2s;"
+                >
+                  {i + 1}
+                </button>
+              {/each}
+
+              <button 
+                class="btn btn-secondary btn-sm"
+                disabled={currentPage === totalPages}
+                onclick={() => currentPage++}
+                style="padding: 5px 12px; font-size: 0.82rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: white;"
+              >
+                Suivant <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          {/if}
+        {:else}
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div>
+              📜 <strong>{filteredMembers.length}</strong> élèves affichés en défilement continu
+            </div>
+            <button 
+              class="btn btn-secondary btn-sm"
+              onclick={() => viewMode = 'pagination'}
+              style="padding: 5px 12px; font-size: 0.82rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: white;"
+            >
+              <i class="fa-solid fa-file-lines"></i> Passer en mode Feuillets
+            </button>
+          </div>
+        {/if}
+      </div>
+    {/if}
+
   </div>
 {/if}
 
@@ -985,10 +1130,9 @@
         <button type="button" class="btn btn-secondary" onclick={() => showImportModal = false}>Annuler</button>
         <button 
           type="button" 
-          class="btn btn-primary" 
+          class="btn btn-cta-import" 
           onclick={validerImportCSV}
           disabled={importedRows.length === 0}
-          style="padding: 10px 22px; font-weight: 600; background: #6366f1; border: none; border-radius: 8px;"
         >
           <i class="fa-solid fa-check"></i> Lancer l'import ({importedRows.length})
         </button>
@@ -1086,7 +1230,7 @@
 
         <div style="display: flex; justify-content: flex-end; gap: 12px;">
           <button type="button" class="btn btn-secondary" onclick={closeModal}>Annuler</button>
-          <button type="submit" class="btn btn-primary">Valider l'association</button>
+          <button type="submit" class="btn btn-cta-members">Valider l'association</button>
         </div>
       </form>
     </div>
