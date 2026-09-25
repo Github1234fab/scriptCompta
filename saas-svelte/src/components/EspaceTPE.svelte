@@ -1,33 +1,43 @@
 <script>
   import PiecesManquantes from './PiecesManquantes.svelte';
   import Sales from './Sales.svelte';
+  import MeteoTresorerie from './MeteoTresorerie.svelte';
+  import RadarEcheances from './RadarEcheances.svelte';
 
-  let activeTab = $state('pieces'); // 'pieces' or 'sales'
+  let activeTab = $state('tresorerie'); // 'tresorerie', 'echeances', or 'pieces'
 </script>
 
-<div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.06), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 25px;">
-  <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px; margin-bottom: 0;">
-    <div>
-      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-        <span class="badge" style="font-size: 0.8rem; padding: 4px 12px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">🏢 ESPACE SUR-MESURE SOCIÉTÉ & TPE</span>
-      </div>
-      <h1 class="page-title" style="margin-bottom: 0; color: white;">Espace Société & TPE (SASU, SARL, SAS)</h1>
-      <p class="page-subtitle" style="color: rgba(255,255,255,0.7);">Gestion des pièces justificatives, suivi de la TVA et boutique d'exploitation.</p>
-    </div>
-
-    <div style="display: flex; gap: 10px;">
-      <button class="btn {activeTab === 'pieces' ? 'btn-primary' : 'btn-secondary'}" onclick={() => activeTab = 'pieces'} style="border-color: #38bdf8;">
-        <i class="fa-solid fa-receipt"></i> Boîte à Justificatifs
-      </button>
-      <button class="btn {activeTab === 'sales' ? 'btn-primary' : 'btn-secondary'}" onclick={() => activeTab = 'sales'}>
-        <i class="fa-solid fa-basket-shopping"></i> Ventes & Stock Boutique
-      </button>
-    </div>
-  </div>
+<!-- Fine Discrete Contextual Tab Bar -->
+<div style="display: flex; gap: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); margin-bottom: 20px; padding-bottom: 2px;">
+  <button 
+    class="nav-tab-btn" 
+    onclick={() => activeTab = 'tresorerie'} 
+    style="padding: 8px 16px; font-weight: 600; font-size: 0.9rem; background: transparent; border: none; border-bottom: 2px solid {activeTab === 'tresorerie' ? '#38bdf8' : 'transparent'}; color: {activeTab === 'tresorerie' ? '#ffffff' : 'rgba(255,255,255,0.6)'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; margin-bottom: -3px;"
+  >
+    <i class="fa-solid fa-chart-line" style="color: {activeTab === 'tresorerie' ? '#38bdf8' : 'inherit'};"></i> Trésorerie & Prévisionnel
+  </button>
+  
+  <button 
+    class="nav-tab-btn" 
+    onclick={() => activeTab = 'echeances'} 
+    style="padding: 8px 16px; font-weight: 600; font-size: 0.9rem; background: transparent; border: none; border-bottom: 2px solid {activeTab === 'echeances' ? '#38bdf8' : 'transparent'}; color: {activeTab === 'echeances' ? '#ffffff' : 'rgba(255,255,255,0.6)'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; margin-bottom: -3px;"
+  >
+    <i class="fa-solid fa-calendar-days" style="color: {activeTab === 'echeances' ? '#38bdf8' : 'inherit'};"></i> TVA & Échéances
+  </button>
+  
+  <button 
+    class="nav-tab-btn" 
+    onclick={() => activeTab = 'pieces'} 
+    style="padding: 8px 16px; font-weight: 600; font-size: 0.9rem; background: transparent; border: none; border-bottom: 2px solid {activeTab === 'pieces' ? '#38bdf8' : 'transparent'}; color: {activeTab === 'pieces' ? '#ffffff' : 'rgba(255,255,255,0.6)'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; margin-bottom: -3px;"
+  >
+    <i class="fa-solid fa-receipt" style="color: {activeTab === 'pieces' ? '#38bdf8' : 'inherit'};"></i> Pièces manquantes
+  </button>
 </div>
 
-{#if activeTab === 'pieces'}
-  <PiecesManquantes />
+{#if activeTab === 'tresorerie'}
+  <MeteoTresorerie />
+{:else if activeTab === 'echeances'}
+  <RadarEcheances />
 {:else}
-  <Sales />
+  <PiecesManquantes />
 {/if}

@@ -16,10 +16,9 @@ export const activeTxId = writable(null); // Active transaction in categorizatio
 // Entities (Multi-structure)
 const savedEntities = localStorage.getItem('saas_compta_entities');
 export const showCreateEntityModal = writable(!savedEntities);
-
-export const entities = writable(savedEntities ? JSON.parse(savedEntities) : [
-  { id: 'entity-lyon', name: 'Club de Musique de Lyon', model: 'asso' }
-]);
+const defaultEntities = [{ id: 'entity-lyon', name: 'Club de Musique de Lyon', model: 'asso' }];
+const parsedEntities = savedEntities ? JSON.parse(savedEntities) : defaultEntities;
+export const entities = writable(parsedEntities.length > 0 ? parsedEntities : defaultEntities);
 
 const savedActiveEntityId = localStorage.getItem('saas_compta_active_entity_id');
 export const activeEntityId = writable(savedActiveEntityId || 'entity-lyon');

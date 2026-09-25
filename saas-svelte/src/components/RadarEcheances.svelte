@@ -163,36 +163,59 @@
 
   {:else}
     <!-- 1. Cotisations & Adhésions Asso -->
-    <div class="glass-card highlight-success">
-      <h3 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 700; color: #34d399; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-hand-holding-heart"></i> Adhésions & Cotisations à Recouvrer
-      </h3>
-      <div style="font-size: 1.75rem; font-weight: 700; color: #34d399; font-family: var(--font-title); margin-bottom: 8px;">
-        {resteAEncaisser.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+    <div class="glass-card highlight-success" style="display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <h3 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 700; color: #34d399; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-hand-holding-heart"></i> Adhésions & Cotisations à Recouvrer
+        </h3>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #34d399; font-family: var(--font-title); margin-bottom: 8px;">
+          {resteAEncaisser.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 15px;">{nombreCotisantsRetard} membre(s) à relancer pour régulariser le paiement.</p>
       </div>
-      <p style="font-size: 0.82rem; color: var(--text-secondary);">{nombreCotisantsRetard} membre(s) à relancer pour régulariser le paiement.</p>
+      <button 
+        class="btn btn-sm"
+        onclick={() => showToast(`📧 Relances automatiques envoyées aux ${nombreCotisantsRetard} membre(s) en retard !`)}
+        style="width: 100%; background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); font-weight: 700; border-radius: 8px; padding: 8px 12px; cursor: pointer;"
+      >
+        <i class="fa-solid fa-paper-plane" style="margin-right: 6px;"></i> Relancer les {nombreCotisantsRetard} membres en retard
+      </button>
     </div>
 
     <!-- 2. Reçus Fiscaux CERFA -->
-    <div class="glass-card">
-      <h3 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 700; color: white; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-receipt" style="color: #ec4899;"></i> Attestations & Reçus Fiscaux CERFA
-      </h3>
-      <div style="font-size: 1.1rem; font-weight: 700; color: white; margin-bottom: 8px;">
-        Prêt pour émission
+    <div class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <h3 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 700; color: white; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-receipt" style="color: #ec4899;"></i> Attestations & Reçus Fiscaux CERFA
+        </h3>
+        <div style="font-size: 1.1rem; font-weight: 700; color: white; margin-bottom: 8px;">
+          Prêt pour émission
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 15px;">Délivrance automatique des justificatifs de réduction d'impôt (66%).</p>
       </div>
-      <p style="font-size: 0.82rem; color: var(--text-secondary);">Délivrance automatique des justificatifs de réduction d'impôt (66%).</p>
+      <button 
+        class="btn btn-sm"
+        onclick={() => showToast("📄 Émission des reçus fiscaux CERFA effectuée avec succès !")}
+        style="width: 100%; background: rgba(236, 72, 153, 0.15); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.3); font-weight: 700; border-radius: 8px; padding: 8px 12px; cursor: pointer;"
+      >
+        <i class="fa-solid fa-bolt" style="margin-right: 6px;"></i> Émettre les reçus fiscaux en 1 clic
+      </button>
     </div>
 
     <!-- 3. Assemblée Générale -->
-    <div class="glass-card">
-      <h3 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 700; color: white; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-users-gear" style="color: #38bdf8;"></i> Assemblée Générale Annuelle
-      </h3>
-      <div style="font-size: 1.1rem; font-weight: 700; color: white; margin-bottom: 8px;">
-        Rapport Moral & Financier
+    <div class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <h3 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 700; color: white; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-users-gear" style="color: #38bdf8;"></i> Assemblée Générale Annuelle
+        </h3>
+        <div style="font-size: 1.1rem; font-weight: 700; color: white; margin-bottom: 8px;">
+          Rapport Moral & Financier
+        </div>
+        <div style="display: inline-block; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 700; font-size: 0.78rem; padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.3); margin-bottom: 10px;">
+          ⏰ À organiser avant le 30 juin
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-secondary);">Présentation des comptes de l'exercice et approbation par les adhérents.</p>
       </div>
-      <p style="font-size: 0.82rem; color: var(--text-secondary);">Présentation des comptes de l'exercice et approbation par les adhérents.</p>
     </div>
   {/if}
 

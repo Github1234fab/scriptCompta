@@ -8,7 +8,7 @@
   } from '../lib/store.js';
   import { Categorizer } from '../lib/categorizer.js';
 
-  let activeSubTab = $state('journal'); // 'journal', 'grandlivre', 'balance', 'bilan'
+  let activeSubTab = $state('recettes_depenses'); // 'recettes_depenses', 'journal', 'grandlivre', 'balance', 'bilan'
   let localClosingMonth = $state(9);
 
   // Filter and sort transactions chronologically (Svelte 5 derived rune)
@@ -315,12 +315,84 @@
 </div>
 
 <!-- Sub Tabs -->
-<div style="display: flex; gap: 10px; margin-bottom: 20px;">
+<div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+  <button 
+    class="btn btn-sm" 
+    style="background: {activeSubTab === 'recettes_depenses' ? '#6366f1' : 'rgba(255,255,255,0.05)'}; color: white; border: 1px solid {activeSubTab === 'recettes_depenses' ? '#818cf8' : 'rgba(255,255,255,0.1)'}; font-weight: 700; padding: 8px 16px; border-radius: 8px;"
+    onclick={() => activeSubTab = 'recettes_depenses'}
+  >
+    📖 Livre des Recettes & Dépenses (Vue Simplifiée Officielles)
+  </button>
+
+  <span style="color: rgba(255,255,255,0.3); font-size: 0.85rem;">| Vue Expert / Export :</span>
+
   <button class="btn btn-secondary btn-sm {activeSubTab === 'journal' ? 'active' : ''}" id="sub-btn-journal" onclick={() => activeSubTab = 'journal'}>Livre-journal</button>
   <button class="btn btn-secondary btn-sm {activeSubTab === 'grandlivre' ? 'active' : ''}" id="sub-btn-grandlivre" onclick={() => activeSubTab = 'grandlivre'}>Le Grand-livre</button>
   <button class="btn btn-secondary btn-sm {activeSubTab === 'balance' ? 'active' : ''}" id="sub-btn-balance" onclick={() => activeSubTab = 'balance'}>La Balance</button>
   <button class="btn btn-secondary btn-sm {activeSubTab === 'bilan' ? 'active' : ''}" id="sub-btn-bilan" onclick={() => activeSubTab = 'bilan'}>Le Bilan Simplifié</button>
 </div>
+
+<!-- subtab: RECETTES & DÉPENSES (DEFAULT NOVICE VIEW) -->
+{#if activeSubTab === 'recettes_depenses'}
+  <div class="glass-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <div>
+        <h3 style="font-family: var(--font-title); color: white; margin: 0;">Livre chronologique des Recettes et Dépenses</h3>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">Document légal officiel exigé pour les associations, micro-entreprises et TPE.</p>
+      </div>
+      <div class="tooltip-container">
+        <span class="pedago-help-btn">?</span>
+        <span class="tooltip-text">
+          <strong>Livre des Recettes & Dépenses</strong>
+          Ce registre recense chaque encaissement et chaque décaissement dans l'ordre chronologique avec la date, le tiers et la catégorie.
+        </span>
+      </div>
+    </div>
+    
+    <div class="table-container">
+      <table class="custom-table" id="recettes-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Nom / Libellé de l'opération</th>
+            <th>Catégorie de gestion</th>
+            <th>Type</th>
+            <th style="text-align: right;">Montant (€)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#if sortedTxList.length === 0}
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 30px;">Aucune opération enregistrée dans le registre chronologique.</td>
+            </tr>
+          {:else}
+            {#each sortedTxList as tx}
+              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
+                <td style="font-weight: 600; color: white;">{new Date(tx.date).toLocaleDateString('fr-FR')}</td>
+                <td style="color: white; font-weight: 600;">{tx.libelle}</td>
+                <td>
+                  <span class="badge badge-muted" style="font-size: 0.8rem;">
+                    {tx.compteAttribué} − {Categorizer.obtenirLibelleCompte(tx.compteAttribué)}
+                  </span>
+                </td>
+                <td>
+                  {#if tx.credit > 0}
+                    <span class="badge badge-success" style="font-size: 0.75rem;">🟢 Recette</span>
+                  {:else}
+                    <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 0.75rem;">🔴 Dépense</span>
+                  {/if}
+                </td>
+                <td style="text-align: right; font-weight: 700; font-family: monospace; font-size: 0.95rem; color: {tx.credit > 0 ? '#34d399' : '#f87171'};">
+                  {tx.credit > 0 ? '+' : '-'}{(tx.credit > 0 ? tx.credit : tx.debit).toFixed(2)} €
+                </td>
+              </tr>
+            {/each}
+          {/if}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{/if}
 
 <!-- subtab: JOURNAL -->
 {#if activeSubTab === 'journal'}

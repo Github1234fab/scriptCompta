@@ -1,7 +1,7 @@
 <script>
   import { transactions, activeEntityId, entities, showToast } from '../lib/store.js';
 
-  let activeEntity = $derived($entities.find(e => e.id === $activeEntityId) || $entities[0]);
+  let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { name: 'Ma Structure' });
 
   // Recettes de encaissement pur (crédits attribués)
   let recettesLégales = $derived(

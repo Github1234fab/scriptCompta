@@ -1,7 +1,7 @@
 <script>
   import { transactions, planComptable, activeEntityId, entities } from '../lib/store.js';
 
-  let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0]);
+  let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { name: 'Ma Structure' });
 
   let totalBanque = $derived($transactions.reduce((sum, tx) => {
     if (tx.compteAttribué !== '699' && tx.statut === 'attribue' && tx.compteAttribué !== '530') {

@@ -295,8 +295,12 @@ import {
     <div style="font-size: 0.85rem; color: #a5b4fc; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
       🤖 Reconnaissance Intelligente des Écritures
     </div>
-    <div style="font-size: 1.3rem; font-weight: 700; color: white; margin-top: 4px;">
-      {recognizedList.length} sur {nonTriees.length} écritures identifiées avec certitude ({totalRecognizedAmount.toFixed(2)} €)
+    <div style="font-size: 1.2rem; font-weight: 700; color: white; margin-top: 4px;">
+      {#if recognizedList.length > 0}
+        {recognizedList.length} écriture(s) identifiée(s) avec certitude ({totalRecognizedAmount.toFixed(2)} €)
+      {:else}
+        {nonTriees.length} opération(s) prêtes à être catégorisées en 1 clic
+      {/if}
     </div>
   </div>
 
@@ -304,35 +308,35 @@ import {
     class="btn btn-primary"
     onclick={validerToutEnUnClic}
     disabled={recognizedList.length === 0}
-    style="padding: 14px 28px; font-size: 1.05rem; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4); cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;"
+    style="padding: 12px 24px; font-size: 0.95rem; font-weight: 700; background: var(--color-primary); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;"
   >
-    <i class="fa-solid fa-check-double" style="font-size: 1.2rem;"></i>
-    Tout valider ({recognizedList.length} opérations reconnues)
+    <i class="fa-solid fa-check-double"></i>
+    Tout valider par lot ({recognizedList.length} identifiées)
   </button>
 </div>
 
 <div style="display: block; width: 100%; margin-top: 24px;">
-  <div class="glass-card" style="padding: 24px; width: 100%;">
+  <div class="card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-card); padding: 24px; width: 100%;">
     
     <!-- Filter Tabs -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px;">
-      <div style="display: flex; gap: 12px; background: rgba(0, 0, 0, 0.3); padding: 4px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
+      <div style="display: flex; gap: 6px; background: var(--bg-screen); padding: 4px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
         <button
-          style="border: none; background: {activeTab === 'pending' ? '#6366f1' : 'transparent'}; color: {activeTab === 'pending' ? 'white' : 'var(--text-secondary)'}; font-family: var(--font-title); font-size: 0.9rem; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;"
+          style="border: none; background: {activeTab === 'pending' ? 'var(--color-primary)' : 'transparent'}; color: {activeTab === 'pending' ? 'white' : 'var(--text-muted)'}; font-size: 0.88rem; padding: 8px 16px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; transition: all 0.2s;"
           onclick={() => (activeTab = "pending")}
         >
           À attribuer ({nonTriees.length})
         </button>
         <button
-          style="border: none; background: {activeTab === 'categorized' ? '#10b981' : 'transparent'}; color: {activeTab === 'categorized' ? 'white' : 'var(--text-secondary)'}; font-family: var(--font-title); font-size: 0.9rem; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;"
+          style="border: none; background: {activeTab === 'categorized' ? 'var(--color-primary)' : 'transparent'}; color: {activeTab === 'categorized' ? 'white' : 'var(--text-muted)'}; font-size: 0.88rem; padding: 8px 16px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; transition: all 0.2s;"
           onclick={() => (activeTab = "categorized")}
         >
           Attribuées ({triees.length})
         </button>
       </div>
 
-      <div style="font-size: 0.85rem; color: #86efac; background: rgba(16, 185, 129, 0.1); padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-        🟢 <strong>Attribution par Lot</strong> : Sélectionnez le numéro de compte du plan comptable puis validez.
+      <div style="font-size: 0.82rem; color: var(--color-success); background: var(--color-success-bg); padding: 6px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-weight: 600;">
+        ⚡ <strong>Validation par lot assistée IA</strong> : Libellés vulgarisés pour l'utilisateur, numéros de comptes grisés pour l'expert.
       </div>
     </div>
 
@@ -365,21 +369,21 @@ import {
                 <td style="padding: 16px 14px; vertical-align: middle;">
                   <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                     <div>
-                      <div style="font-weight: 600; color: white; font-size: 0.95rem;">{tx.libelle}</div>
+                      <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">{tx.libelle}</div>
                       {#if tx.info || tx.reference}
                                           <!-- Suggestion IA intelligente -->
                   {#if getSuggestionForTx(tx)}
                     {@const sug = getSuggestionForTx(tx)}
                     {#if sug}
-                      <div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.35); padding: 4px 10px; border-radius: 6px; font-size: 0.78rem;">
-                        <span style="color: #a5b4fc; font-weight: 700; display: flex; align-items: center; gap: 4px;">
-                          <i class="fa-solid fa-brain" style="color: #818cf8;"></i> Suggestion IA :
+                      <div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; background: var(--color-accent-light); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 6px; font-size: 0.78rem;">
+                        <span style="color: var(--color-accent); font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                          <i class="fa-solid fa-brain" style="color: var(--color-accent);"></i> Suggestion IA :
                         </span>
-                        <span style="color: white; font-weight: 600;">{sug?.label}</span>
+                        <span style="color: var(--text-main); font-weight: 600;">{sug?.label}</span>
                         <button 
                           type="button" 
                           class="btn" 
-                          style="padding: 2px 8px; font-size: 0.72rem; background: #6366f1; color: white; border: none; border-radius: 4px; font-weight: 700; cursor: pointer;"
+                          style="padding: 2px 8px; font-size: 0.72rem; background: var(--color-primary); color: white; border: none; border-radius: 4px; font-weight: 700; cursor: pointer;"
                           onclick={(e) => { e.stopPropagation(); if (sug?.compte) selectAccount(tx.id, sug.compte); }}
                         >
                           Valider
@@ -387,16 +391,16 @@ import {
                       </div>
                     {/if}
                   {/if}
-                  <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 3px;">
+                  <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">
                           {tx.info} {tx.reference ? `• Ref: ${tx.reference}` : ''}
                         </div>
                       {/if}
-                      <div style="font-size: 0.75rem; color: #a5b4fc; margin-top: 4px;">
+                      <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
                         {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR") : ''} &bull; {tx.debit > 0 ? "Dépense" : "Recette"}
                       </div>
                     </div>
                     
-                    <div style="font-size: 1.1rem; font-weight: 700; color: {tx.debit > 0 ? '#f87171' : '#34d399'}; white-space: nowrap;">
+                    <div style="font-size: 1.1rem; font-weight: 700; color: {tx.debit > 0 ? 'var(--color-danger)' : 'var(--color-success)'}; white-space: nowrap;">
                       {tx.debit > 0 ? "-" : "+"}
                       {(Number(tx.debit || tx.credit || 0)).toFixed(2)} €
                     </div>
@@ -408,10 +412,10 @@ import {
                   <button
                     type="button"
                     onclick={() => openCategorizeModal(tx)}
-                    style="display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; background: rgba(99, 102, 241, 0.1); color: white; border: 1.5px solid rgba(129, 140, 248, 0.4); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s;"
+                    style="display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; background: var(--bg-screen); color: var(--text-main); border: 1px solid var(--border-color); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s;"
                   >
                     <span>
-                      <i class="fa-solid fa-tag" style="color: #818cf8; margin-right: 6px;"></i>
+                      <i class="fa-solid fa-tag" style="color: var(--color-accent); margin-right: 6px;"></i>
                       {formatAccountLabel(currentCat)}
                     </span>
                     <i class="fa-solid fa-pen-to-square" style="font-size: 0.85rem; color: #a5b4fc;"></i>
@@ -485,7 +489,7 @@ import {
 
       <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px;">
         <p style="margin-top: 0; margin-bottom: 14px;">
-          L'attribution est l'étape clef de votre gestion. Cette étape cruciale consiste à attribuer à chaque opération bancaire, un numéro de compte du plan comptable. Par exemple, un abonnement web correspondra au compte 613. Un restaurant au compte 625. De cette manière, le plan de compte peut s'organiser, chaque opération est reliée à un compte et votre gestion peut enfin débuter !
+          Dites-nous simplement s'il s'agit d'un abonnement logiciel, d'un repas, d'un achat de matériel ou d'une cotisation. Le système se charge d'attribuer les codes comptables officiels pour vous sans aucun jargon.
         </p>
 
         <p style="font-weight: 700; color: #a5b4fc; font-size: 1.05rem; margin-bottom: 10px;">
@@ -493,11 +497,11 @@ import {
         </p>
 
         <p style="margin-bottom: 14px;">
-          C'est simple, pour chaque opération, cliquez sur le menu déroulant et attribuez un compte puis validez.
+          C'est simple, pour chaque opération, confirmez la suggestion affichée ou choisissez la catégorie correspondante.
         </p>
 
         <p style="margin-bottom: 0; background: rgba(99, 102, 241, 0.12); border-left: 4px solid #6366f1; padding: 12px 14px; border-radius: 6px; color: rgba(255, 255, 255, 0.85); font-size: 0.9rem;">
-          💡 <strong>Rassurez-vous</strong> : le système apprendra au fur et à mesure de votre aventure sur <strong>ScriptCompta</strong> et vous n'aurez, au fur et à mesure de vos imports, de moins en moins d'attributions à effectuer.
+          💡 <strong>Rassurez-vous</strong> : le système apprend au fur et à mesure de vos choix et enregistre vos habitudes. Vous n'aurez presque plus rien à trier lors de vos prochains imports.
         </p>
       </div>
 

@@ -649,16 +649,11 @@
   }
 </script>
 {#if currentSubView === "operations"}
-  <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
-    <div>
-      <h1 class="page-title">Mon Espace Association</h1>
-      <p class="page-subtitle">Gestion des cotisations et association des opérations bancaires aux élèves.</p>
-    </div>
-
+  <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
     <button 
       class="btn btn-secondary" 
       onclick={() => currentSubView = "tableau_gestion"}
-      style="padding: 10px 18px; font-weight: 600; font-size: 0.9rem; background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); color: white; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
+      style="padding: 9px 16px; font-weight: 600; font-size: 0.88rem; background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); color: white; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
     >
       <i class="fa-solid fa-arrow-left"></i> Accéder au registre des élèves
     </button>

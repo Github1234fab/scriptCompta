@@ -12,25 +12,31 @@
   let totalAchats = $derived(achatsList.reduce((sum, a) => sum + a.debit, 0));
 </script>
 
-<div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(52, 211, 153, 0.3); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 25px;">
-  <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px; margin-bottom: 0;">
-    <div>
-      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-        <span class="badge" style="font-size: 0.8rem; padding: 4px 12px; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.4);">🚀 ESPACE SUR-MESURE MICRO-ENTREPRISE</span>
-      </div>
-      <h1 class="page-title" style="margin-bottom: 0; color: white;">Espace Micro-Entreprise & Freelance</h1>
-      <p class="page-subtitle" style="color: rgba(255,255,255,0.7);">Gestion simplifiée de vos encaissements et registres d'exploitation.</p>
-    </div>
-
-    <div style="display: flex; gap: 10px;">
-      <button class="btn {activeTab === 'recettes' ? 'btn-primary' : 'btn-secondary'}" onclick={() => activeTab = 'recettes'} style="border-color: #34d399;">
-        <i class="fa-solid fa-book-journal-whills"></i> Livre des recettes (Légal)
-      </button>
-      <button class="btn {activeTab === 'achats' ? 'btn-primary' : 'btn-secondary'}" onclick={() => activeTab = 'achats'}>
-        <i class="fa-solid fa-cart-shopping"></i> Registre des achats ({achatsList.length})
-      </button>
-    </div>
-  </div>
+<!-- Fine Discrete Contextual Tab Bar -->
+<div style="display: flex; gap: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); margin-bottom: 20px; padding-bottom: 2px;">
+  <button 
+    class="nav-tab-btn" 
+    onclick={() => activeTab = 'ca'} 
+    style="padding: 8px 16px; font-weight: 600; font-size: 0.9rem; background: transparent; border: none; border-bottom: 2px solid {activeTab === 'ca' ? '#34d399' : 'transparent'}; color: {activeTab === 'ca' ? '#ffffff' : 'rgba(255,255,255,0.6)'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; margin-bottom: -3px;"
+  >
+    <i class="fa-solid fa-chart-line" style="color: {activeTab === 'ca' ? '#34d399' : 'inherit'};"></i> Suivi du Chiffre d'Affaires & Urssaf
+  </button>
+  
+  <button 
+    class="nav-tab-btn" 
+    onclick={() => activeTab = 'recettes'} 
+    style="padding: 8px 16px; font-weight: 600; font-size: 0.9rem; background: transparent; border: none; border-bottom: 2px solid {activeTab === 'recettes' ? '#34d399' : 'transparent'}; color: {activeTab === 'recettes' ? '#ffffff' : 'rgba(255,255,255,0.6)'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; margin-bottom: -3px;"
+  >
+    <i class="fa-solid fa-book-journal-whills" style="color: {activeTab === 'recettes' ? '#34d399' : 'inherit'};"></i> Livre des Recettes
+  </button>
+  
+  <button 
+    class="nav-tab-btn" 
+    onclick={() => activeTab = 'achats'} 
+    style="padding: 8px 16px; font-weight: 600; font-size: 0.9rem; background: transparent; border: none; border-bottom: 2px solid {activeTab === 'achats' ? '#34d399' : 'transparent'}; color: {activeTab === 'achats' ? '#ffffff' : 'rgba(255,255,255,0.6)'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; margin-bottom: -3px;"
+  >
+    <i class="fa-solid fa-cart-shopping" style="color: {activeTab === 'achats' ? '#34d399' : 'inherit'};"></i> Registre des Achats ({achatsList.length})
+  </button>
 </div>
 
 {#if activeTab === 'recettes'}

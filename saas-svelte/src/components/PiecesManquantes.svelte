@@ -3,10 +3,23 @@
 
   let activeEntity = $derived($entities.find((/** @type {any} */ entity) => entity.id === $activeEntityId) || $entities[0]);
 
-  let debits = $derived($transactions.filter((/** @type {any} */ tx) => tx.debit > 0 && tx.statut === 'attribue'));
-  let totalDebitsCount = $derived(debits.length);
+  /**
+   * Helper: check if a transaction legally requires a standalone invoice
+   * (Bank charges 627 and Urssaf/Social contributions 645/6453 are exempt, as bank statements suffice)
+   */
+  function exigeFacture(tx) {
+    const cpt = String(tx.compteAttribué || '');
+    const lib = (tx.libelle || '').toUpperCase();
+    if (['627', '645', '6453'].includes(cpt)) return false;
+    if (lib.includes('FRAIS') || lib.includes('COMMISSION') || lib.includes('URSSAF') || lib.includes('MAGNETIQ') || lib.includes('PLVT SEPA')) return false;
+    return true;
+  }
 
-  let piecesManquantes = $derived(debits.filter((/** @type {any} */ tx) => !tx.factureUrl));
+  let debits = $derived($transactions.filter((/** @type {any} */ tx) => tx.debit > 0 && tx.statut === 'attribue'));
+  let debitsAJustifier = $derived(debits.filter((/** @type {any} */ tx) => exigeFacture(tx)));
+  let totalDebitsCount = $derived(debitsAJustifier.length);
+
+  let piecesManquantes = $derived(debitsAJustifier.filter((/** @type {any} */ tx) => !tx.factureUrl));
   let justificatifsPresentsCount = $derived(totalDebitsCount - piecesManquantes.length);
   let scoreConformite = $derived(totalDebitsCount > 0 ? Math.round((justificatifsPresentsCount / totalDebitsCount) * 100) : 100);
 
@@ -73,6 +86,9 @@
       <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
         {piecesManquantes.length === 0 ? '🎉 Bravo ! Toutes vos dépenses bancaires ont un justificatif rattaché.' : `⚠️ Il vous reste ${piecesManquantes.length} pièce(s) manquante(s) à glisser-déposer ci-dessous.`}
       </p>
+      <div style="margin-top: 8px; font-size: 0.78rem; color: #a5b4fc; background: rgba(99, 102, 241, 0.1); padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.2); display: inline-flex; align-items: center; gap: 6px;">
+        <span>💡 Les frais bancaires et cotisations Urssaf sont automatiquement exemptés de facture (votre relevé fait foi).</span>
+      </div>
     </div>
     
     <div style="min-width: 200px;">
