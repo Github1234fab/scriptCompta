@@ -110,8 +110,7 @@ import {
     if (!numCompte || String(numCompte) === '699') return '« Choisir une catégorie... »';
     const cpt = $planComptable.find(p => p.compte === String(numCompte));
     if (!cpt) return `Compte (${numCompte})`;
-    const cleanName = cpt.libelle.replace(/\s*\(\d+\)\s*/g, '').trim();
-    return `${cleanName} (${cpt.compte})`;
+    return cpt.libelle.replace(/\s*\(\d+\)\s*/g, '').trim();
   }
 
   // 1. 🟢 ENTRÉES D'ARGENT
@@ -274,10 +273,10 @@ import {
   }
 </script>
 
-<div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+<div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 20px;">
   <div>
-    <h1 class="page-title">Attribuer les numéros de compte aux libellés</h1>
-    <p class="page-subtitle">Associez chaque mouvement bancaire à son numéro de compte comptable. La machine apprend automatiquement de vos choix !</p>
+    <h1 class="page-title" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main);">Attribuer les numéros de compte aux libellés</h1>
+    <p class="page-subtitle" style="margin: 4px 0 0 0; font-size: 0.86rem; color: var(--text-muted);">Associez chaque mouvement bancaire à son numéro de compte comptable. La machine apprend automatiquement de vos choix !</p>
   </div>
 
   <div style="display: flex; gap: 10px; align-items: center;">
@@ -290,12 +289,12 @@ import {
 </div>
 
 <!-- Master Batch Header Metrics & Action Button -->
-<div style="background: rgba(99, 102, 241, 0.12); border: 1.5px solid rgba(99, 102, 241, 0.4); border-radius: 16px; padding: 20px 24px; margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+<div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px 24px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; box-shadow: var(--shadow-card);">
   <div>
-    <div style="font-size: 0.85rem; color: #a5b4fc; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+    <div style="font-size: 0.85rem; color: #4338ca; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
       🤖 Reconnaissance Intelligente des Écritures
     </div>
-    <div style="font-size: 1.2rem; font-weight: 700; color: white; margin-top: 4px;">
+    <div style="font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin-top: 4px;">
       {#if recognizedList.length > 0}
         {recognizedList.length} écriture(s) identifiée(s) avec certitude ({totalRecognizedAmount.toFixed(2)} €)
       {:else}
@@ -316,27 +315,23 @@ import {
 </div>
 
 <div style="display: block; width: 100%; margin-top: 24px;">
-  <div class="card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-card); padding: 24px; width: 100%;">
+  <div class="card" style="padding: 24px; width: 100%;">
     
     <!-- Filter Tabs -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px;">
-      <div style="display: flex; gap: 6px; background: var(--bg-screen); padding: 4px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+    <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px; width: 100%;">
+      <div style="display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
         <button
-          style="border: none; background: {activeTab === 'pending' ? 'var(--color-primary)' : 'transparent'}; color: {activeTab === 'pending' ? 'white' : 'var(--text-muted)'}; font-size: 0.88rem; padding: 8px 16px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; transition: all 0.2s;"
+          style="border: none; background: {activeTab === 'pending' ? '#0f172a' : 'transparent'}; color: {activeTab === 'pending' ? '#ffffff' : '#475569'}; font-size: 0.88rem; padding: 8px 20px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 700; transition: all 0.2s;"
           onclick={() => (activeTab = "pending")}
         >
           À attribuer ({nonTriees.length})
         </button>
         <button
-          style="border: none; background: {activeTab === 'categorized' ? 'var(--color-primary)' : 'transparent'}; color: {activeTab === 'categorized' ? 'white' : 'var(--text-muted)'}; font-size: 0.88rem; padding: 8px 16px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; transition: all 0.2s;"
+          style="border: none; background: {activeTab === 'categorized' ? '#0f172a' : 'transparent'}; color: {activeTab === 'categorized' ? '#ffffff' : '#475569'}; font-size: 0.88rem; padding: 8px 20px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 700; transition: all 0.2s;"
           onclick={() => (activeTab = "categorized")}
         >
           Attribuées ({triees.length})
         </button>
-      </div>
-
-      <div style="font-size: 0.82rem; color: var(--color-success); background: var(--color-success-bg); padding: 6px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-weight: 600;">
-        ⚡ <strong>Validation par lot assistée IA</strong> : Libellés vulgarisés pour l'utilisateur, numéros de comptes grisés pour l'expert.
       </div>
     </div>
 
@@ -426,11 +421,11 @@ import {
                 <td style="padding: 16px 14px; vertical-align: middle; text-align: right;">
                   <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
                     {#if isRecognized}
-                      <span class="badge badge-success" style="font-size: 0.75rem; padding: 4px 10px;">
+                      <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 0.75rem; padding: 4px 10px; font-weight: 700;">
                         🟢 Reconnu automatiquement
                       </span>
                     {:else}
-                      <span class="badge" style="background: rgba(234, 179, 8, 0.2); color: #fef08a; border: 1px solid rgba(234, 179, 8, 0.4); font-size: 0.75rem; padding: 4px 10px;">
+                      <span class="badge" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.75rem; padding: 4px 10px; font-weight: 700;">
                         🟡 À vérifier
                       </span>
                     {/if}
@@ -438,7 +433,7 @@ import {
                     <button 
                       class="btn btn-primary btn-sm"
                       onclick={() => validerLigneSeule(tx)}
-                      style="padding: 7px 16px; font-weight: 600; font-size: 0.88rem;"
+                      style="padding: 7px 16px; font-weight: 700; font-size: 0.88rem; background: #0f172a; color: #ffffff;"
                     >
                       <i class="fa-solid fa-check"></i> Valider
                     </button>
@@ -450,17 +445,17 @@ import {
           {:else}
             <!-- Categorized List -->
             {#each triees as tx}
-              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
+              <tr style="border-bottom: 1px solid #f1f5f9; background: #ffffff;">
                 <td style="padding: 14px 12px;">
-                  <div style="font-weight: 600; color: white;">{tx.libelle}</div>
-                  <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">
+                  <div style="font-weight: 700; color: #0f172a;">{tx.libelle}</div>
+                  <div style="font-size: 0.78rem; color: #64748b; margin-top: 2px;">
                     {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR") : ''} &bull; Règle : {tx.regleAppliquee || 'Manuelle'}
                   </div>
                 </td>
-                <td style="padding: 14px 12px; color: #a5b4fc; font-weight: 600;">
+                <td style="padding: 14px 12px; color: #3730a3; font-weight: 700;">
                   {tx.compteAttribué} - {Categorizer.obtenirLibelleCompte(tx.compteAttribué)}
                 </td>
-                <td style="padding: 14px 12px; text-align: right; font-weight: 700; color: {tx.debit > 0 ? '#f87171' : '#34d399'};">
+                <td style="padding: 14px 12px; text-align: right; font-weight: 800; color: {tx.debit > 0 ? '#b91c1c' : '#15803d'};">
                   {tx.debit > 0 ? "-" : "+"}
                   {(Number(tx.debit || tx.credit || 0)).toFixed(2)} €
                 </td>

@@ -1,5 +1,5 @@
 <script>
-  import { transactions, planComptable, members, activeEntityId, entities } from '../lib/store.js';
+  import { transactions, planComptable, members, activeEntityId, entities, showToast } from '../lib/store.js';
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0]);
 
@@ -15,6 +15,7 @@
   let activeRateObj = $derived(URSSAF_RATES[currentMicroActivity] || URSSAF_RATES.services_bic);
   let activeRate = $derived(activeRateObj.rate);
 
+  /** @param {any} num */
   function formatEuros(num) {
     return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   }

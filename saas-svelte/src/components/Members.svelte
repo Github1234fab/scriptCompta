@@ -674,17 +674,17 @@
             <i class="fa-solid fa-wand-magic-sparkles"></i> Tout associer ({filteredOperations.length})
           </button>
         {/if}
-        <div style="display: flex; background: rgba(0, 0, 0, 0.3); padding: 4px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
+        <div style="display: flex; background: #e2e8f0; padding: 4px; border-radius: 8px;">
           <button 
             class="tab-btn"
-            style="padding: 8px 18px; font-size: 0.9rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: all 0.2s; {activeTab === 'a_attribuer' ? 'background: #6366f1; color: white; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);' : 'background: transparent; color: rgba(255, 255, 255, 0.6);'}"
+            style="padding: 8px 18px; font-size: 0.9rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 700; transition: all 0.2s; {activeTab === 'a_attribuer' ? 'background: #0f172a; color: #ffffff;' : 'background: transparent; color: #475569;'}"
             onclick={() => activeTab = "a_attribuer"}
           >
             À attribuer
           </button>
           <button 
             class="tab-btn"
-            style="padding: 8px 18px; font-size: 0.9rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: all 0.2s; {activeTab === 'attribuees' ? 'background: #10b981; color: white; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);' : 'background: transparent; color: rgba(255, 255, 255, 0.6);'}"
+            style="padding: 8px 18px; font-size: 0.9rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 700; transition: all 0.2s; {activeTab === 'attribuees' ? 'background: #0f172a; color: #ffffff;' : 'background: transparent; color: #475569;'}"
             onclick={() => activeTab = "attribuees"}
           >
             Attribuées
@@ -706,7 +706,7 @@
         <tbody>
           {#if filteredOperations.length === 0}
             <tr>
-              <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 40px 10px;">
+              <td colspan="4" style="text-align: center; color: #64748b; padding: 40px 10px;">
                 {#if activeTab === "a_attribuer"}
                   🎉 Aucune opération bancaire en 756 / 706 en attente d'attribution.
                 {:else}
@@ -716,20 +716,20 @@
             </tr>
           {:else}
             {#each filteredOperations as tx}
-              <tr>
-                <td style="font-size: 0.9rem; opacity: 0.8; white-space: nowrap;">{tx.date || tx.datePaiement}</td>
-                <td style="color: white; font-weight: 500; font-size: 0.95rem;">
+              <tr style="border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+                <td style="font-size: 0.9rem; color: #64748b; white-space: nowrap;">{tx.date || tx.datePaiement}</td>
+                <td style="color: #0f172a; font-weight: 700; font-size: 0.95rem;">
                   {tx.libelle}
-                  <div style="font-size: 0.78rem; color: #818cf8; margin-top: 3px;">Compte {tx.compteAttribué || tx.compteCredit || tx.account || "756/706"}</div>
+                  <div style="font-size: 0.78rem; color: #4338ca; font-weight: 600; margin-top: 3px;">Compte {tx.compteAttribué || tx.compteCredit || tx.account || "756/706"}</div>
                 </td>
-                <td class="amount credit" style="font-weight: 700; font-size: 1.05rem;">+{tx.credit.toFixed(2)} €</td>
+                <td class="amount credit" style="font-weight: 800; font-size: 1.05rem; color: #15803d;">+{tx.credit.toFixed(2)} €</td>
                 <td>
                   {#if !tx.memberAssociated}
-                    <button class="btn btn-cta-members btn-sm" onclick={() => openAssociationModal(tx)} style="white-space: nowrap;">
+                    <button class="btn btn-cta-members btn-sm" onclick={() => openAssociationModal(tx)} style="white-space: nowrap; background: #0f172a; color: #ffffff; font-weight: 700; border-radius: 6px; padding: 6px 14px; border: none; cursor: pointer;">
                       <i class="fa-solid fa-link"></i> Associer à la gestion
                     </button>
                   {:else}
-                    <span class="badge badge-success" style="font-size: 0.85rem; padding: 6px 12px;">
+                    <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 0.85rem; padding: 6px 12px; font-weight: 700;">
                       <i class="fa-solid fa-check"></i> Attribué ({tx.associatedMember || "Élève"})
                     </span>
                   {/if}

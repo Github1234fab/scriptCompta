@@ -19,6 +19,7 @@
   // 1. LIVRE-JOURNAL CALCULATION
   let journalEntries = $derived((() => {
     let pieceNum = 1;
+    /** @type {any[]} */
     const entries = [];
     sortedTxList.forEach(tx => {
       const dateStr = new Date(tx.date).toLocaleDateString('fr-FR');
@@ -77,6 +78,7 @@
 
   // 2. GRAND LIVRE CALCULATION
   let grandLivreAccounts = $derived((() => {
+    /** @type {Record<string, any[]>} */
     const comptesGroupes = { '512': [] };
 
     sortedTxList.forEach(tx => {
@@ -92,6 +94,7 @@
       }
     });
 
+    /** @type {any[]} */
     const accounts = [];
     Object.keys(comptesGroupes).sort().forEach(cptNum => {
       const operations = comptesGroupes[cptNum];
@@ -100,7 +103,7 @@
       const nomCompte = cptNum === '512' ? 'Compte Bancaire (Banque)' : Categorizer.obtenirLibelleCompte(cptNum);
       let runningSolde = 0;
 
-      const mappedOps = operations.map(op => {
+      const mappedOps = operations.map((/** @type {any} */ op) => {
         const estActifOuCharge = cptNum.startsWith('5') || cptNum.startsWith('6') || cptNum.startsWith('411') || cptNum.startsWith('467');
         if (estActifOuCharge) {
           runningSolde += op.debit - op.credit;
@@ -125,6 +128,7 @@
 
   // 3. BALANCE CALCULATION
   let balanceRows = $derived((() => {
+    /** @type {Record<string, { debit: number, credit: number }>} */
     const balanceData = { '512': { debit: 0, credit: 0 } };
 
     sortedTxList.forEach(tx => {
@@ -171,6 +175,7 @@
 
   // 4. BILAN CALCULATION
   let bilanData = $derived((() => {
+    /** @type {Record<string, { debit: number, credit: number }>} */
     const balanceData = { '512': { debit: 0, credit: 0 } };
 
     sortedTxList.forEach(tx => {
@@ -189,7 +194,9 @@
     let totalActif = 0;
     let totalPassif = 0;
 
+    /** @type {any[]} */
     const actifs = [];
+    /** @type {any[]} */
     const passifs = [];
 
     // Actifs (5xxx, 411, 467)
@@ -226,7 +233,7 @@
     let recettes = 0;
     let depenses = 0;
     Object.keys(balanceData).forEach(cpt => {
-      const p = $planComptable.find(pc => pc.compte === cpt);
+      const p = $planComptable.find((/** @type {any} */ pc) => pc.compte === cpt);
       if (p) {
         if (p.type === 'Produit') recettes += balanceData[cpt].credit;
         if (p.type === 'Charge') depenses += balanceData[cpt].debit;
@@ -249,6 +256,7 @@
     showToast(`📅 Rentrée de l'exercice configurée en ${getMonthName(localClosingMonth)}.`);
   }
 
+  /** @param {any} m */
   function getMonthName(m) {
     const months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
     return months[m - 1];
@@ -295,50 +303,50 @@
 </div>
 
 <!-- Config Season -->
-<div class="glass-card" style="margin-bottom: 30px;">
-  <h3 style="font-family: var(--font-title); margin-bottom: 10px;">Configuration de l'exercice</h3>
-  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px;">
+<div class="card" style="margin-bottom: 24px; padding: 24px;">
+  <h3 style="font-family: var(--font-title); margin-bottom: 8px; color: #0f172a; font-weight: 800;">Configuration de l'exercice</h3>
+  <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 16px;">
     Choisissez le mois de début de vos comptes (ex: Septembre pour une saison d'association scolaire, Janvier pour année civile).
   </p>
-  <div style="display: flex; gap: 15px; align-items: center;">
-    <select id="closing-month-select" class="form-control" style="max-width: 200px;" bind:value={localClosingMonth}>
+  <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+    <select id="closing-month-select" class="form-control" style="max-width: 240px; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; font-weight: 600;" bind:value={localClosingMonth}>
       <option value={1}>Janvier</option>
       <option value={9}>Septembre (Saison scolaire)</option>
       <option value={12}>Décembre</option>
     </select>
-    <button class="btn btn-primary btn-sm" onclick={handleSaveClosingMonth}>Valider le mois de rentrée</button>
+    <button class="btn btn-primary btn-sm" onclick={handleSaveClosingMonth} style="background: #0f172a; color: #ffffff; border: none; padding: 9px 18px; font-weight: 700; border-radius: 6px; cursor: pointer;">
+      Valider le mois de rentrée
+    </button>
     
-    <button class="btn btn-success btn-sm" onclick={exportFEC} style="margin-left: auto;">
+    <button class="btn btn-success btn-sm" onclick={exportFEC} style="margin-left: auto; background: #15803d; color: #ffffff; border: none; padding: 9px 18px; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
       <i class="fa-solid fa-file-export"></i> Exporter pour l'Expert-comptable (Format FEC)
     </button>
   </div>
 </div>
 
 <!-- Sub Tabs -->
-<div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+<div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; width: 100%;">
   <button 
     class="btn btn-sm" 
-    style="background: {activeSubTab === 'recettes_depenses' ? '#6366f1' : 'rgba(255,255,255,0.05)'}; color: white; border: 1px solid {activeSubTab === 'recettes_depenses' ? '#818cf8' : 'rgba(255,255,255,0.1)'}; font-weight: 700; padding: 8px 16px; border-radius: 8px;"
+    style="background: {activeSubTab === 'recettes_depenses' ? '#0f172a' : '#ffffff'}; color: {activeSubTab === 'recettes_depenses' ? '#ffffff' : '#475569'}; border: 1px solid var(--border-color); font-weight: 700; padding: 8px 16px; border-radius: 8px; cursor: pointer; shadow: var(--shadow-sm);"
     onclick={() => activeSubTab = 'recettes_depenses'}
   >
-    📖 Livre des Recettes & Dépenses (Vue Simplifiée Officielles)
+    📖 Livre des Recettes & Dépenses
   </button>
 
-  <span style="color: rgba(255,255,255,0.3); font-size: 0.85rem;">| Vue Expert / Export :</span>
-
-  <button class="btn btn-secondary btn-sm {activeSubTab === 'journal' ? 'active' : ''}" id="sub-btn-journal" onclick={() => activeSubTab = 'journal'}>Livre-journal</button>
-  <button class="btn btn-secondary btn-sm {activeSubTab === 'grandlivre' ? 'active' : ''}" id="sub-btn-grandlivre" onclick={() => activeSubTab = 'grandlivre'}>Le Grand-livre</button>
-  <button class="btn btn-secondary btn-sm {activeSubTab === 'balance' ? 'active' : ''}" id="sub-btn-balance" onclick={() => activeSubTab = 'balance'}>La Balance</button>
-  <button class="btn btn-secondary btn-sm {activeSubTab === 'bilan' ? 'active' : ''}" id="sub-btn-bilan" onclick={() => activeSubTab = 'bilan'}>Le Bilan Simplifié</button>
+  <button class="btn btn-secondary btn-sm" style="background: {activeSubTab === 'journal' ? '#0f172a' : '#ffffff'}; color: {activeSubTab === 'journal' ? '#ffffff' : '#475569'}; font-weight: 700; border-radius: 8px; padding: 8px 14px; border: 1px solid var(--border-color); cursor: pointer;" id="sub-btn-journal" onclick={() => activeSubTab = 'journal'}>Livre-journal</button>
+  <button class="btn btn-secondary btn-sm" style="background: {activeSubTab === 'grandlivre' ? '#0f172a' : '#ffffff'}; color: {activeSubTab === 'grandlivre' ? '#ffffff' : '#475569'}; font-weight: 700; border-radius: 8px; padding: 8px 14px; border: 1px solid var(--border-color); cursor: pointer;" id="sub-btn-grandlivre" onclick={() => activeSubTab = 'grandlivre'}>Le Grand-livre</button>
+  <button class="btn btn-secondary btn-sm" style="background: {activeSubTab === 'balance' ? '#0f172a' : '#ffffff'}; color: {activeSubTab === 'balance' ? '#ffffff' : '#475569'}; font-weight: 700; border-radius: 8px; padding: 8px 14px; border: 1px solid var(--border-color); cursor: pointer;" id="sub-btn-balance" onclick={() => activeSubTab = 'balance'}>La Balance</button>
+  <button class="btn btn-secondary btn-sm" style="background: {activeSubTab === 'bilan' ? '#0f172a' : '#ffffff'}; color: {activeSubTab === 'bilan' ? '#ffffff' : '#475569'}; font-weight: 700; border-radius: 8px; padding: 8px 14px; border: 1px solid var(--border-color); cursor: pointer;" id="sub-btn-bilan" onclick={() => activeSubTab = 'bilan'}>Le Bilan Simplifié</button>
 </div>
 
 <!-- subtab: RECETTES & DÉPENSES (DEFAULT NOVICE VIEW) -->
 {#if activeSubTab === 'recettes_depenses'}
-  <div class="glass-card">
+  <div class="card" style="padding: 24px; margin-bottom: 24px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
       <div>
-        <h3 style="font-family: var(--font-title); color: white; margin: 0;">Livre chronologique des Recettes et Dépenses</h3>
-        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">Document légal officiel exigé pour les associations, micro-entreprises et TPE.</p>
+        <h3 style="font-family: var(--font-title); color: #0f172a; margin: 0; font-weight: 800;">Livre chronologique des Recettes et Dépenses</h3>
+        <p style="font-size: 0.82rem; color: #64748b; margin-top: 4px;">Document légal officiel exigé pour les associations, micro-entreprises et TPE.</p>
       </div>
       <div class="tooltip-container">
         <span class="pedago-help-btn">?</span>
@@ -363,26 +371,26 @@
         <tbody>
           {#if sortedTxList.length === 0}
             <tr>
-              <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 30px;">Aucune opération enregistrée dans le registre chronologique.</td>
+              <td colspan="5" style="text-align: center; color: #64748b; padding: 30px;">Aucune opération enregistrée dans le registre chronologique.</td>
             </tr>
           {:else}
             {#each sortedTxList as tx}
-              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
-                <td style="font-weight: 600; color: white;">{new Date(tx.date).toLocaleDateString('fr-FR')}</td>
-                <td style="color: white; font-weight: 600;">{tx.libelle}</td>
+              <tr style="border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+                <td style="font-weight: 700; color: #0f172a;">{new Date(tx.date).toLocaleDateString('fr-FR')}</td>
+                <td style="color: #0f172a; font-weight: 700;">{tx.libelle}</td>
                 <td>
-                  <span class="badge badge-muted" style="font-size: 0.8rem;">
+                  <span class="badge badge-muted">
                     {tx.compteAttribué} − {Categorizer.obtenirLibelleCompte(tx.compteAttribué)}
                   </span>
                 </td>
                 <td>
                   {#if tx.credit > 0}
-                    <span class="badge badge-success" style="font-size: 0.75rem;">🟢 Recette</span>
+                    <span class="badge badge-success">🟢 Recette</span>
                   {:else}
-                    <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 0.75rem;">🔴 Dépense</span>
+                    <span class="badge badge-danger">🔴 Dépense</span>
                   {/if}
                 </td>
-                <td style="text-align: right; font-weight: 700; font-family: monospace; font-size: 0.95rem; color: {tx.credit > 0 ? '#34d399' : '#f87171'};">
+                <td style="text-align: right; font-weight: 800; font-size: 0.95rem; color: {tx.credit > 0 ? '#15803d' : '#b91c1c'};">
                   {tx.credit > 0 ? '+' : '-'}{(tx.credit > 0 ? tx.credit : tx.debit).toFixed(2)} €
                 </td>
               </tr>

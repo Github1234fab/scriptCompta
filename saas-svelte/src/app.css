@@ -7,41 +7,41 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* 🎨 SCRIPTCOMPTA DESIGN SYSTEM - VARIABLES INDÉPENDANTES */
+  /* 🎨 SCRIPTCOMPTA DESIGN SYSTEM - LIGHT SLATE MINIMALISTE */
   
-  /* 1. Fond Global de l'application (Autour/Marge globale) */
-  --bg-app: #dcd0d0;
+  /* 1. Fond Global de l'application */
+  --bg-app: #f1f3f6;
   
   /* 2. Barre Latérale Gauche (Sidebar) */
-  --bg-sidebar: #292929;
+  --bg-sidebar: #0f172a;
   
   /* 3. Header Supérieur (Bandeau d'en-tête) */
-  --bg-header: #dedede;
+  --bg-header: #e2e5ec;
   
   /* 4. Fond du Screen Principal (Zone de travail) */
-  --bg-screen: #f2f2f2;
+  --bg-screen: #f1f3f6;
   
   /* 5. Cartes, KPIs & Conteneurs de Tableaux */
-  --bg-card: #210505;
-  --bg-kpi: #998C80; /* Fond dédié uniquement aux 3 Cartes KPI supérieures */
-  --bg-card-hover: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-kpi: #ffffff; /* Cartes KPI blanches épurées avec bordures */
+  --bg-card-hover: #f8fafc;
   
   /* 6. Modales & Popups */
-  --bg-modal: #130303;
+  --bg-modal: #ffffff;
   
   /* Couleurs de texte */
-  --text-main: #191919;
-  --text-primary: #0d121d;
-  --text-secondary: #c1c1c1;
-  --text-muted: #161616;
-  --text-light: #d4d5d7;
+  --text-main: #0f172a;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
   
   /* Bordures */
-  --border-color: #E2E8F0;
-  --border-hover: #CBD5E1;
+  --border-color: #e2e8f0;
+  --border-hover: #cbd5e1;
   
   /* Accents & Statuts */
-  --color-primary: #0F172A;
+  --color-primary: #0f172a;
   --color-accent: #3f83f1;
   --color-success: #166534;
   --color-success-bg: #F0FDF4;
@@ -74,13 +74,17 @@ body {
 /* Base App Layout */
 .app-container {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   background-color: var(--bg-app);
 }
 
 /* Sidebar Styles (DÉDIÉ) */
 .app-sidebar {
   width: 250px;
+  height: 100vh;
+  flex-shrink: 0;
   background-color: var(--bg-sidebar) !important;
   border-right: 1px solid var(--border-color);
   display: flex;
@@ -92,6 +96,7 @@ body {
 /* Main Content Area & Screen (DÉDIÉ) */
 .app-content {
   flex: 1;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: var(--bg-screen) !important;
@@ -116,11 +121,11 @@ body {
 
 /* Cards & Widgets généraux (DÉDIÉ A --bg-card) */
 .card, .dashboard-card, .stat-card, .glass-card {
-  background-color: var(--bg-card) !important;
-  border: 1px solid var(--border-color) !important;
-  border-radius: var(--radius-md) !important;
-  box-shadow: var(--shadow-card) !important;
-  color: var(--text-main) !important;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: var(--text-main);
 }
 
 /* Modales & Dialogs (DÉDIÉ A --bg-modal) */
@@ -159,67 +164,84 @@ body {
 }
 
 .brand-logo {
-  padding: 18px 20px;
+  padding: 20px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid var(--border-color);
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .logo-icon {
-  width: 32px;
-  height: 32px;
-  background: var(--color-primary);
-  color: white;
+  width: 34px;
+  height: 34px;
+  background: #3b82f6;
+  color: #ffffff;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
 }
 
 .brand-name {
   font-weight: 800;
-  font-size: 1.1rem;
-  color: var(--color-primary);
+  font-size: 1.2rem;
+  color: #ffffff !important;
   letter-spacing: -0.02em;
 }
 
 .sidebar-menu {
   list-style: none;
-  padding: 12px 10px;
+  padding: 16px 12px;
   margin: 0;
 }
 
 .sidebar-menu li {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 12px;
+  padding: 11px 16px;
   border-radius: var(--radius-md);
-  color: var(--text-muted);
+  color: #94a3b8 !important;
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.menu-item i {
+  color: #94a3b8;
+  width: 20px;
+  font-size: 1rem;
+  text-align: center;
 }
 
 .menu-item:hover {
-  background-color: #F1F5F9;
-  color: var(--text-main);
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.menu-item:hover i {
+  color: #ffffff !important;
 }
 
 .menu-item.active {
-  background-color: var(--color-primary);
-  color: #FFFFFF !important;
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .menu-item.active i {
-  color: #FFFFFF !important;
+  color: #60a5fa !important;
 }
 
 /* Main Content Area */
@@ -239,11 +261,11 @@ body {
 
 /* Cards & Widgets Uniformity */
 .card, .dashboard-card, .stat-card, .glass-card {
-  background-color: var(--bg-card) !important;
-  border: 1px solid var(--border-color) !important;
-  border-radius: var(--radius-md) !important;
-  box-shadow: var(--shadow-card) !important;
-  color: var(--text-main) !important;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: var(--text-main);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -276,16 +298,10 @@ body {
 
 /* Sidebar Navigation */
 .app-sidebar {
-  width: 280px;
   background-color: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  padding: 30px 20px;
-  position: fixed;
-  height: 100vh;
-  z-index: 100;
-  overflow-y: auto;
 }
 
 /* Personnalisation de la barre de défilement pour la sidebar */
@@ -406,12 +422,14 @@ body {
 
 /* Zone Principale de Contenu */
 .app-content {
-  margin-left: 280px;
   flex: 1;
-  padding: 40px 50px;
-  min-height: 100vh;
+  width: 100%;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 24px 32px;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -453,14 +471,15 @@ body {
 
 .page-title {
   font-family: var(--font-title);
-  font-size: 2.2rem;
+  font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: -0.5px;
-  margin-bottom: 8px;
-  background: linear-gradient(to right, #ffffff, #cbd5e1);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+  color: #0f172a !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  -webkit-text-fill-color: #0f172a !important;
 }
 
 .page-subtitle {
@@ -692,35 +711,47 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-  color: white;
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border: 1px solid #0f172a !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
 }
 
 .btn-primary:hover {
+  background: #1e293b !important;
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
 }
 
 .btn-secondary {
-  background-color: rgba(255,255,255,0.05);
-  border-color: var(--border-color);
-  color: var(--text-primary);
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
 }
 
 .btn-secondary:hover {
-  background-color: rgba(255,255,255,0.1);
-  border-color: var(--text-secondary);
+  background-color: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
 }
 
 .btn-success {
-  background-color: var(--color-success);
-  color: white;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  background-color: #15803d !important;
+  color: #ffffff !important;
+  border: 1px solid #166534 !important;
+  box-shadow: 0 2px 6px rgba(21, 128, 61, 0.2);
 }
 
 .btn-success:hover {
-  background-color: #0d9488;
+  background-color: #166534 !important;
+}
+
+/* Form Controls & Select Inputs */
+.form-control, select, input {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  outline: none;
 }
 
 /* Specific Category CTA Variants */
@@ -827,13 +858,20 @@ body {
 
 /* ═══════════════════════════════════════════════════════════════════
    TABLEAUX ET GRILLES DE DONNEES
-   ═══════════════════════════════════════════════════════════════════ */
+/* Headings & Page Titles High Contrast */
+h1, h2, h3, h4, h5, .page-title {
+  color: var(--text-main);
+}
+.page-subtitle {
+  color: var(--text-muted);
+}
 
 .table-container {
   overflow-x: auto;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
-  background-color: rgba(0,0,0,0.15);
+  background-color: #ffffff !important;
+  box-shadow: var(--shadow-card);
 }
 
 .custom-table {
@@ -841,33 +879,44 @@ body {
   border-collapse: collapse;
   text-align: left;
   font-size: 0.9rem;
+  background-color: #ffffff;
 }
 
 .custom-table th {
-  background-color: var(--bg-screen);
+  background-color: #f8fafc !important;
   padding: 16px 20px;
   font-family: var(--font-title);
   font-weight: 700;
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: #475569 !important;
   border-bottom: 1px solid var(--border-color);
 }
 
 .custom-table td {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-color);
-  color: var(--text-main);
+  color: #0f172a !important;
   font-weight: 500;
 }
 
 .custom-table tbody tr {
   transition: var(--transition-fast);
+  background-color: #ffffff;
+}
+
+/* Zebra Striping (Une ligne sur deux grisée pour une lisibilité optimale) */
+.custom-table tbody tr:nth-child(even), table.custom-table tbody tr:nth-child(even) {
+  background-color: #f8fafc !important;
+}
+
+.custom-table tbody tr:nth-child(odd), table.custom-table tbody tr:nth-child(odd) {
+  background-color: #ffffff !important;
 }
 
 .custom-table tbody tr:hover, .student-row:hover {
-  background-color: var(--bg-card-hover) !important;
+  background-color: #f1f5f9 !important;
 }
 
 .custom-table tbody tr:last-child td {
@@ -876,10 +925,14 @@ body {
 
 /* Badges de statuts */
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
   padding: 4px 10px;
   border-radius: 20px;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -904,9 +957,9 @@ body {
 }
 
 .badge-muted {
-  background-color: rgba(255,255,255,0.05);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
 }
 
 /* Montants */

@@ -6,6 +6,7 @@
   /**
    * Helper: check if a transaction legally requires a standalone invoice
    * (Bank charges 627 and Urssaf/Social contributions 645/6453 are exempt, as bank statements suffice)
+   * @param {any} tx
    */
   function exigeFacture(tx) {
     const cpt = String(tx.compteAttribué || '');

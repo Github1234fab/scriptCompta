@@ -6,6 +6,7 @@
 
   let isFirstLaunch = $derived($entities.length === 0);
 
+  /** @param {any} e */
   function handleSubmit(e) {
     e.preventDefault();
     if (!nameInput.trim()) return;
@@ -24,6 +25,7 @@
     selectedModel = 'micro';
     $showCreateEntityModal = false;
 
+    /** @type {Record<string, string>} */
     const labels = {
       micro: 'Micro-entreprise',
       tpe: 'Société / TPE',

@@ -97,36 +97,45 @@
   let retards = $derived($members.filter(m => (m.forfait - m.dejaPaye) > 0));
   let stocksFaibles = $derived($products.filter(p => p.stock < 5));
 
+  /** @param {any} e */
   function handleEntityChange(e) {
-    const val = e.target.value;
+    const target = /** @type {HTMLSelectElement} */ (e.target);
+    const val = target.value;
     if (val === 'create_new') {
       showCreateEntityModal.set(true);
-      e.target.value = $activeEntityId;
+      target.value = $activeEntityId;
     } else {
       updateActiveEntityId(val);
-      showToast(`Structure active : ${$entities.find(ent => ent.id === val).name}`);
+      const found = $entities.find((/** @type {any} */ ent) => ent.id === val);
+      if (found) {
+        showToast(`Structure active : ${found.name}`);
+      }
     }
   }
 
+  /** @param {any} e */
   function handleModelChange(e) {
-    const val = e.target.value;
+    const target = /** @type {HTMLSelectElement} */ (e.target);
+    const val = target.value;
     accountingModel = val;
     
     // Also update model in entity
-    const currentEntity = $entities.find(ent => ent.id === $activeEntityId);
+    const currentEntity = $entities.find((/** @type {any} */ ent) => ent.id === $activeEntityId);
     if (currentEntity && currentEntity.model !== val) {
       currentEntity.model = val;
       entities.set([...$entities]); // trigger update
       localStorage.setItem('saas_compta_entities', JSON.stringify($entities));
     }
-    showToast(`Modèle configuré : ${e.target.options[e.target.selectedIndex].text}`);
+    if (target.options && target.selectedIndex >= 0) {
+      showToast(`Modèle configuré : ${target.options[target.selectedIndex].text}`);
+    }
   }
 
   // Load demo CSV
   function chargerDemo() {
     const demoTx = CSVParser.parse(DEMO_CSV_DATA);
     const importId = 'import_demo';
-    demoTx.forEach(tx => tx.importId = importId);
+    demoTx.forEach((/** @type {any} */ tx) => tx.importId = importId);
     
     const categorized = Categorizer.categoriserTransactions(demoTx);
     updateTransactions(categorized);
@@ -135,7 +144,7 @@
     const historyKey = `saas_compta_imports_${$activeEntityId}`;
     const savedHistory = localStorage.getItem(historyKey);
     const history = savedHistory ? JSON.parse(savedHistory) : [];
-    if (!history.some(h => h.id === importId)) {
+    if (!history.some((/** @type {any} */ h) => h.id === importId)) {
       history.unshift({
         id: importId,
         fileName: 'releve_demo_25_lignes.csv',
@@ -155,18 +164,21 @@
   let dragover = $state(false);
   let fileInput;
 
+  /** @param {any} e */
   function handleDrop(e) {
     e.preventDefault();
     dragover = false;
-    if (e.dataTransfer.files.length > 0) {
+    if (e.dataTransfer && e.dataTransfer.files.length > 0) {
       traiterFichierCSV(e.dataTransfer.files[0]);
     }
   }
 
+  /** @param {any} file */
   function traiterFichierCSV(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const rawText = e.target.result;
+      const rawText = e.target ? /** @type {string} */ (e.target.result) : '';
+      if (!rawText) return;
       const transactionsImp = CSVParser.parse(rawText);
 
       if (transactionsImp.length === 0) {
@@ -180,10 +192,11 @@
         return `${tx.date}_${tx.libelle}_${amount}`;
       }));
 
+      /** @type {any[]} */
       const newTransactions = [];
       const importId = 'import_' + Date.now();
 
-      transactionsImp.forEach(tx => {
+      transactionsImp.forEach((/** @type {any} */ tx) => {
         const amount = (tx.debit > 0 ? -tx.debit : tx.credit).toFixed(2);
         const hash = `${tx.date}_${tx.libelle}_${amount}`;
         if (!existingHashes.has(hash)) {
@@ -224,12 +237,14 @@
     reader.readAsText(file);
   }
 
+  /** @param {any} e */
   function handleFileChange(e) {
-    if (e.target.files.length > 0) {
+    if (e.target && e.target.files.length > 0) {
       traiterFichierCSV(e.target.files[0]);
     }
   }
 
+  /** @param {any} bookId */
   function navigateToBook(bookId) {
     activeView.set('books');
     setTimeout(() => {
@@ -240,7 +255,7 @@
 
   onMount(() => {
     // Sync accounting model from store entity
-    const currentEntity = $entities.find(ent => ent.id === $activeEntityId);
+    const currentEntity = $entities.find((/** @type {any} */ ent) => ent.id === $activeEntityId);
     if (currentEntity) {
       accountingModel = currentEntity.model || 'all';
     }
@@ -513,19 +528,4 @@
   </div>
 </div>
 
-<style>
-  .dashboard-action-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: rgba(255,255,255,0.02);
-    border: 1px solid var(--border-color);
-    padding: 15px 20px;
-    border-radius: 8px;
-    transition: var(--transition-fast);
-  }
-  .dashboard-action-item:hover {
-    background-color: rgba(255,255,255,0.04);
-    border-color: var(--border-hover);
-  }
-</style>
+

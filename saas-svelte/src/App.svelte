@@ -32,6 +32,8 @@
   import DashboardTPE from './components/DashboardTPE.svelte';
   import DashboardAsso from './components/DashboardAsso.svelte';
   import OnboardingModal from './components/OnboardingModal.svelte';
+  import Header from './components/Header.svelte';
+  import Sidebar from './components/Sidebar.svelte';
 
   // State for creating a new entity
   let entityNameInput = $state('');
@@ -232,149 +234,14 @@
 </script>
 
 <div class="app-container">
-  
-  <!-- SIDEBAR NAVIGATION ÉPURÉE (4 ONGLETS UNIVERSELS) -->
-  <aside class="app-sidebar">
-    <div class="brand-logo">
-      <div class="logo-icon"><i class="fa-solid fa-layer-group"></i></div>
-      <div class="brand-name">scriptCompta</div>
-    </div>
-    
-    <nav style="flex: 1; padding-top: 10px;">
-      <ul class="sidebar-menu">
-        
-        <!-- 1. TABLEAU DE BORD -->
-        <li>
-          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-          <span 
-             id="menu-dashboard" 
-             class="menu-item {$activeView === 'dashboard' ? 'active' : ''}" 
-             onclick={() => switchView('dashboard')}>
-            <i class="fa-solid fa-chart-simple"></i> Tableau de bord
-          </span>
-        </li>
-
-        <!-- 2. BANQUE & PIÈCES -->
-        <li>
-          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-          <span 
-             id="menu-categorize" 
-             class="menu-item {$activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces' ? 'active' : ''}" 
-             onclick={() => switchView('categorize')}>
-            <i class="fa-solid fa-wallet"></i> Banque & Pièces
-            {#if pendingTxBadgeCount > 0}
-              <span class="badge badge-warning" id="pending-tx-badge" style="margin-left: auto;">{pendingTxBadgeCount}</span>
-            {/if}
-          </span>
-        </li>
-
-        <!-- 3. MON ACTIVITÉ (Intitulé dynamique) -->
-        <li>
-          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-          <span 
-             id="menu-activity" 
-             class="menu-item {$activeView === 'activity' || $activeView === 'workspace_asso' || $activeView === 'workspace_micro' || $activeView === 'workspace_tpe' || $activeView === 'members' || $activeView === 'sales' || $activeView === 'donations' ? 'active' : ''}" 
-             onclick={() => switchView('activity')}>
-            <i class="fa-solid {activityIcon}"></i> {activityLabel}
-          </span>
-        </li>
-
-        <!-- 4. DOCUMENTS & CLÔTURE -->
-        <li>
-          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-          <span 
-             id="menu-books" 
-             class="menu-item {$activeView === 'books' || $activeView === 'livre_recettes' ? 'active' : ''}" 
-             onclick={() => switchView('books')}>
-            <i class="fa-solid fa-file-contract"></i> Documents & Clôture
-          </span>
-        </li>
-
-      </ul>
-    </nav>
-    
-    <!-- SÉLECTEUR DE DOSSIER DISCRET EN BAS DE SIDEBAR -->
-    <div class="sidebar-footer" style="padding: 14px; border-top: 1px solid var(--border-color); background: var(--bg-sidebar);">
-      <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.05em;">Structure / Dossier</div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-building-columns" style="color: var(--text-muted); font-size: 0.9rem;"></i>
-        <select 
-          value={$activeEntityId} 
-          onchange={(e) => {
-            const target = /** @type {HTMLSelectElement} */ (e.target);
-            if (target && target.value === 'create_new') {
-              $showCreateEntityModal = true;
-              target.value = $activeEntityId;
-            } else if (target) {
-              updateActiveEntityId(target.value);
-            }
-          }} 
-          style="flex: 1; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-main); font-weight: 600; font-size: 0.84rem; padding: 6px 8px; outline: none; cursor: pointer;"
-        >
-          {#each $entities as entity}
-            <option value={entity.id}>{entity.name}</option>
-          {/each}
-          <option value="create_new">➕ Créer une structure...</option>
-        </select>
-      </div>
-
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px; font-size: 0.76rem; color: var(--text-muted);">
-        <span>Formule Premium (19,90€)</span>
-        <button 
-          onclick={handleResetDb} 
-          style="background: none; border: none; color: var(--color-danger); cursor: pointer; font-size: 0.76rem; padding: 0;"
-          title="Réinitialiser les données"
-        >
-          <i class="fa-solid fa-rotate-right"></i> Reset
-        </button>
-      </div>
-    </div>
-  </aside>
+  <!-- SIDEBAR NAVIGATION -->
+  <Sidebar {switchView} {handleResetDb} />
 
   <!-- MAIN CONTENT CONTAINER -->
   <main class="app-content">
     
     <!-- TOP HEADER BAR -->
-    <header class="content-header" style="gap: 15px; flex-wrap: wrap; padding: 14px 28px; background: var(--bg-header); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
-      <div>
-        <h2 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-          {#if $activeView === 'dashboard'}
-            <i class="fa-solid fa-chart-simple" style="color: var(--color-accent);"></i> Tableau de bord
-          {:else if $activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces'}
-            <i class="fa-solid fa-wallet" style="color: var(--color-accent);"></i> Banque & Pièces
-          {:else if $activeView === 'activity' || $activeView.startsWith('workspace_')}
-            <i class="fa-solid {activityIcon}" style="color: var(--color-accent);"></i> {activityLabel}
-          {:else if $activeView === 'books'}
-            <i class="fa-solid fa-file-contract" style="color: var(--color-accent);"></i> Documents & Clôture
-          {:else}
-            <i class="fa-solid fa-cube" style="color: var(--color-accent);"></i> scriptCompta
-          {/if}
-        </h2>
-        <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">
-          Structure : <strong>{activeEntity ? activeEntity.name : ''}</strong> ({accountingModel === 'micro' ? 'Micro-entreprise' : accountingModel === 'tpe' ? 'Société / TPE' : accountingModel === 'asso' ? 'Association' : 'Entité'})
-        </p>
-      </div>
-
-      <!-- Right Header Actions -->
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <button 
-          onclick={() => $showCreateEntityModal = true}
-          style="background: var(--color-primary); color: white; border: none; border-radius: var(--radius-sm); padding: 6px 12px; font-weight: 600; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;"
-          title="Ajouter une nouvelle gestion / structure"
-        >
-          <i class="fa-solid fa-circle-plus"></i> Nouvelle structure
-        </button>
-
-        <button class="btn btn-secondary btn-sm" onclick={startTour} id="start-tour-btn" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-main);">
-          <i class="fa-solid fa-circle-play" style="color: var(--color-accent);"></i> Guide d'utilisation
-        </button>
-
-        <div class="user-badge" style="background: var(--bg-primary); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: var(--radius-sm); display: flex; align-items: center; gap: 8px;">
-          <div class="user-avatar" style="background: var(--color-primary); color: white; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">FM</div>
-          <span style="font-size: 0.84rem; font-weight: 600; color: var(--text-main);">{activeEntity ? activeEntity.name : ''}</span>
-        </div>
-      </div>
-    </header>
+    <Header {startTour} />
 
     <!-- CONTENT RENDER AREA -->
     {#if $activeView === 'dashboard'}

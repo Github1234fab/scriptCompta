@@ -288,7 +288,6 @@ export const Categorizer = {
     if (!numCompte || numCompte === '699') return '« Choisir une catégorie... »';
     const cpt = get(planComptable).find(p => p.compte === String(numCompte));
     if (!cpt) return `Compte (${numCompte})`;
-    const cleanName = cpt.libelle.replace(/\s*\(\d+\)\s*/g, '').trim();
-    return `${cleanName} (${cpt.compte})`;
+    return cpt.libelle.replace(/\s*\(\d+\)\s*/g, '').trim();
   }
 };
