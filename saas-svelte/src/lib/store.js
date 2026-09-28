@@ -15,13 +15,94 @@ export const activeTxId = writable(null); // Active transaction in categorizatio
 
 // Entities (Multi-structure)
 const savedEntities = localStorage.getItem('saas_compta_entities');
-export const showCreateEntityModal = writable(!savedEntities);
-const defaultEntities = [{ id: 'entity-lyon', name: 'Club de Musique de Lyon', model: 'asso' }];
-const parsedEntities = savedEntities ? JSON.parse(savedEntities) : defaultEntities;
-export const entities = writable(parsedEntities.length > 0 ? parsedEntities : defaultEntities);
+export const showCreateEntityModal = writable(false);
+const parsedEntities = savedEntities ? JSON.parse(savedEntities) : [];
+export const entities = writable(parsedEntities);
 
 const savedActiveEntityId = localStorage.getItem('saas_compta_active_entity_id');
 export const activeEntityId = writable(savedActiveEntityId || 'entity-lyon');
+
+/** @type {Record<string, any>} */
+export const MANAGEMENT_MODELS = {
+  micro: {
+    id: 'micro',
+    title: 'Micro-entreprise',
+    badge: 'Auto-entrepreneur',
+    icon: '🚀',
+    accentColor: '#10b981',
+    accentBg: 'rgba(16, 185, 129, 0.12)',
+    desc: 'Livre des recettes, registre des achats, jauge franchise TVA (293B) & Urssaf.',
+    onboardingTitle: "Nom de l'exploitant / Nom commercial",
+    onboardingSubtitle: "En auto-entreprise, les factures portent votre Nom Prénom (ex: Dupont Consulting). Vous pouvez aussi préciser votre nom commercial.",
+    onboardingLabel: "Nom Prénom (et nom commercial optionnel)",
+    onboardingPlaceholder: "ex: Thomas Martin (TM Digital Services)"
+  },
+  tpe: {
+    id: 'tpe',
+    title: 'Société / TPE',
+    badge: 'SASU, EURL, SARL, SAS',
+    icon: '🏢',
+    accentColor: '#38bdf8',
+    accentBg: 'rgba(56, 189, 248, 0.12)',
+    desc: 'Comptabilité d’engagement, Livre-journal, Grand-livre, TVA CA3/CA12 & export FEC.',
+    onboardingTitle: "Raison sociale de la société",
+    onboardingSubtitle: "Dénomination officielle figurant sur votre extrait Kbis et vos statuts.",
+    onboardingLabel: "Raison sociale (Nom officiel de la société)",
+    onboardingPlaceholder: "ex: Horizon Conseil SASU, Atelier Design EURL..."
+  },
+  asso: {
+    id: 'asso',
+    title: 'Association Loi 1901',
+    badge: 'Club / Assos',
+    icon: '🤝',
+    accentColor: '#c084fc',
+    accentBg: 'rgba(192, 132, 252, 0.12)',
+    desc: 'Cotisations adhérents, subventions CERFA 15059, reçus fiscaux dons CERFA 11580.',
+    onboardingTitle: "Nom de l'association",
+    onboardingSubtitle: "Nom officiel figurant sur le journal officiel (JOAFE) et les statuts déposés en préfecture.",
+    onboardingLabel: "Nom complet de l'association",
+    onboardingPlaceholder: "ex: Club Sportif & Culturel Lyon Sud, Les Amis du Patrimoine..."
+  },
+  bnc: {
+    id: 'bnc',
+    title: 'Profession Libérale',
+    badge: 'Déclaration 2035 BNC',
+    icon: '⚖️',
+    accentColor: '#f59e0b',
+    accentBg: 'rgba(245, 158, 11, 0.12)',
+    desc: 'Livre-journal BNC, barème kilométrique, amortissements & préparation liasse 2035.',
+    onboardingTitle: "Nom du cabinet et du praticien",
+    onboardingSubtitle: "Réglementation BNC (avocats, médecins, consultants, architectes).",
+    onboardingLabel: "Nom du cabinet et de la profession exercée",
+    onboardingPlaceholder: "ex: Cabinet Dr Martin, Maître Dubois Avocat, Julie Renard Kiné..."
+  },
+  sci: {
+    id: 'sci',
+    title: 'SCI Familiale',
+    badge: 'Impôt sur le Revenu (IR)',
+    icon: '🏡',
+    accentColor: '#ec4899',
+    accentBg: 'rgba(236, 72, 153, 0.12)',
+    desc: 'Gestion des loyers, quittances 1-clic, apports CCA & préparation déclaration 2072.',
+    onboardingTitle: "Dénomination de la SCI",
+    onboardingSubtitle: "Nom figurant sur le Kbis de la Société Civile Immobilière et le bail locatif.",
+    onboardingLabel: "Nom de la SCI",
+    onboardingPlaceholder: "ex: SCI Les Marronniers, SCI Horizon Immobilier..."
+  },
+  copro: {
+    id: 'copro',
+    title: 'Copropriété Bénévole',
+    badge: 'Syndic Coopératif',
+    icon: '🏛️',
+    accentColor: '#6366f1',
+    accentBg: 'rgba(99, 102, 241, 0.12)',
+    desc: 'Lots & tantièmes, appels de fonds trimestriels, fonds travaux ALUR & régul annuelle.',
+    onboardingTitle: "Nom de la Copropriété / Immeuble",
+    onboardingSubtitle: "Nom de la résidence ou adresse de l'immeuble géré en syndic bénévole / coopératif.",
+    onboardingLabel: "Désignation de la résidence ou copropriété",
+    onboardingPlaceholder: "ex: Résidence Le Victor Hugo, Copropriété 12 rue de la Paix..."
+  }
+};
 
 // Entity-specific states
 export const transactions = writable([]);

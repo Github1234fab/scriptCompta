@@ -10,12 +10,18 @@
 
   let activityLabel = $derived(
     accountingModel === 'asso' ? 'Adhérents & Dons' :
-    accountingModel === 'micro' ? 'Recettes Micro' : 'Factures & Ventes'
+    accountingModel === 'micro' ? 'Recettes Micro' :
+    accountingModel === 'bnc' ? 'Registre BNC' :
+    accountingModel === 'sci' ? 'Gestion Locative' :
+    accountingModel === 'copro' ? 'Copropriété & Lots' : 'Factures & Ventes'
   );
 
   let activityIcon = $derived(
     accountingModel === 'asso' ? 'fa-users-heart' :
-    accountingModel === 'micro' ? 'fa-file-invoice-dollar' : 'fa-briefcase'
+    accountingModel === 'micro' ? 'fa-file-invoice-dollar' :
+    accountingModel === 'bnc' ? 'fa-scale-balanced' :
+    accountingModel === 'sci' ? 'fa-house' :
+    accountingModel === 'copro' ? 'fa-building-user' : 'fa-briefcase'
   );
 
   let pendingTxBadgeCount = $derived($transactions.filter(

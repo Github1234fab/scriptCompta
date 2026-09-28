@@ -1,20 +1,27 @@
 <script>
-  import { activeView, activeEntityId, entities, showCreateEntityModal, transactions } from '../lib/store.js';
+  import { activeView, activeEntityId, entities, showCreateEntityModal, MANAGEMENT_MODELS } from '../lib/store.js';
 
   /** @type {{ startTour: () => void }} */
   let { startTour } = $props();
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0]);
   let accountingModel = $derived(activeEntity?.model || 'micro');
+  let modelObj = $derived(MANAGEMENT_MODELS[accountingModel] || MANAGEMENT_MODELS.micro);
 
   let activityLabel = $derived(
     accountingModel === 'asso' ? 'Adhérents & Dons' :
-    accountingModel === 'micro' ? 'Recettes Micro' : 'Factures & Ventes'
+    accountingModel === 'micro' ? 'Recettes Micro' :
+    accountingModel === 'bnc' ? 'Registre & Frais BNC' :
+    accountingModel === 'sci' ? 'Loyers & Associés' :
+    accountingModel === 'copro' ? 'Lots & Tantièmes' : 'Factures & Ventes'
   );
 
   let activityIcon = $derived(
     accountingModel === 'asso' ? 'fa-users-heart' :
-    accountingModel === 'micro' ? 'fa-file-invoice-dollar' : 'fa-briefcase'
+    accountingModel === 'micro' ? 'fa-file-invoice-dollar' :
+    accountingModel === 'bnc' ? 'fa-scale-balanced' :
+    accountingModel === 'sci' ? 'fa-house' :
+    accountingModel === 'copro' ? 'fa-building-user' : 'fa-briefcase'
   );
 </script>
 
@@ -34,7 +41,7 @@
       {/if}
     </h2>
     <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">
-      Structure : <strong>{activeEntity ? activeEntity.name : ''}</strong> ({accountingModel === 'micro' ? 'Micro-entreprise' : accountingModel === 'tpe' ? 'Société / TPE' : accountingModel === 'asso' ? 'Association' : 'Entité'})
+      Structure : <strong>{activeEntity ? activeEntity.name : ''}</strong> ({modelObj ? modelObj.title : 'Entité'})
     </p>
   </div>
 

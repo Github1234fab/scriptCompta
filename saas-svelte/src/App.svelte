@@ -32,12 +32,15 @@
   import DashboardTPE from './components/DashboardTPE.svelte';
   import DashboardAsso from './components/DashboardAsso.svelte';
   import OnboardingModal from './components/OnboardingModal.svelte';
+  import WelcomeScreen from './components/WelcomeScreen.svelte';
   import Header from './components/Header.svelte';
   import Sidebar from './components/Sidebar.svelte';
 
   // State for creating a new entity
   let entityNameInput = $state('');
   let entityModelInput = $state('all');
+
+  let isFirstLaunch = $derived($entities.length === 0);
 
   // Tour Guide states
   let tourActive = $state(false);
@@ -233,45 +236,49 @@
   );
 </script>
 
-<div class="app-container">
-  <!-- SIDEBAR NAVIGATION -->
-  <Sidebar {switchView} {handleResetDb} />
+{#if isFirstLaunch}
+  <WelcomeScreen />
+{:else}
+  <div class="app-container">
+    <!-- SIDEBAR NAVIGATION -->
+    <Sidebar {switchView} {handleResetDb} />
 
-  <!-- MAIN CONTENT CONTAINER -->
-  <main class="app-content">
-    
-    <!-- TOP HEADER BAR -->
-    <Header {startTour} />
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="app-content">
+      
+      <!-- TOP HEADER BAR -->
+      <Header {startTour} />
 
-    <!-- CONTENT RENDER AREA -->
-    {#if $activeView === 'dashboard'}
-      {#if accountingModel === 'micro'}
-        <DashboardMicro />
-      {:else if accountingModel === 'tpe'}
-        <DashboardTPE />
-      {:else if accountingModel === 'asso'}
-        <DashboardAsso />
-      {:else}
-        <DashboardTPE />
+      <!-- CONTENT RENDER AREA -->
+      {#if $activeView === 'dashboard'}
+        {#if accountingModel === 'micro'}
+          <DashboardMicro />
+        {:else if accountingModel === 'tpe'}
+          <DashboardTPE />
+        {:else if accountingModel === 'asso'}
+          <DashboardAsso />
+        {:else}
+          <DashboardTPE />
+        {/if}
+      {:else if $activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces'}
+        <Categorize />
+      {:else if $activeView === 'activity' || $activeView === 'workspace_asso' || $activeView === 'workspace_micro' || $activeView === 'workspace_tpe' || $activeView === 'members' || $activeView === 'sales' || $activeView === 'donations'}
+        {#if accountingModel === 'asso'}
+          <EspaceAsso />
+        {:else if accountingModel === 'micro'}
+          <EspaceMicro />
+        {:else}
+          <EspaceTPE />
+        {/if}
+      {:else if $activeView === 'books' || $activeView === 'recettes'}
+        <Books />
+      {:else if $activeView === 'glossary'}
+        <Glossary />
       {/if}
-    {:else if $activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces'}
-      <Categorize />
-    {:else if $activeView === 'activity' || $activeView === 'workspace_asso' || $activeView === 'workspace_micro' || $activeView === 'workspace_tpe' || $activeView === 'members' || $activeView === 'sales' || $activeView === 'donations'}
-      {#if accountingModel === 'asso'}
-        <EspaceAsso />
-      {:else if accountingModel === 'micro'}
-        <EspaceMicro />
-      {:else}
-        <EspaceTPE />
-      {/if}
-    {:else if $activeView === 'books' || $activeView === 'recettes'}
-      <Books />
-    {:else if $activeView === 'glossary'}
-      <Glossary />
-    {/if}
 
-  </main>
-</div>
+    </main>
+  </div>
+{/if}
 
 <!-- TOAST NOTIFICATION -->
 {#if $toastMessage}
