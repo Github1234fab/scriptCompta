@@ -54,51 +54,56 @@
         </p>
       {:else}
         <h1 style="font-family: var(--font-title); font-size: 2.2rem; font-weight: 800; color: #0f172a; margin: 0 0 12px 0; letter-spacing: -0.02em;">
-          {MANAGEMENT_MODELS[selectedModel]?.onboardingTitle || "Comment s'appelle votre structure ?"}
+          Création de votre espace {MANAGEMENT_MODELS[selectedModel]?.title || ''}
         </h1>
         <p style="font-size: 1.02rem; color: #64748b; line-height: 1.6; margin: 0;">
-          {MANAGEMENT_MODELS[selectedModel]?.onboardingSubtitle || `Saisissez le nom de votre dossier ou entité (${MANAGEMENT_MODELS[selectedModel]?.title}) pour finaliser la création.`}
+          {MANAGEMENT_MODELS[selectedModel]?.onboardingSubtitle || "Saisissez le nom de votre dossier ou entité pour finaliser la création."}
         </p>
       {/if}
     </div>
 
     <!-- ÉTAPE 1 : UNIQUEMENT LES 6 CARTES MÉTIER -->
     {#if currentStep === 1}
-      <div id="welcome-model-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 24px;">
+      <div id="welcome-model-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap:14px;">
         {#each Object.values(MANAGEMENT_MODELS) as item}
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
           <div 
             onclick={() => handleSelectModelCard(item.id)}
-            style="padding: 26px; min-height: 165px; border-radius: 16px; border: 1.5px solid {item.accentColor}40; background: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03); cursor: pointer; transition: all 0.22s ease-in-out; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;"
+            style="padding: 40px 30px; min-height: 165px; border-radius: 16px; border: 1.5px solid {item.accentColor}40; background: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03); cursor: pointer; transition: all 0.22s ease-in-out; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;"
             onmouseenter={(e) => {
-              e.currentTarget.style.borderColor = item.accentColor;
-              e.currentTarget.style.background = item.accentBg;
-              e.currentTarget.style.transform = 'translateY(-4px)';
-              e.currentTarget.style.boxShadow = `0 16px 32px -5px ${item.accentColor}30, 0 4px 8px -2px ${item.accentColor}15`;
+              e.currentTarget.style.transform = 'scale(1.02)';
+              e.currentTarget.style.boxShadow = '0 12px 24px rgba(15, 23, 42, 0.08)';
+              const btn = e.currentTarget.querySelector('.btn-select');
+              if (btn instanceof HTMLElement) btn.style.transform = 'scale(1.08)';
             }}
             onmouseleave={(e) => {
-              e.currentTarget.style.borderColor = `${item.accentColor}40`;
-              e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.transform = 'scale(1)';
               e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 23, 42, 0.03)';
+              const btn = e.currentTarget.querySelector('.btn-select');
+              if (btn instanceof HTMLElement) btn.style.transform = 'scale(1)';
             }}
           >
             <!-- Top accent strip -->
-            <div style="position: absolute; top: 0; left: 0; right: 0; height: 5px; background: {item.accentColor};"></div>
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 0px; background: {item.accentColor};"></div>
 
-            <div>
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; margin-top: 4px;">
-                <span style="font-size: 0.74rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; background: {item.accentColor}18; color: {item.accentColor}; border: 1px solid {item.accentColor}40; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%;">
-                  {item.badge}
-                </span>
-                <span style="font-size: 0.82rem; font-weight: 800; color: {item.accentColor}; display: flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;">
-                  Sélectionner ➔
-                </span>
+         
+<div style="display: flex; flex-direction: column; gap: 16px; flex: 1; justify-content: space-between;">
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px; margin-top: 0px;">
+                  <!-- <span style="font-size: 0.74rem; font-weight: 800; padding: 10px 10px; border-radius: 20px; background: {item.accentColor}18; color: {item.accentColor}; border: 1px solid {item.accentColor}40; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%;">
+                    {item.badge}
+                  </span> -->
+                </div>
+                <h4 style="font-size: 1.18rem; font-weight: 800; color: #0f172a; margin: 0; font-family: var(--font-title); background-color: #e0e7ff; border: 1px solid #bae6fd; padding: 10px 14px; border-radius: 10px;">{item.title}</h4>
+                <ul style="margin: 0; padding-left: 18px; font-size: 0.86rem; color: #475569; line-height: 1.6; display: flex; flex-direction: column; gap: 4px; font-weight: 500;">
+                  {#each item.desc.split(',') as feature}
+                    <li>{feature.trim()}</li>
+                  {/each}
+                </ul>
               </div>
-              <h4 style="font-size: 1.18rem; font-weight: 800; color: #0f172a; margin: 0 0 10px 0; font-family: var(--font-title);">{item.title}</h4>
-              <p style="font-size: 0.86rem; color: #475569; line-height: 1.5; margin: 0; font-weight: 500;">
-                {item.desc}
-              </p>
+              <span class="btn-select" style="font-size: 0.82rem; font-weight: 800; color: grey; display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; flex-shrink: 0; border: 1px solid grey; padding: 5px 14px; border-radius: 20px; align-self: flex-start; margin-top: auto; transition: transform 0.22s ease-in-out;">
+                Sélectionner ➔
+              </span>
             </div>
           </div>
         {/each}
@@ -106,42 +111,55 @@
 
     <!-- ÉTAPE 2 : APPRÈS CLIC SUR CARTE, DEMANDE DU NOM -->
     {:else}
-      <form onsubmit={handleCreateFirstStructure} style="max-width: 580px; margin: 0 auto;">
+      <form onsubmit={handleCreateFirstStructure} style="max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px;">
         
-        <!-- CARTE RAPPEL DU CHOIX SÉLECTIONNÉ -->
-        <div style="margin-bottom: 24px; padding: 16px 20px; border-radius: 12px; border: 2px solid {MANAGEMENT_MODELS[selectedModel]?.accentColor}; background: {MANAGEMENT_MODELS[selectedModel]?.accentBg}; display: flex; align-items: center; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <span style="font-size: 0.76rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; background: #ffffff; color: {MANAGEMENT_MODELS[selectedModel]?.accentColor}; border: 1px solid {MANAGEMENT_MODELS[selectedModel]?.accentColor}40;">
-              {MANAGEMENT_MODELS[selectedModel]?.badge}
+        <!-- PILULE RAPPEL DU PROFIL -->
+        <div style="display: flex; justify-content: center;">
+          <div style="display: inline-flex; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #cbd5e1; padding: 6px 16px; border-radius: 30px;">
+            <span style="font-size: 0.78rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; background: #e2e8f0; color: #334155;">
+              {MANAGEMENT_MODELS[selectedModel]?.badge || 'Profil'}
             </span>
-            <span style="font-size: 1.05rem; font-weight: 800; color: #0f172a;">{MANAGEMENT_MODELS[selectedModel]?.title}</span>
+            <span style="font-size: 0.92rem; font-weight: 800; color: #0f172a;">
+              {MANAGEMENT_MODELS[selectedModel]?.title}
+            </span>
           </div>
-          
-          <button type="button" onclick={handleBackToStep1} style="background: none; border: none; color: #2563eb; font-weight: 700; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-            <i class="fa-solid fa-pen"></i> Modifier le profil
-          </button>
         </div>
 
-        <div style="margin-bottom: 32px;">
-          <label for="welcome-structure-name" style="font-size: 0.98rem; font-weight: 800; color: #0f172a; display: block; margin-bottom: 8px;">
-            {MANAGEMENT_MODELS[selectedModel]?.onboardingLabel || "Nom de votre structure ou dossier"}
+        <!-- BLOC DE SAISIE PRINCIPAL (TEXTE DE SAISIE DYNAMIQUE SELON PROFIL) -->
+        <div style="background: #e0f2fe; border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 12px;">
+          <label for="welcome-structure-name" style="font-size: 1.08rem; font-weight: 800; color: #0f172a; display: block;">
+            {
+              selectedModel === 'micro' ? 'Saisissez votre Nom, Prénom ou nom commercial :' :
+              selectedModel === 'tpe' ? 'Saisissez la raison sociale officielle de la société :' :
+              selectedModel === 'asso' ? "Saisissez le nom officiel de l'association :" :
+              selectedModel === 'bnc' ? 'Saisissez le nom du cabinet ou du praticien :' :
+              selectedModel === 'sci' ? 'Saisissez le nom de la SCI :' :
+              selectedModel === 'copro' ? 'Saisissez la désignation de la résidence / copropriété :' :
+              'Saisissez le nom officiel de votre structure :'
+            }
           </label>
+          <!-- svelte-ignore a11y_autofocus -->
           <input 
             type="text" 
             id="welcome-structure-name"
             bind:value={nameInput} 
+            autofocus
             required 
-            placeholder={MANAGEMENT_MODELS[selectedModel]?.onboardingPlaceholder || "ex: Cabinet Paramédical Lyon, SCI Les Marronniers..."} 
-            style="width: 100%; padding: 16px 20px; font-size: 1.05rem; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; color: #0f172a; font-weight: 600; outline: none; box-sizing: border-box; transition: all 0.2s;"
+            placeholder={MANAGEMENT_MODELS[selectedModel]?.onboardingPlaceholder || "ex: Horizon Conseil SASU..."} 
+            style="width: 100%; padding: 14px 18px; font-size: 0.98rem; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; color: #0f172a; font-weight: 500; outline: none; box-sizing: border-box; transition: all 0.2s;"
           />
+          <p style="font-size: 0.86rem; color: #0369a1; margin: 0; font-weight: 600;">
+            Ce nom apparaîtra sur vos bilans et vos documents d'export.
+          </p>
         </div>
 
-        <div style="display: flex; gap: 14px; justify-content: center;">
-          <button type="button" onclick={handleBackToStep1} style="padding: 14px 24px; font-weight: 700; font-size: 0.95rem; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 12px; cursor: pointer;">
-            ← Retour
+        <!-- BOUTONS D'ACTION AVEC ESPACE SUFFISANT -->
+        <div style="display: flex; gap: 16px; justify-content: center; padding-top: 8px;">
+          <button type="button" onclick={handleBackToStep1} style="padding: 14px 28px; font-weight: 700; font-size: 0.95rem; background: #ffffff; color: #475569; border: 1.5px solid #cbd5e1; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+            ← Changer de profil
           </button>
-          <button type="submit" style="padding: 14px 40px; font-weight: 800; font-size: 1.02rem; background: #0f172a; color: #ffffff; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25); transition: all 0.2s;">
-            Créer mon espace & Démarrer ➔
+          <button type="submit" style="padding: 16px 48px; font-weight: 800; font-size: 1.05rem; background: #0f172a; color: #ffffff; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25); transition: all 0.2s;">
+            Valider & Démarrer ➔
           </button>
         </div>
 
