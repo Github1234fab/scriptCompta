@@ -1,8 +1,9 @@
 <script>
   import { Categorizer } from "../lib/categorizer.js";
+  import { CSVParser } from "../lib/parser.js";
 
   import { onMount } from "svelte";
-import { 
+  import { 
     transactions, 
     planComptable, 
     rules, 
@@ -28,6 +29,62 @@ import {
   // Pedagogical onboarding modal state
   let showPedagogicalModal = $state(false);
   let dontShowAgain = $state(false);
+
+  // CSV Dropzone state
+  let dragover = $state(false);
+  /** @type {HTMLInputElement | null} */
+  let fileInput = $state(null);
+
+  /** @param {DragEvent} e */
+  function handleCSVDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragover = false;
+    if (e.dataTransfer?.files?.length) {
+      processCSVFile(e.dataTransfer.files[0]);
+    }
+  }
+
+  /** @param {Event} e */
+  function handleCSVFileSelect(e) {
+    const target = /** @type {HTMLInputElement} */ (e.target);
+    if (target.files?.length) {
+      processCSVFile(target.files[0]);
+    }
+  }
+
+  /** @param {File} file */
+  function processCSVFile(file) {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const rawText = /** @type {string} */ (evt.target?.result || "");
+      const parsed = CSVParser.parse(rawText);
+      if (!parsed || parsed.length === 0) {
+        showToast("⚠️ Fichier CSV vide ou format non reconnu.");
+        return;
+      }
+
+      // Assign IDs and defaults to parsed transactions
+      const newTxList = parsed.map((t, idx) => ({
+        id: `imported_${Date.now()}_${idx}`,
+        date: t.date || new Date().toISOString().split('T')[0],
+        libelle: t.libelle || "Opération sans libellé",
+        debit: t.debit || 0,
+        credit: t.credit || 0,
+        compteAttribué: "699",
+        statut: "non_attribue",
+        info: t.info || "",
+        typeOperation: t.typeOperation || "",
+        reference: t.reference || ""
+      }));
+
+      // Categorize using rules & dictionary
+      const recatted = Categorizer.categoriserTransactions([...newTxList, ...$transactions]);
+      updateTransactions(recatted);
+      showToast(`✅ ${newTxList.length} opération(s) importée(s) avec succès depuis "${file.name}" !`);
+    };
+    reader.readAsText(file);
+  }
 
   // Categorization modal state
   let showCategorizeModal = $state(false);
@@ -111,6 +168,33 @@ import {
     const cpt = $planComptable.find(p => p.compte === String(numCompte));
     if (!cpt) return `Compte (${numCompte})`;
     return cpt.libelle.replace(/\s*\(\d+\)\s*/g, '').trim();
+  }
+
+  // Helper to clean banking transaction labels & extract readable name
+  /** @param {string} [libelle] */
+  function cleanTransactionLibelle(libelle) {
+    if (!libelle) return "Opération sans libellé";
+    let main = libelle.split('|')[0].trim();
+    main = main.replace(/^(PRLV SEPA|PRLV|VIR SEPA|VIR|PAIEMENT CB|CB|CHEQUE|PRLV HARMONIE)\s+/i, '').trim();
+    main = main.replace(/^SA-/, '').trim();
+    return main || libelle;
+  }
+
+  // Helper for subtitle info (e.g. "07/09/2026 • Prélèvement SEPA")
+  /** @param {any} tx */
+  function getTransactionSubtitle(tx) {
+    const parts = [];
+    if (tx.date) parts.push(new Date(tx.date).toLocaleDateString("fr-FR"));
+    
+    const raw = (tx.libelle || "").toUpperCase();
+    if (raw.includes("PRLV") || raw.includes("SEPA")) parts.push("Prélèvement SEPA");
+    else if (raw.includes("VIR")) parts.push("Virement");
+    else if (raw.includes("CB") || raw.includes("CARTES") || raw.includes("PAIEMENT")) parts.push("Carte bancaire");
+    else if (raw.includes("CHEQUE")) parts.push("Chèque");
+    else if (tx.typeOperation) parts.push(tx.typeOperation);
+    else parts.push(tx.debit > 0 ? "Dépense" : "Recette");
+
+    return parts.join(" • ");
   }
 
   // 1. 🟢 ENTRÉES D'ARGENT
@@ -275,7 +359,7 @@ import {
 
 <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 20px;">
   <div>
-    <h1 class="page-title" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main);">Attribuer les numéros de compte aux libellés</h1>
+    <h1 class="page-title" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main);">Espace d'attribution des libellés</h1>
     <p class="page-subtitle" style="margin: 4px 0 0 0; font-size: 0.86rem; color: var(--text-muted);">Associez chaque mouvement bancaire à son numéro de compte comptable. La machine apprend automatiquement de vos choix !</p>
   </div>
 
@@ -288,37 +372,44 @@ import {
   </div>
 </div>
 
-<!-- Master Batch Header Metrics & Action Button -->
-<div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px 24px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; box-shadow: var(--shadow-card);">
-  <div>
-    <div style="font-size: 0.85rem; color: #4338ca; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
-      🤖 Reconnaissance Intelligente des Écritures
-    </div>
-    <div style="font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin-top: 4px;">
-      {#if recognizedList.length > 0}
-        {recognizedList.length} écriture(s) identifiée(s) avec certitude ({totalRecognizedAmount.toFixed(2)} €)
-      {:else}
-        {nonTriees.length} opération(s) prêtes à être catégorisées en 1 clic
-      {/if}
-    </div>
-  </div>
-
-  <button 
-    class="btn btn-primary"
-    onclick={validerToutEnUnClic}
-    disabled={recognizedList.length === 0}
-    style="padding: 12px 24px; font-size: 0.95rem; font-weight: 700; background: var(--color-primary); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;"
+<!-- Zone d'Import CSV sous le titre -->
+<div style="background: {dragover ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-card)'}; border: 2px dashed {dragover ? '#6366f1' : 'var(--border-color)'}; border-radius: var(--radius-md); padding: 16px 24px; margin-bottom: 20px; transition: all 0.2s; box-shadow: var(--shadow-sm);">
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div 
+    class="dropzone {dragover ? 'dragover' : ''}" 
+    onclick={() => fileInput && fileInput.click()}
+    ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
+    ondragover={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
+    ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); dragover = false; }}
+    ondrop={handleCSVDrop}
+    style="cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 6px 0;"
   >
-    <i class="fa-solid fa-check-double"></i>
-    Tout valider par lot ({recognizedList.length} identifiées)
-  </button>
+    <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(99, 102, 241, 0.12); color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; pointer-events: none;">
+      <i class="fa-solid fa-cloud-arrow-up"></i>
+    </div>
+    <div style="text-align: left; pointer-events: none;">
+      <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">
+        Faites glisser votre fichier bancaire CSV ici <span style="font-weight: 400; color: var(--text-muted); font-size: 0.85rem;">ou cliquez pour parcourir vos fichiers</span>
+      </div>
+      <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">
+        Supporte les formats CSV bancaires standard (Crédit Agricole, BNP, BoursoBank, Qonto, Shine, Revolut, etc.)
+      </div>
+    </div>
+    <input 
+      type="file" 
+      bind:this={fileInput} 
+      onchange={handleCSVFileSelect} 
+      style="display: none;" 
+      accept=".csv"
+    />
+  </div>
 </div>
 
-<div style="display: block; width: 100%; margin-top: 24px;">
+<div style="display: block; width: 100%; margin-top: 10px;">
   <div class="card" style="padding: 24px; width: 100%;">
     
-    <!-- Filter Tabs -->
-    <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px; width: 100%;">
+    <!-- Filter Tabs + Compact Batch Validation Button & Help ? Button -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px; width: 100%;">
       <div style="display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
         <button
           style="border: none; background: {activeTab === 'pending' ? '#0f172a' : 'transparent'}; color: {activeTab === 'pending' ? '#ffffff' : '#475569'}; font-size: 0.88rem; padding: 8px 20px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 700; transition: all 0.2s;"
@@ -333,6 +424,30 @@ import {
           Attribuées ({triees.length})
         </button>
       </div>
+
+      <!-- Action par lot réduite & bouton d'aide ? -->
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button 
+          class="btn btn-primary"
+          onclick={validerToutEnUnClic}
+          disabled={recognizedList.length === 0}
+          style="padding: 9px 18px; font-size: 0.88rem; font-weight: 700; background: #16a34a; color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; gap: 8px; opacity: {recognizedList.length === 0 ? 0.6 : 1}; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);"
+        >
+          <i class="fa-solid fa-bolt"></i>
+          Tout valider ({recognizedList.length} suggestions IA)
+        </button>
+
+        <button 
+          type="button"
+          class="btn btn-icon"
+          onclick={() => (showPedagogicalModal = true)}
+          title="Aide & explications"
+          aria-label="Aide et explications"
+          style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08);"
+        >
+          ?
+        </button>
+      </div>
     </div>
 
     <!-- Batch Table -->
@@ -340,104 +455,116 @@ import {
       <table class="custom-table" style="width: 100%;">
         <thead>
           <tr>
-            <th style="width: 45%;">Opération brute (CSV)</th>
-            <th style="width: 38%;">Attribution proposée (Compte)</th>
-            <th style="width: 17%; text-align: right;">Statut & Action</th>
+            <th style="width: 10%;">Date</th>
+            <th style="width: 30%;">Libellé</th>
+            <th style="width: 14%; text-align: right;">Montant</th>
+            <th style="width: 36%;">Catégorie / Attribution</th>
+            <th style="width: 10%; text-align: right;">Action</th>
           </tr>
         </thead>
         <tbody>
           {#if displayedTxList.length === 0}
             <tr>
-              <td colspan="3" style="text-align: center; color: var(--color-success); padding: 50px 10px;">
+              <td colspan="5" style="text-align: center; color: var(--color-success); padding: 50px 10px;">
                 <i class="fa-solid fa-circle-check" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.8; display: block;"></i>
                 <strong>{activeTab === "pending" ? "Toutes les écritures sont attribuées !" : "Aucune écriture attribuée"}</strong>
               </td>
             </tr>
           {:else if activeTab === "pending"}
             {#each nonTriees as tx}
-              {@const isRecognized = tx.statut === 'suggere' || tx.autoRecognized}
-              {@const currentCat = selectedCategoryMap[tx.id] || tx.compteAttribué || (tx.credit > 0 ? '756' : '606')}
+              {@const sug = getSuggestionForTx(tx)}
+              {@const manualCat = selectedCategoryMap[tx.id]}
+              {@const isStateA = Boolean(sug) && !manualCat}
+              {@const isStateC = Boolean(manualCat)}
+              {@const isStateB = !isStateA && !isStateC}
 
-              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: {isRecognized ? 'rgba(16, 185, 129, 0.03)' : 'transparent'}; transition: background 0.2s;">
+              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); transition: background 0.2s;">
                 
-                <!-- 1. Opération brute CSV -->
-                <td style="padding: 16px 14px; vertical-align: middle;">
-                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
-                    <div>
-                      <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">{tx.libelle}</div>
-                      {#if tx.info || tx.reference}
-                                          <!-- Suggestion IA intelligente -->
-                  {#if getSuggestionForTx(tx)}
-                    {@const sug = getSuggestionForTx(tx)}
-                    {#if sug}
-                      <div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; background: var(--color-accent-light); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 6px; font-size: 0.78rem;">
-                        <span style="color: var(--color-accent); font-weight: 700; display: flex; align-items: center; gap: 4px;">
-                          <i class="fa-solid fa-brain" style="color: var(--color-accent);"></i> Suggestion IA :
-                        </span>
-                        <span style="color: var(--text-main); font-weight: 600;">{sug?.label}</span>
-                        <button 
-                          type="button" 
-                          class="btn" 
-                          style="padding: 2px 8px; font-size: 0.72rem; background: var(--color-primary); color: white; border: none; border-radius: 4px; font-weight: 700; cursor: pointer;"
-                          onclick={(e) => { e.stopPropagation(); if (sug?.compte) selectAccount(tx.id, sug.compte); }}
-                        >
-                          Valider
-                        </button>
-                      </div>
-                    {/if}
-                  {/if}
-                  <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">
-                          {tx.info} {tx.reference ? `• Ref: ${tx.reference}` : ''}
-                        </div>
-                      {/if}
-                      <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
-                        {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR") : ''} &bull; {tx.debit > 0 ? "Dépense" : "Recette"}
-                      </div>
-                    </div>
-                    
-                    <div style="font-size: 1.1rem; font-weight: 700; color: {tx.debit > 0 ? 'var(--color-danger)' : 'var(--color-success)'}; white-space: nowrap;">
-                      {tx.debit > 0 ? "-" : "+"}
-                      {(Number(tx.debit || tx.credit || 0)).toFixed(2)} €
-                    </div>
+                <!-- 1. Date (Format court DD/MM/YY) -->
+                <td style="padding: 14px 12px; vertical-align: middle; font-weight: 600; font-size: 0.88rem; color: var(--text-muted); white-space: nowrap;">
+                  {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
+                </td>
+
+                <!-- 2. Libellé épuré -->
+                <td style="padding: 14px 12px; vertical-align: middle;" title="{tx.libelle} {tx.info ? `• ${tx.info}` : ''} {tx.reference ? `• Ref: ${tx.reference}` : ''}">
+                  <div style="font-weight: 700; color: var(--text-main); font-size: 0.93rem;">
+                    {cleanTransactionLibelle(tx.libelle)}
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1px;">
+                    {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
                   </div>
                 </td>
 
-                <!-- 2. Attribution proposée (Compte) -->
-                <td style="padding: 16px 14px; vertical-align: middle;">
-                  <button
-                    type="button"
-                    onclick={() => openCategorizeModal(tx)}
-                    style="display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; background: var(--bg-screen); color: var(--text-main); border: 1px solid var(--border-color); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s;"
-                  >
-                    <span>
-                      <i class="fa-solid fa-tag" style="color: var(--color-accent); margin-right: 6px;"></i>
-                      {formatAccountLabel(currentCat)}
-                    </span>
-                    <i class="fa-solid fa-pen-to-square" style="font-size: 0.85rem; color: #a5b4fc;"></i>
-                  </button>
+                <!-- 3. Montant (Directement après le Libellé) -->
+                <td style="padding: 14px 12px; vertical-align: middle; text-align: right; font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: {tx.debit > 0 ? '#b91c1c' : '#15803d'}; white-space: nowrap;">
+                  {tx.debit > 0 ? "- " : "+ "}
+                  {(Number(tx.debit || tx.credit || 0)).toFixed(2).replace('.', ',')} €
                 </td>
 
-                <!-- 3. Statut & Action -->
-                <td style="padding: 16px 14px; vertical-align: middle; text-align: right;">
-                  <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-                    {#if isRecognized}
-                      <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 0.75rem; padding: 4px 10px; font-weight: 700;">
-                        🟢 Reconnu automatiquement
+                <!-- 4. Catégorie / Attribution -->
+                <td style="padding: 14px 12px; vertical-align: middle;">
+                  {#if isStateA && sug}
+                    <!-- ÉTAT A : Suggestion IA (Label suggestion + Bouton Modifier) -->
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-weight: 700; font-size: 0.88rem; color: #166534; background: #f0fdf4; border: 1.5px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-wand-magic-sparkles" style="color: #16a34a;"></i>
+                        ✨ {sug.label} ({sug.compte})
                       </span>
-                    {:else}
-                      <span class="badge" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.75rem; padding: 4px 10px; font-weight: 700;">
-                        🟡 À vérifier
+                      <button
+                        type="button"
+                        onclick={() => openCategorizeModal(tx)}
+                        title="Modifier l'attribution"
+                        style="background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+                      >
+                        <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i> Modifier
+                      </button>
+                    </div>
+                  {:else if isStateC}
+                    <!-- ÉTAT C : Choix manuel en cours (Label + Bouton Modifier) -->
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-weight: 700; font-size: 0.88rem; color: #1e40af; background: #eff6ff; border: 1.5px solid #bfdbfe; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-check" style="color: #2563eb;"></i>
+                        ✔️ {formatAccountLabel(manualCat)} ({manualCat})
                       </span>
-                    {/if}
+                      <button
+                        type="button"
+                        onclick={() => openCategorizeModal(tx)}
+                        title="Modifier l'attribution"
+                        style="background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+                      >
+                        <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i> Modifier
+                      </button>
+                    </div>
+                  {:else}
+                    <!-- ÉTAT B : Pas de suggestion IA -> Bouton "Attribution manuelle" -->
+                    <button
+                      type="button"
+                      onclick={() => openCategorizeModal(tx)}
+                      title="Ouvrir le menu d'attribution manuelle"
+                      style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.04);"
+                    >
+                      <i class="fa-solid fa-magnifying-glass" style="color: #6366f1;"></i>
+                      Attribution manuelle
+                    </button>
+                  {/if}
+                </td>
 
+                <!-- 5. Action (Bouton "Valider" explicite avec texte si une suggestion/choix existe) -->
+                <td style="padding: 14px 12px; vertical-align: middle; text-align: right;">
+                  {#if (isStateA && sug) || isStateC}
                     <button 
-                      class="btn btn-primary btn-sm"
-                      onclick={() => validerLigneSeule(tx)}
-                      style="padding: 7px 16px; font-weight: 700; font-size: 0.88rem; background: #0f172a; color: #ffffff;"
+                      type="button"
+                      onclick={() => {
+                        if (isStateA && sug) selectAccount(tx.id, sug.compte);
+                        validerLigneSeule(tx);
+                      }}
+                      title="Valider l'attribution"
+                      aria-label="Valider l'attribution"
+                      style="padding: 7px 16px; font-weight: 700; font-size: 0.85rem; background: #16a34a; color: #ffffff; border: none; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.25);"
                     >
                       <i class="fa-solid fa-check"></i> Valider
                     </button>
-                  </div>
+                  {/if}
                 </td>
 
               </tr>
@@ -446,18 +573,29 @@ import {
             <!-- Categorized List -->
             {#each triees as tx}
               <tr style="border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+                <td style="padding: 14px 12px; font-weight: 600; font-size: 0.88rem; color: var(--text-muted); white-space: nowrap;">
+                  {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
+                </td>
                 <td style="padding: 14px 12px;">
-                  <div style="font-weight: 700; color: #0f172a;">{tx.libelle}</div>
-                  <div style="font-size: 0.78rem; color: #64748b; margin-top: 2px;">
-                    {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR") : ''} &bull; Règle : {tx.regleAppliquee || 'Manuelle'}
+                  <div style="font-weight: 700; color: #0f172a;">{cleanTransactionLibelle(tx.libelle)}</div>
+                  <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">
+                    {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
                   </div>
                 </td>
-                <td style="padding: 14px 12px; color: #3730a3; font-weight: 700;">
-                  {tx.compteAttribué} - {Categorizer.obtenirLibelleCompte(tx.compteAttribué)}
+                <td style="padding: 14px 12px; text-align: right; font-weight: 700; font-size: 0.95rem; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: {tx.debit > 0 ? '#b91c1c' : '#15803d'}; white-space: nowrap;">
+                  {tx.debit > 0 ? "- " : "+ "}
+                  {(Number(tx.debit || tx.credit || 0)).toFixed(2).replace('.', ',')} €
                 </td>
-                <td style="padding: 14px 12px; text-align: right; font-weight: 800; color: {tx.debit > 0 ? '#b91c1c' : '#15803d'};">
-                  {tx.debit > 0 ? "-" : "+"}
-                  {(Number(tx.debit || tx.credit || 0)).toFixed(2)} €
+                <td style="padding: 14px 12px; color: #3730a3; font-weight: 700;">
+                  <span style="display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; font-size: 0.88rem;">
+                    <i class="fa-solid fa-circle-check" style="color: #16a34a;"></i>
+                    {formatAccountLabel(tx.compteAttribué)} ({tx.compteAttribué})
+                  </span>
+                </td>
+                <td style="padding: 14px 12px; text-align: right;">
+                  <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #15803d; background: #dcfce7; border: 1px solid #86efac; padding: 3px 8px; border-radius: 6px; font-weight: 700;">
+                    <i class="fa-solid fa-check"></i> Validé
+                  </span>
                 </td>
               </tr>
             {/each}
@@ -471,45 +609,42 @@ import {
 
 <!-- Pedagogical Onboarding Modal -->
 {#if showPedagogicalModal}
-  <div class="modal-backdrop" style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px;">
-    <div class="glass-card" style="width: 100%; max-width: 580px; padding: 30px; border: 1.5px solid rgba(129, 140, 248, 0.5); box-shadow: 0 25px 60px rgba(0,0,0,0.8); background: #11131e; border-radius: 16px;">
+  <div class="modal-backdrop" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px;">
+    <div class="glass-card" style="width: 100%; max-width: 520px; padding: 28px; border: 1.5px solid rgba(129, 140, 248, 0.4); box-shadow: 0 25px 50px rgba(0,0,0,0.6); background: #0f172a; border-radius: 18px; color: #ffffff;">
       
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 15px;">
-        <h3 style="margin: 0; font-size: 1.3rem; font-family: var(--font-title); color: white; display: flex; align-items: center; gap: 10px;">
-          <i class="fa-solid fa-graduation-cap" style="color: #818cf8; font-size: 1.4rem;"></i>
-          Attribution de libellé
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 14px;">
+        <h3 style="margin: 0; font-size: 1.25rem; font-family: var(--font-title); color: white; display: flex; align-items: center; gap: 10px; font-weight: 800;">
+          🏷️ Comment trier vos opérations ?
         </h3>
-        <button onclick={closePedagogicalModal} style="background: none; border: none; color: rgba(255, 255, 255, 0.6); font-size: 1.4rem; cursor: pointer;">✕</button>
+        <button onclick={closePedagogicalModal} style="background: none; border: none; color: rgba(255, 255, 255, 0.5); font-size: 1.3rem; cursor: pointer;">✕</button>
       </div>
 
-      <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px;">
-        <p style="margin-top: 0; margin-bottom: 14px;">
-          Dites-nous simplement s'il s'agit d'un abonnement logiciel, d'un repas, d'un achat de matériel ou d'une cotisation. Le système se charge d'attribuer les codes comptables officiels pour vous sans aucun jargon.
+      <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; line-height: 1.6; margin-bottom: 24px; display: flex; flex-direction: column; gap: 14px;">
+        <p style="margin: 0; font-weight: 600; color: #cbd5e1;">
+          Sélectionnez simplement ce que représente chaque ligne <span style="color: #818cf8;">(ex: Logiciel, Repas, Matériel, Cotisation...)</span>.
         </p>
 
-        <p style="font-weight: 700; color: #a5b4fc; font-size: 1.05rem; margin-bottom: 10px;">
-          À vous de jouer.
-        </p>
-
-        <p style="margin-bottom: 14px;">
-          C'est simple, pour chaque opération, confirmez la suggestion affichée ou choisissez la catégorie correspondante.
-        </p>
-
-        <p style="margin-bottom: 0; background: rgba(99, 102, 241, 0.12); border-left: 4px solid #6366f1; padding: 12px 14px; border-radius: 6px; color: rgba(255, 255, 255, 0.85); font-size: 0.9rem;">
-          💡 <strong>Rassurez-vous</strong> : le système apprend au fur et à mesure de vos choix et enregistre vos habitudes. Vous n'aurez presque plus rien à trier lors de vos prochains imports.
-        </p>
+        <div style="background: rgba(99, 102, 241, 0.12); border-left: 4px solid #6366f1; padding: 14px 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-weight: 700; color: #a5b4fc; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.04em;">
+            ⚡ Le système fait le reste :
+          </div>
+          <ul style="margin: 0; padding-left: 18px; font-size: 0.88rem; color: #e2e8f0; display: flex; flex-direction: column; gap: 6px;">
+            <li>Attribution automatique des codes comptables officiels sans jargon.</li>
+            <li>Apprentissage IA : mémorisation de vos choix pour vos prochains imports.</li>
+          </ul>
+        </div>
       </div>
 
       <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 18px;">
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: rgba(255, 255, 255, 0.7); font-size: 0.85rem;">
           <input type="checkbox" bind:checked={dontShowAgain} style="width: 16px; height: 16px; accent-color: #6366f1;" />
-          Ne plus afficher, j'ai compris !
+          Ne plus afficher
         </label>
 
         <button 
           class="btn btn-primary" 
           onclick={closePedagogicalModal}
-          style="padding: 10px 24px; font-weight: 600; background: #6366f1; border: none; border-radius: 8px; font-size: 0.95rem; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);"
+          style="padding: 11px 24px; font-weight: 700; background: #3b82f6; color: white; border: none; border-radius: 10px; font-size: 0.92rem; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); cursor: pointer;"
         >
           C'est parti !
         </button>
@@ -584,34 +719,34 @@ import {
 <!-- Modale Dédiée d'Attribution de Compte -->
 {#if showCategorizeModal && selectedTxForCategorization}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="modal-backdrop" onclick={() => showCategorizeModal = false} role="presentation" style="position: fixed; inset: 0; background: rgba(5, 7, 15, 0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 20px;">
+  <div class="modal-backdrop" onclick={() => showCategorizeModal = false} role="presentation" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 20px;">
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_interactive_supports_focus -->
-    <div class="glass-card modal-content" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1" style="max-width: 680px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; background: #11131e; border: 1.5px solid rgba(129, 140, 248, 0.4); border-radius: 16px; padding: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.9);">
+    <div class="modal-content" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1" style="max-width: 740px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; background: #ffffff !important; border: 1.5px solid #cbd5e1 !important; border-radius: 16px; padding: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.25); color: #0f172a !important;">
       
       <!-- Modal Header -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px;">
         <div>
-          <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.25rem; color: white; display: flex; align-items: center; gap: 10px;">
-            <i class="fa-solid fa-tags" style="color: #818cf8;"></i> Attribuer un compte comptable
+          <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.25rem; color: #0f172a !important; display: flex; align-items: center; gap: 10px; font-weight: 800;">
+            <i class="fa-solid fa-tags" style="color: #6366f1;"></i> Attribuer un compte comptable
           </h3>
-          <div style="font-size: 0.8rem; color: rgba(255, 255, 255, 0.5); margin-top: 2px;">
-            Sélectionnez la catégorie comptable exacte pour ce mouvement bancaire
+          <div style="font-size: 0.82rem; color: #475569 !important; margin-top: 4px;">
+            Sélectionnez la catégorie comptable exacte documentée ci-dessous
           </div>
         </div>
-        <button type="button" onclick={() => showCategorizeModal = false} style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.4rem; cursor: pointer;">✕</button>
+        <button type="button" onclick={() => showCategorizeModal = false} style="background: none; border: none; color: #64748b; font-size: 1.4rem; cursor: pointer;">✕</button>
       </div>
 
       <!-- Transaction Card Summary -->
-      <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;">
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
           <div>
-            <div style="font-weight: 700; color: white; font-size: 1.05rem;">{selectedTxForCategorization.libelle}</div>
-            <div style="font-size: 0.78rem; color: rgba(255,255,255,0.5); margin-top: 2px;">
+            <div style="font-weight: 700; color: #0f172a !important; font-size: 1.05rem;">{selectedTxForCategorization.libelle}</div>
+            <div style="font-size: 0.78rem; color: #475569 !important; margin-top: 2px;">
               {selectedTxForCategorization.date ? new Date(selectedTxForCategorization.date).toLocaleDateString("fr-FR") : ''} &bull; {selectedTxForCategorization.debit > 0 ? "Dépense" : "Recette"}
               {selectedTxForCategorization.reference ? ` • Ref: ${selectedTxForCategorization.reference}` : ''}
             </div>
           </div>
-          <div style="font-weight: 800; font-size: 1.2rem; color: {selectedTxForCategorization.debit > 0 ? '#f87171' : '#34d399'};">
+          <div style="font-weight: 800; font-size: 1.2rem; color: {selectedTxForCategorization.debit > 0 ? '#dc2626' : '#16a34a'};">
             {selectedTxForCategorization.debit > 0 ? "-" : "+"}
             {(Number(selectedTxForCategorization.debit || selectedTxForCategorization.credit || 0)).toFixed(2)} €
           </div>
@@ -621,16 +756,16 @@ import {
         {#if getSuggestionForTx(selectedTxForCategorization)}
           {@const sug = getSuggestionForTx(selectedTxForCategorization)}
           {#if sug}
-            <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.35); padding: 8px 12px; border-radius: 8px;">
+            <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; background: #eeef4f3; border: 1px solid #c7d2fe; padding: 8px 12px; border-radius: 8px;">
               <div style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
-                <i class="fa-solid fa-brain" style="color: #818cf8;"></i>
-                <span style="color: #a5b4fc; font-weight: 700;">Suggestion IA :</span>
-                <strong style="color: white;">{sug?.label}</strong>
+                <i class="fa-solid fa-brain" style="color: #4f46e5;"></i>
+                <span style="color: #3730a3; font-weight: 700;">Suggestion IA :</span>
+                <strong style="color: #0f172a;">{sug?.label}</strong>
               </div>
               <button 
                 type="button" 
                 class="btn" 
-                style="padding: 4px 12px; font-size: 0.8rem; background: #6366f1; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;"
+                style="padding: 4px 12px; font-size: 0.8rem; background: #4f46e5; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;"
                 onclick={() => {
                   if (sug && selectedTxForCategorization) {
                     selectAccount(selectedTxForCategorization.id, sug.compte);
@@ -647,25 +782,25 @@ import {
       </div>
 
       <!-- Search input inside modal -->
-      <div style="margin-bottom: 12px;">
+      <div style="margin-bottom: 14px;">
         <input 
           type="text" 
-          placeholder="🔍 Filtrer les catégories (ex: Cotisations, Logiciels, Loyers, Matériel...)" 
+          placeholder="🔍 Filtrer les catégories ou numéros (ex: 606, Cotisations, Logiciels, Repas...)" 
           bind:value={modalSearchQuery}
-          style="width: 100%; padding: 10px 14px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; color: white; font-size: 0.88rem;"
+          style="width: 100%; padding: 10px 14px; background: #ffffff !important; border: 1.5px solid #cbd5e1 !important; border-radius: 8px; color: #0f172a !important; font-size: 0.9rem; box-sizing: border-box;"
         />
       </div>
 
       <!-- Category Groups List -->
-      <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding-right: 4px; margin-bottom: 16px;">
+      <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 4px; margin-bottom: 16px;">
         
         <!-- Group 1: ENTRÉES D'ARGENT -->
         {#if filteredEntreesModal.length > 0}
           <div>
-            <div style="color: #4ade80; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 10px; background: rgba(16, 185, 129, 0.12); border-left: 3px solid #10b981; border-radius: 4px; margin-bottom: 6px;">
-              🟢 ENTRÉES D'ARGENT
+            <div style="color: #065f46 !important; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 12px; background: #ecfdf5; border-left: 3px solid #10b981; border-radius: 4px; margin-bottom: 8px; letter-spacing: 0.03em;">
+              🟢 ENTRÉES D'ARGENT (RECETTES)
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
               {#each filteredEntreesModal as c}
                 {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === c.compte}
                 <button 
@@ -673,14 +808,25 @@ import {
                   onclick={() => {
                     selectedCategoryMap[selectedTxForCategorization.id] = c.compte;
                   }}
-                  style="text-align: left; padding: 10px 14px; border-radius: 8px; cursor: pointer; border: 1px solid {isSelected ? '#10b981' : 'rgba(255,255,255,0.08)'}; background: {isSelected ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.03)'}; color: white; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s;"
+                  style="text-align: left; padding: 12px 16px; border-radius: 10px; cursor: pointer; border: 1.5px solid {isSelected ? '#10b981' : '#e2e8f0'}; background: {isSelected ? '#ecfdf5' : '#ffffff'}; color: #0f172a !important; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: all 0.15s; width: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
                 >
-                  <div>
-                    <div style="font-weight: 600; font-size: 0.88rem;">{c.libelle}</div>
-                    <div style="font-size: 0.75rem; color: #a5b4fc;">Compte {c.compte}</div>
+                  <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a !important;">{c.libelle}</span>
+                      <span style="font-size: 0.78rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: {isSelected ? '#10b981' : '#d1fae5'}; color: {isSelected ? '#ffffff' : '#065f46'}; border: 1px solid #a7f3d0;">
+                        Compte {c.compte}
+                      </span>
+                    </div>
+                    {#if c.desc}
+                      <div style="font-size: 0.82rem; color: #475569 !important; margin-top: 4px; line-height: 1.4;">
+                        {c.desc}
+                      </div>
+                    {/if}
                   </div>
                   {#if isSelected}
-                    <i class="fa-solid fa-circle-check" style="color: #34d399; font-size: 1.1rem;"></i>
+                    <i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 1.25rem; flex-shrink: 0;"></i>
+                  {:else}
+                    <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 1.15rem; flex-shrink: 0;"></i>
                   {/if}
                 </button>
               {/each}
@@ -691,10 +837,10 @@ import {
         <!-- Group 2: DÉPENSES COURANTES -->
         {#if filteredDepensesModal.length > 0}
           <div>
-            <div style="color: #fca5a5; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 10px; background: rgba(239, 68, 68, 0.12); border-left: 3px solid #ef4444; border-radius: 4px; margin-bottom: 6px;">
-              🔴 DÉPENSES COURANTES
+            <div style="color: #991b1b !important; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 12px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px; margin-bottom: 8px; letter-spacing: 0.03em;">
+              🔴 DÉPENSES COURANTES & FRAIS
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
               {#each filteredDepensesModal as c}
                 {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === c.compte}
                 <button 
@@ -702,14 +848,25 @@ import {
                   onclick={() => {
                     selectedCategoryMap[selectedTxForCategorization.id] = c.compte;
                   }}
-                  style="text-align: left; padding: 10px 14px; border-radius: 8px; cursor: pointer; border: 1px solid {isSelected ? '#ef4444' : 'rgba(255,255,255,0.08)'}; background: {isSelected ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.03)'}; color: white; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s;"
+                  style="text-align: left; padding: 12px 16px; border-radius: 10px; cursor: pointer; border: 1.5px solid {isSelected ? '#ef4444' : '#e2e8f0'}; background: {isSelected ? '#fef2f2' : '#ffffff'}; color: #0f172a !important; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: all 0.15s; width: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
                 >
-                  <div>
-                    <div style="font-weight: 600; font-size: 0.88rem;">{c.libelle}</div>
-                    <div style="font-size: 0.75rem; color: #a5b4fc;">Compte {c.compte}</div>
+                  <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a !important;">{c.libelle}</span>
+                      <span style="font-size: 0.78rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: {isSelected ? '#ef4444' : '#fee2e2'}; color: {isSelected ? '#ffffff' : '#991b1b'}; border: 1px solid #fca5a5;">
+                        Compte {c.compte}
+                      </span>
+                    </div>
+                    {#if c.desc}
+                      <div style="font-size: 0.82rem; color: #475569 !important; margin-top: 4px; line-height: 1.4;">
+                        {c.desc}
+                      </div>
+                    {/if}
                   </div>
                   {#if isSelected}
-                    <i class="fa-solid fa-circle-check" style="color: #f87171; font-size: 1.1rem;"></i>
+                    <i class="fa-solid fa-circle-check" style="color: #ef4444; font-size: 1.25rem; flex-shrink: 0;"></i>
+                  {:else}
+                    <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 1.15rem; flex-shrink: 0;"></i>
                   {/if}
                 </button>
               {/each}
@@ -720,10 +877,10 @@ import {
         <!-- Group 3: ÉQUIPE & INTERVENANTS -->
         {#if filteredEquipeModal.length > 0}
           <div>
-            <div style="color: #c084fc; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 10px; background: rgba(168, 85, 247, 0.12); border-left: 3px solid #a855f7; border-radius: 4px; margin-bottom: 6px;">
+            <div style="color: #6b21a8 !important; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 12px; background: #f3e8ff; border-left: 3px solid #a855f7; border-radius: 4px; margin-bottom: 8px; letter-spacing: 0.03em;">
               👥 ÉQUIPE & INTERVENANTS
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
               {#each filteredEquipeModal as c}
                 {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === c.compte}
                 <button 
@@ -731,14 +888,25 @@ import {
                   onclick={() => {
                     selectedCategoryMap[selectedTxForCategorization.id] = c.compte;
                   }}
-                  style="text-align: left; padding: 10px 14px; border-radius: 8px; cursor: pointer; border: 1px solid {isSelected ? '#a855f7' : 'rgba(255,255,255,0.08)'}; background: {isSelected ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.03)'}; color: white; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s;"
+                  style="text-align: left; padding: 12px 16px; border-radius: 10px; cursor: pointer; border: 1.5px solid {isSelected ? '#a855f7' : '#e2e8f0'}; background: {isSelected ? '#f3e8ff' : '#ffffff'}; color: #0f172a !important; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: all 0.15s; width: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
                 >
-                  <div>
-                    <div style="font-weight: 600; font-size: 0.88rem;">{c.libelle}</div>
-                    <div style="font-size: 0.75rem; color: #a5b4fc;">Compte {c.compte}</div>
+                  <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a !important;">{c.libelle}</span>
+                      <span style="font-size: 0.78rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: {isSelected ? '#a855f7' : '#f3e8ff'}; color: {isSelected ? '#ffffff' : '#6b21a8'}; border: 1px solid #e9d5ff;">
+                        Compte {c.compte}
+                      </span>
+                    </div>
+                    {#if c.desc}
+                      <div style="font-size: 0.82rem; color: #475569 !important; margin-top: 4px; line-height: 1.4;">
+                        {c.desc}
+                      </div>
+                    {/if}
                   </div>
                   {#if isSelected}
-                    <i class="fa-solid fa-circle-check" style="color: #c084fc; font-size: 1.1rem;"></i>
+                    <i class="fa-solid fa-circle-check" style="color: #a855f7; font-size: 1.25rem; flex-shrink: 0;"></i>
+                  {:else}
+                    <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 1.15rem; flex-shrink: 0;"></i>
                   {/if}
                 </button>
               {/each}
@@ -749,10 +917,10 @@ import {
         <!-- Group 4: COMPTES & TRANSFERTS -->
         {#if filteredTransfertsModal.length > 0}
           <div>
-            <div style="color: #93c5fd; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 10px; background: rgba(59, 130, 246, 0.12); border-left: 3px solid #3b82f6; border-radius: 4px; margin-bottom: 6px;">
+            <div style="color: #1e40af !important; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; margin-bottom: 8px; letter-spacing: 0.03em;">
               🔄 COMPTES & TRANSFERTS
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
               {#each filteredTransfertsModal as c}
                 {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === c.compte}
                 <button 
@@ -760,14 +928,25 @@ import {
                   onclick={() => {
                     selectedCategoryMap[selectedTxForCategorization.id] = c.compte;
                   }}
-                  style="text-align: left; padding: 10px 14px; border-radius: 8px; cursor: pointer; border: 1px solid {isSelected ? '#3b82f6' : 'rgba(255,255,255,0.08)'}; background: {isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.03)'}; color: white; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s;"
+                  style="text-align: left; padding: 12px 16px; border-radius: 10px; cursor: pointer; border: 1.5px solid {isSelected ? '#3b82f6' : '#e2e8f0'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: #0f172a !important; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: all 0.15s; width: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
                 >
-                  <div>
-                    <div style="font-weight: 600; font-size: 0.88rem;">{c.libelle}</div>
-                    <div style="font-size: 0.75rem; color: #a5b4fc;">Compte {c.compte}</div>
+                  <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a !important;">{c.libelle}</span>
+                      <span style="font-size: 0.78rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: {isSelected ? '#3b82f6' : '#dbeafe'}; color: {isSelected ? '#ffffff' : '#1e40af'}; border: 1px solid #bfdbfe;">
+                        Compte {c.compte}
+                      </span>
+                    </div>
+                    {#if c.desc}
+                      <div style="font-size: 0.82rem; color: #475569 !important; margin-top: 4px; line-height: 1.4;">
+                        {c.desc}
+                      </div>
+                    {/if}
                   </div>
                   {#if isSelected}
-                    <i class="fa-solid fa-circle-check" style="color: #60a5fa; font-size: 1.1rem;"></i>
+                    <i class="fa-solid fa-circle-check" style="color: #3b82f6; font-size: 1.25rem; flex-shrink: 0;"></i>
+                  {:else}
+                    <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 1.15rem; flex-shrink: 0;"></i>
                   {/if}
                 </button>
               {/each}
@@ -778,8 +957,8 @@ import {
       </div>
 
       <!-- Modal Footer Actions -->
-      <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 16px;">
-        <button type="button" class="btn btn-secondary" onclick={() => showCategorizeModal = false}>Annuler</button>
+      <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+        <button type="button" class="btn btn-secondary" onclick={() => showCategorizeModal = false} style="padding: 10px 18px; border-radius: 8px; color: #475569 !important; background: #f1f5f9; border: 1px solid #cbd5e1;">Annuler</button>
         <button 
           type="button" 
           class="btn btn-primary" 
@@ -787,7 +966,7 @@ import {
             validerLigneSeule(selectedTxForCategorization);
             showCategorizeModal = false;
           }}
-          style="padding: 10px 22px; font-weight: 600; background: #6366f1; border: none; border-radius: 8px;"
+          style="padding: 10px 22px; font-weight: 700; background: #0f172a; color: #ffffff; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;"
         >
           <i class="fa-solid fa-check"></i> Valider l'attribution
         </button>

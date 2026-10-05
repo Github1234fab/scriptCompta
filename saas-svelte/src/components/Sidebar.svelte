@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import { activeView, activeEntityId, entities, showCreateEntityModal, updateActiveEntityId, transactions } from '../lib/store.js';
 
-  /** @type {{ switchView: (view: string) => void, handleResetDb: () => void }} */
-  let { switchView, handleResetDb } = $props();
+  /** @type {{ switchView: (view: string) => void, handleResetDb: () => void, startTour?: () => void }} */
+  let { switchView, handleResetDb, startTour } = $props();
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0]);
   let accountingModel = $derived(activeEntity?.model || 'micro');
@@ -129,11 +129,34 @@
         </span>
       </li>
 
+      <!-- 5. GUIDE D'UTILISATION (Tutoriel interactif) -->
+      <li style="margin-bottom: 6px; margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 12px;">
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+        <span 
+           id="start-tour-btn"
+           class="menu-item"
+           style="color: #60a5fa;"
+           onclick={() => startTour && startTour()}>
+          <i class="fa-solid fa-circle-play" style="color: #60a5fa;"></i> Guide d'utilisation
+        </span>
+      </li>
+
     </ul>
   </nav>
   
-  <!-- SÉLECTEUR DE DOSSIER DISCRET EN BAS DE SIDEBAR -->
-  <div class="sidebar-footer-card" style="margin: 10px 12px; padding: 10px 14px; border-top: 1px solid rgba(0, 0, 0, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.08); border-left: 1px solid rgba(0, 0, 0, 0.4); border-right: 1px solid rgba(0, 0, 0, 0.4); background: #0c1322; border-radius: 8px; box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.75); box-sizing: border-box;">
+  <!-- GROS BOUTON + NOUVELLE STRUCTURE ET SÉLECTEUR EN BAS DE SIDEBAR -->
+  <div style="padding: 0 12px; margin-bottom: 4px;">
+    <button 
+      onclick={() => $showCreateEntityModal = true}
+      style="width: 100%; padding: 11px 16px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; border: none; border-radius: 10px; font-weight: 800; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); transition: all 0.2s;"
+      title="Ajouter une nouvelle structure"
+    >
+      <i class="fa-solid fa-plus" style="font-size: 1.1rem; background: rgba(255, 255, 255, 0.2); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center;"></i> 
+      <span>Nouvelle structure</span>
+    </button>
+  </div>
+
+  <div class="sidebar-footer-card" style="margin: 6px 12px 14px 12px; padding: 10px 14px; border-top: 1px solid rgba(0, 0, 0, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.08); border-left: 1px solid rgba(0, 0, 0, 0.4); border-right: 1px solid rgba(0, 0, 0, 0.4); background: #0c1322; border-radius: 8px; box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.75); box-sizing: border-box;">
     <div style="font-size: 0.68rem; text-transform: uppercase; font-weight: 700; color: #94a3b8; margin-bottom: 6px; letter-spacing: 0.05em;">Structure / Dossier</div>
     <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
       <i class="fa-solid fa-building-columns" style="color: #60a5fa; font-size: 0.85rem; flex-shrink: 0;"></i>

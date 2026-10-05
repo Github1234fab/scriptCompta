@@ -55,29 +55,31 @@
     <KpiCard 
       label="Trésorerie Réelle (Net TVA)" 
       value={vraiDisponible.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-      icon="fa-building-columns" 
-      subtext="Après déduction de la TVA due" 
-      subtextIcon="fa-check-circle"
+      subtext="Après déduction de la TVA due"
+      bgColor="#eff6ff"
+      borderColor="#bfdbfe"
+      textColor="#1e3a8a"
+      subtextColor="#2563eb"
     />
 
     <KpiCard 
       label="Provision TVA Nette Due" 
       value={tvaNetteEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-      icon="fa-receipt" 
-      iconColor="var(--color-warning)"
-      subtext="TVA collectée − TVA déductible" 
-      subtextIcon="fa-calculator"
-      subtextColor="var(--color-warning)"
+      subtext="TVA collectée − TVA déductible"
+      bgColor="#fffbeb"
+      borderColor="#fde68a"
+      textColor="#78350f"
+      subtextColor="#d97706"
     />
 
     <KpiCard 
       label="Justificatifs à Compléter" 
       value={`${piecesManquantesCount} pièces`} 
-      icon="fa-box-archive" 
-      iconColor={piecesManquantesCount > 0 ? "var(--color-warning)" : "var(--color-success)"}
-      subtext={piecesManquantesCount > 0 ? "Exclusion automatique du bruit bancaire" : "100% de vos dépenses sont sécurisées"} 
-      subtextIcon={piecesManquantesCount > 0 ? "fa-shield" : "fa-shield-halved"}
-      subtextColor={piecesManquantesCount > 0 ? "var(--color-warning)" : "var(--color-success)"}
+      subtext={piecesManquantesCount > 0 ? "Pièces manquantes à joindre" : "100% de vos dépenses sont sécurisées"}
+      bgColor={piecesManquantesCount > 0 ? "#fff7ed" : "#ecfdf5"}
+      borderColor={piecesManquantesCount > 0 ? "#ffedd5" : "#a7f3d0"}
+      textColor={piecesManquantesCount > 0 ? "#9a3412" : "#065f46"}
+      subtextColor={piecesManquantesCount > 0 ? "#ea580c" : "#059669"}
     />
 
   </div>

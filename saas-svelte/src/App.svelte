@@ -241,7 +241,7 @@
 {:else}
   <div class="app-container">
     <!-- SIDEBAR NAVIGATION -->
-    <Sidebar {switchView} {handleResetDb} />
+    <Sidebar {switchView} {handleResetDb} {startTour} />
 
     <!-- MAIN CONTENT CONTAINER -->
     <main class="app-content">

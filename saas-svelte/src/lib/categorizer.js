@@ -214,24 +214,99 @@ export const Categorizer = {
     );
 
     const suggestionsHeuristiques = [
+      // Supermarchés & Alimentation (606)
+      { mot: 'SUPER U', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
       { mot: 'SUPERU', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
+      { mot: 'HYPER U', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
+      { mot: 'U EXPRESS', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
+      { mot: 'SYSTEME U', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
       { mot: 'LIDL', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
       { mot: 'CARREFOUR', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
       { mot: 'LECLERC', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
+      { mot: 'E LECLERC', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
       { mot: 'INTERMARCHE', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
+      { mot: 'AUCHAN', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
+      { mot: 'MONOPRIX', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
+      { mot: 'CASINO', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
+      { mot: 'ALDI', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
+      { mot: 'CORA', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
+      { mot: 'PICARD', debit: '606', credit: '', note: 'Alimentation / Fournitures' },
+      
+      // Achats & Matériel (606)
+      { mot: 'THOMANN', debit: '606', credit: '', note: 'Achats & Équipements' },
+      { mot: 'AMAZON', debit: '606', credit: '', note: 'Achats & Fournitures' },
+      { mot: 'FNAC', debit: '606', credit: '', note: 'Achats & Fournitures' },
+      { mot: 'DARTY', debit: '606', credit: '', note: 'Achats & Équipements' },
+      { mot: 'BOULANGER', debit: '606', credit: '', note: 'Achats & Équipements' },
+      { mot: 'LEROY MERLIN', debit: '606', credit: '', note: 'Bricolage & Matériel' },
+      { mot: 'CASTORAMA', debit: '606', credit: '', note: 'Bricolage & Matériel' },
+      { mot: 'DECATHLON', debit: '606', credit: '', note: 'Sports & Équipements' },
+      { mot: 'BUREAU VALLEE', debit: '606', credit: '', note: 'Fournitures de bureau' },
+      { mot: 'OFFICE DEPOT', debit: '606', credit: '', note: 'Fournitures de bureau' },
+      { mot: 'PAYPAL', debit: '606', credit: '', note: 'Achat en ligne' },
+
+      // Énergie & Abonnements Locaux (613)
       { mot: 'EDF', debit: '613', credit: '', note: 'Électricité / Énergie' },
       { mot: 'ENGIE', debit: '613', credit: '', note: 'Électricité / Énergie' },
+      { mot: 'TOTALENERGIES', debit: '613', credit: '', note: 'Électricité / Énergie' },
       { mot: 'SUEZ', debit: '613', credit: '', note: 'Eau courante' },
       { mot: 'VEOLIA', debit: '613', credit: '', note: 'Eau courante' },
-      { mot: 'PAYPAL', debit: '606', credit: '', note: 'Achat en ligne' },
-      { mot: 'ADOBE', debit: '613', credit: '', note: 'Abonnement Logiciel' },
-      { mot: 'CANVA', debit: '613', credit: '', note: 'Abonnement Design' },
+
+      // Logiciels & SaaS Web (6132)
+      { mot: 'ADOBE', debit: '6132', credit: '', note: 'Abonnement Logiciel' },
+      { mot: 'CANVA', debit: '6132', credit: '', note: 'Abonnement Design' },
+      { mot: 'SLACK', debit: '6132', credit: '', note: 'Abonnement Communication' },
+      { mot: 'ZOOM', debit: '6132', credit: '', note: 'Visioconférence' },
+      { mot: 'NOTION', debit: '6132', credit: '', note: 'Abonnement Logiciel' },
+      { mot: 'GITHUB', debit: '6132', credit: '', note: 'Hébergement Code & Web' },
+      { mot: 'VERCEL', debit: '6132', credit: '', note: 'Hébergement Web' },
+      { mot: 'MICROSOFT', debit: '6132', credit: '', note: 'Abonnement Office / Software' },
+      { mot: 'APPLE', debit: '6132', credit: '', note: 'Services & Logiciels Apple' },
+      { mot: 'GOOGLE', debit: '6132', credit: '', note: 'Google Workspace / Cloud' },
+      { mot: 'OVH', debit: '6132', credit: '', note: 'Hébergement Web' },
+      { mot: 'SCALEWAY', debit: '6132', credit: '', note: 'Hébergement Cloud' },
+
+      // Frais bancaires & Commissions (627)
+      { mot: 'FRAIS PLVT SEPA', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'FRAIS PLVT', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'FRAIS SEPA', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'FRAIS BANCAIRE', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'FRAIS BANCAIRES', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'FRAIS TENUE DE COMPTE', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'COTISATION BANQUE', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'COTISATION CARTE', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'FRAIS CB', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'MAGNETIQ', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'COMMISSION BANCAIRE', debit: '627', credit: '', note: 'Frais bancaires' },
+
+      // Déplacements & Repas (625)
       { mot: 'TOTAL', debit: '625', credit: '', note: 'Carburant' },
       { mot: 'SHELL', debit: '625', credit: '', note: 'Carburant' },
+      { mot: 'BP', debit: '625', credit: '', note: 'Carburant' },
+      { mot: 'ESSO', debit: '625', credit: '', note: 'Carburant' },
       { mot: 'SNCF', debit: '625', credit: '', note: 'Billets de train' },
       { mot: 'UBER', debit: '625', credit: '', note: 'Frais VTC' },
+      { mot: 'RATP', debit: '625', credit: '', note: 'Transports' },
+      { mot: 'AIR FRANCE', debit: '625', credit: '', note: 'Billets d\'avion' },
+      { mot: 'AUTOROUTE', debit: '625', credit: '', note: 'Péages' },
+      { mot: 'VINCI', debit: '625', credit: '', note: 'Péages & Stationnement' },
+
+      // Téléphonie & Telecom (626)
+      { mot: 'ORANGE', debit: '626', credit: '', note: 'Téléphonie & Internet' },
+      { mot: 'SFR', debit: '626', credit: '', note: 'Téléphonie & Internet' },
+      { mot: 'BOUYGUES', debit: '626', credit: '', note: 'Téléphonie & Internet' },
+      { mot: 'FREE MOBILE', debit: '626', credit: '', note: 'Téléphonie' },
+      { mot: 'FREE TELECOM', debit: '626', credit: '', note: 'Téléphonie & Internet' },
+      { mot: 'LAPOSTE', debit: '626', credit: '', note: 'Courrier & Timbres' },
+      { mot: 'LA POSTE', debit: '626', credit: '', note: 'Courrier & Timbres' },
+
+      // Recettes (706, 756, 758)
       { mot: 'COTIS', debit: '', credit: '756', note: 'Cotisation adhérent' },
-      { mot: 'DONATION', debit: '', credit: '758', note: 'Don particulier' }
+      { mot: 'ADHESION', debit: '', credit: '756', note: 'Adhésion' },
+      { mot: 'DONATION', debit: '', credit: '758', note: 'Don particulier' },
+      { mot: 'MECENAT', debit: '', credit: '758', note: 'Mécénat d\'entreprise' },
+      { mot: 'STRIPE', debit: '', credit: '706', note: 'Recettes Ventes / Services' },
+      { mot: 'SUMUP', debit: '', credit: '706', note: 'Recettes Ventes / Services' }
     ];
 
     for (const sug of suggestionsHeuristiques) {

@@ -52,55 +52,50 @@
     onButtonClick={() => activeView.set('books')}
   />
 
-  <!-- BANDEAU SÉRÉNITÉ : 3 CARTES KPI -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px;">
+  <!-- BANDEAU SÉRÉNITÉ : 4 CARTES KPI -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;">
     
     <KpiCard 
       label="CA Encaissé Cumulé" 
       value={caEncaissé.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-      icon="fa-rocket" 
-      subtext="Base de déclaration Urssaf" 
-      subtextIcon="fa-receipt"
+      subtext="Base de déclaration Urssaf"
+      bgColor="#eff6ff"
+      borderColor="#bfdbfe"
+      textColor="#1e3a8a"
+      subtextColor="#2563eb"
     />
 
     <KpiCard 
       label={`Urssaf Estimée (${activeRateObj.label})`} 
       value={urssafEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-      icon="fa-calculator" 
-      iconColor="var(--color-warning)"
-      subtext="Montant à provisionner" 
-      subtextIcon="fa-clock"
-      subtextColor="var(--color-warning)"
+      subtext="Montant à provisionner"
+      bgColor="#fffbeb"
+      borderColor="#fde68a"
+      textColor="#78350f"
+      subtextColor="#d97706"
     />
 
     <KpiCard 
       label="Reste Net Réel" 
       value={resteNetEnPoche.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-      icon="fa-piggy-bank" 
-      iconColor="var(--color-success)"
-      subtext="Après Urssaf & charges réelles" 
-      subtextIcon="fa-check-circle"
-      subtextColor="var(--color-success)"
+      subtext="Après Urssaf & charges réelles"
+      bgColor="#ecfdf5"
+      borderColor="#a7f3d0"
+      textColor="#065f46"
+      subtextColor="#059669"
     />
 
-  </div>
+    <KpiCard 
+      label="Franchise en Base TVA" 
+      value={`${tvaPct}% atteint`} 
+      subtext={tvaPct < 80 ? "Sous le seuil (37 500 €)" : "⚠️ Proche du seuil de 37 500 €"}
+      bgColor="#faf5ff"
+      borderColor="#e9d5ff"
+      textColor="#581c87"
+      subtextColor="#9333ea"
+      progressBarPct={tvaPct}
+    />
 
-  <!-- JAUGE DE SÉRÉNITÉ FRANCHISE TVA -->
-  <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-card); margin-bottom: 24px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-      <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-main);">Suivi de la Franchise en Base de TVA (Seuil 37 500 €)</span>
-      <span style="font-size: 0.84rem; font-weight: 700; color: var(--text-muted);">{tvaPct}% atteint</span>
-    </div>
-    <div style="width: 100%; height: 10px; background: var(--bg-primary); border-radius: 5px; overflow: hidden; border: 1px solid var(--border-color);">
-      <div style="width: {tvaPct}%; height: 100%; background: {tvaPct > 80 ? 'var(--color-warning)' : 'var(--color-accent)'}; transition: width 0.3s ease;"></div>
-    </div>
-    <p style="margin: 8px 0 0 0; font-size: 0.78rem; color: var(--text-muted);">
-      {#if tvaPct < 80}
-        ✅ Vous êtes sereinement sous le seuil de bascule TVA.
-      {:else}
-        ⚠️ Vigilance : Vous approchez du seuil de franchise de TVA (37 500 €).
-      {/if}
-    </p>
   </div>
 
   <!-- TABLEAU DÉLIMITÉ -->
@@ -140,27 +135,5 @@
         </tbody>
       </table>
     </div>
-  </div>
-</div>
-<!-- 4. BLOC : OBLIGATIONS LÉGALES -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="dashboard-section-block" style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-lg); padding: 22px; margin-bottom: 20px;">
-  <h2 style="font-family: var(--font-title); font-size: 1.25rem; font-weight: 700; color: white; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-    <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem;">📋</span>
-    Obligations Légales
-  </h2>
-
-  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
-    <div style="max-width: 750px;">
-      <h3 style="font-family: var(--font-title); font-size: 1.08rem; color: white; margin-bottom: 6px;">
-        Tenue du Livre des Recettes
-      </h3>
-      <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
-        En tant que micro-entrepreneur, vous avez l'obligation légale de tenir un Livre des Recettes chronologique retraçant l'ensemble de vos encaissements. Ce registre doit être conservé pendant 10 ans.
-      </p>
-    </div>
-    <button class="btn btn-primary" onclick={() => activeView.set('recettes')}>
-      <i class="fa-solid fa-book-journal-whills"></i> Consulter & Exporter le Livre des Recettes
-    </button>
   </div>
 </div>

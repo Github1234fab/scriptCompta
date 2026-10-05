@@ -47,21 +47,18 @@
 
   <!-- Right Header Actions -->
   <div style="display: flex; align-items: center; gap: 10px;">
-    <button 
-      onclick={() => $showCreateEntityModal = true}
-      style="background: #0f172a; color: white; border: none; border-radius: 8px; padding: 7px 14px; font-weight: 700; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;"
-      title="Ajouter une nouvelle gestion / structure"
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div 
+      class="user-badge" 
+      onclick={() => showToast(`👤 Compte utilisateur : ${activeEntity ? activeEntity.name : 'Mon Compte'}`)}
+      style="background: #ffffff; border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
+      title="Mon profil & compte utilisateur"
     >
-      <i class="fa-solid fa-circle-plus"></i> Nouvelle structure
-    </button>
-
-    <button class="btn btn-secondary btn-sm" onclick={startTour} id="start-tour-btn" style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); color: #2563eb; font-weight: 600; border-radius: 8px; padding: 7px 14px;">
-      <i class="fa-solid fa-circle-play" style="color: #2563eb;"></i> Guide d'utilisation
-    </button>
-
-    <div class="user-badge" style="background: #ffffff; border: 1px solid var(--border-color); padding: 5px 12px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-      <div class="user-avatar" style="background: #0f172a; color: white; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">FM</div>
-      <span style="font-size: 0.84rem; font-weight: 700; color: var(--text-main);">{activeEntity ? activeEntity.name : ''}</span>
+      <div class="user-avatar" style="background: #0f172a; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">FM</div>
+      <div style="display: flex; flex-direction: column; text-align: left;">
+        <span style="font-size: 0.84rem; font-weight: 700; color: var(--text-main); line-height: 1.2;">{activeEntity ? activeEntity.name : 'Mon Compte'}</span>
+        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500;">Mon Profil ➔</span>
+      </div>
     </div>
   </div>
 </header>

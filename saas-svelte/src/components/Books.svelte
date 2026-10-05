@@ -324,6 +324,28 @@
   </div>
 </div>
 
+<!-- BLOC : OBLIGATIONS LÉGALES (DÉPLACÉ DU TABLEAU DE BORD) -->
+<div class="card" style="margin-bottom: 24px; padding: 22px 26px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 16px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);">
+  <h3 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
+    <span style="background: #eff6ff; color: #2563eb; width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem;">📋</span>
+    Obligations Légales & Conservation des Registres
+  </h3>
+
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+    <div style="max-width: 750px;">
+      <h4 style="font-family: var(--font-title); font-size: 1rem; font-weight: 700; color: #1e293b; margin: 0 0 4px 0;">
+        Tenue du Livre des Recettes & Registres Comptables
+      </h4>
+      <p style="font-size: 0.85rem; color: #475569; line-height: 1.5; margin: 0;">
+        En tant que structure (micro-entreprise, société ou association), vous avez l'obligation légale de tenir un journal chronologique retraçant l'ensemble de vos opérations. Vos pièces justificatives et registres comptables doivent être conservés pendant 10 ans.
+      </p>
+    </div>
+    <button class="btn btn-primary" onclick={() => activeSubTab = 'recettes_depenses'} style="background: #0f172a; color: #ffffff; border: none; padding: 10px 20px; font-weight: 700; font-size: 0.88rem; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+      <i class="fa-solid fa-book-journal-whills"></i> Consulter le Registre Légal
+    </button>
+  </div>
+</div>
+
 <!-- Sub Tabs -->
 <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; width: 100%;">
   <button 
