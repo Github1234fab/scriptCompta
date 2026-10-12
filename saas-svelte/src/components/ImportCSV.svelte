@@ -287,6 +287,19 @@
       return;
     }
 
+    // Contrôle Quota Freemium (Max 50 écritures en gratuit)
+    const totalAfterImport = $transactions.length + newTransactions.length;
+    import('../lib/store.js').then(({ isPremium, showUpgradeModal, FREE_TIER_MAX_TRANSACTIONS }) => {
+      let userIsPremium = false;
+      isPremium.subscribe(v => userIsPremium = v)();
+
+      if (!userIsPremium && totalAfterImport > FREE_TIER_MAX_TRANSACTIONS) {
+        showUpgradeModal.set(true);
+        showToast(`⚠️ Limite gratuite atteinte (${totalAfterImport} / ${FREE_TIER_MAX_TRANSACTIONS} écritures). Passez en illimité !`);
+        return;
+      }
+    });
+
     const merged = newTransactions.concat($transactions);
     merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 

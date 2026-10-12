@@ -1,11 +1,13 @@
 <script>
   import { updateEntities, updateActiveEntityId, entities, showToast, MANAGEMENT_MODELS } from '../lib/store.js';
+  import { currentUser } from '../lib/auth.js';
+  import { saveEntityData } from '../lib/firestoreService.js';
 
   let nameInput = $state('');
   let selectedModel = $state('micro'); // 'micro', 'tpe', 'asso', 'bnc', 'sci', 'copro'
 
   /** @param {any} e */
-  function handleStartWithProfile(e) {
+  async function handleStartWithProfile(e) {
     e.preventDefault();
     if (!nameInput.trim() || !selectedModel) return;
 
@@ -18,6 +20,10 @@
 
     updateEntities([...$entities, newEntity]);
     updateActiveEntityId(newId);
+
+    if ($currentUser?.uid) {
+      await saveEntityData($currentUser.uid, newId, newEntity);
+    }
 
     const modelObj = MANAGEMENT_MODELS[newEntity.model] || MANAGEMENT_MODELS.micro;
     showToast(`🚀 Bienvenue ! Votre profil ${modelObj.title} "${newEntity.name}" est configuré.`);

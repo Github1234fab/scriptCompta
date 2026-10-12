@@ -1,6 +1,16 @@
 <script>
   import { onMount } from 'svelte';
-  import { activeView, activeEntityId, entities, showCreateEntityModal, updateActiveEntityId, transactions } from '../lib/store.js';
+  import { 
+    activeView, 
+    activeEntityId, 
+    entities, 
+    showCreateEntityModal, 
+    updateActiveEntityId, 
+    transactions,
+    isPremium,
+    showUpgradeModal,
+    FREE_TIER_MAX_TRANSACTIONS
+  } from '../lib/store.js';
 
   /** @type {{ switchView: (view: string) => void, handleResetDb: () => void, startTour?: () => void }} */
   let { switchView, handleResetDb, startTour } = $props();
@@ -42,12 +52,14 @@
     }
   });
 
+  /** @param {MouseEvent} e */
   function startResizing(e) {
     e.preventDefault();
     isResizing = true;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
 
+    /** @param {MouseEvent} moveEvent */
     function onMouseMove(moveEvent) {
       const newWidth = Math.min(Math.max(moveEvent.clientX, 220), 480);
       sidebarWidth = newWidth;
@@ -179,8 +191,27 @@
       </select>
     </div>
 
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 0.72rem; color: #94a3b8;">
-      <span>Formule Premium</span>
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; font-size: 0.72rem; color: #94a3b8; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 8px;">
+      {#if $isPremium}
+        <a 
+          href={import.meta.env.VITE_STRIPE_PORTAL_LINK || 'https://billing.stripe.com/p/login/test_8x24gy0MPgJi8wg3TP6c000'}
+          target="_blank"
+          rel="noopener noreferrer"
+          style="color: #10b981; font-weight: 700; display: flex; align-items: center; gap: 4px; text-decoration: none;"
+          title="Gérer ou résilier mon abonnement"
+        >
+          <i class="fa-solid fa-crown" style="font-size: 0.7rem;"></i> Illimité (Gérer ⚙️)
+        </a>
+      {:else}
+        <button 
+          onclick={() => $showUpgradeModal = true}
+          style="background: none; border: none; padding: 0; color: #60a5fa; font-weight: 700; font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; gap: 4px; text-decoration: underline;"
+          title="Passer en illimité"
+        >
+          <span>Gratuit ({$transactions.length}/{FREE_TIER_MAX_TRANSACTIONS})</span> ➔
+        </button>
+      {/if}
+
       <button 
         onclick={handleResetDb} 
         style="background: none; border: none; color: #f87171; cursor: pointer; font-size: 0.72rem; padding: 0; font-weight: 600; transition: color 0.2s;"

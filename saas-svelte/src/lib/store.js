@@ -1,4 +1,6 @@
-import { writable, get } from 'svelte/store';
+import { writable, get, derived } from 'svelte/store';
+import { auth } from './firebase.js';
+import { saveTransactions, saveStructureKey, saveEntityData } from './firestoreService.js';
 import { 
   INITIAL_PLAN_COMPTABLE,
   INITIAL_RULES_LYON,
@@ -7,6 +9,19 @@ import {
   INITIAL_DONORS_LYON,
   INITIAL_BILLS_LYON
 } from './data-sample.js';
+
+// Quota Freemium
+export const FREE_TIER_MAX_TRANSACTIONS = 50;
+
+// User Profile (Plan, Subscription, etc.)
+export const userProfile = writable({
+  plan: 'free', // 'free' | 'premium'
+  subscriptionStatus: 'inactive',
+  structuresCount: 0
+});
+
+export const isPremium = derived(userProfile, ($p) => $p?.plan === 'premium');
+export const showUpgradeModal = writable(false);
 
 // Visual states
 export const activeView = writable('dashboard');
@@ -118,6 +133,7 @@ export const bills = writable([]);
 export function loadEntityData(entityId) {
   if (!entityId) return;
 
+  // 1. Chargement instantané depuis LocalStorage (cache local)
   const m = localStorage.getItem(`saas_compta_closing_month_${entityId}`);
   closingMonth.set(m ? parseInt(m) : 9);
 
@@ -161,6 +177,32 @@ export function loadEntityData(entityId) {
 
   const tx = localStorage.getItem(`saas_compta_transactions_${entityId}`);
   transactions.set(tx ? JSON.parse(tx) : []);
+
+  // 2. Hydratation Firestore si connecté
+  const uid = auth.currentUser?.uid;
+  if (uid) {
+    import('./firestoreService.js').then(({ listenStructureData }) => {
+      listenStructureData(uid, entityId, (remoteData) => {
+        if (!remoteData) return;
+        if (Array.isArray(remoteData.transactions)) {
+          transactions.set(remoteData.transactions);
+          localStorage.setItem(`saas_compta_transactions_${entityId}`, JSON.stringify(remoteData.transactions));
+        }
+        if (Array.isArray(remoteData.rules)) {
+          rules.set(remoteData.rules);
+          localStorage.setItem(`saas_compta_rules_${entityId}`, JSON.stringify(remoteData.rules));
+        }
+        if (Array.isArray(remoteData.members)) {
+          members.set(remoteData.members);
+          localStorage.setItem(`saas_compta_members_${entityId}`, JSON.stringify(remoteData.members));
+        }
+        if (remoteData.closingMonth) {
+          closingMonth.set(remoteData.closingMonth);
+          localStorage.setItem(`saas_compta_closing_month_${entityId}`, String(remoteData.closingMonth));
+        }
+      });
+    });
+  }
 }
 
 // Trigger initial load
@@ -180,42 +222,82 @@ export function updateEntities(val) {
 
 export function updateTransactions(val) {
   transactions.set(val);
-  localStorage.setItem(`saas_compta_transactions_${get(activeEntityId)}`, JSON.stringify(val));
+  const entId = get(activeEntityId);
+  localStorage.setItem(`saas_compta_transactions_${entId}`, JSON.stringify(val));
+  const uid = auth.currentUser?.uid;
+  if (uid && entId) {
+    saveTransactions(uid, entId, val);
+  }
 }
 
 export function updateClosingMonth(val) {
   closingMonth.set(val);
-  localStorage.setItem(`saas_compta_closing_month_${get(activeEntityId)}`, String(val));
+  const entId = get(activeEntityId);
+  localStorage.setItem(`saas_compta_closing_month_${entId}`, String(val));
+  const uid = auth.currentUser?.uid;
+  if (uid && entId) {
+    saveStructureKey(uid, entId, 'closingMonth', val);
+  }
 }
 
 export function updatePlanComptable(val) {
   planComptable.set(val);
-  localStorage.setItem(`saas_compta_plan_${get(activeEntityId)}`, JSON.stringify(val));
+  const entId = get(activeEntityId);
+  localStorage.setItem(`saas_compta_plan_${entId}`, JSON.stringify(val));
+  const uid = auth.currentUser?.uid;
+  if (uid && entId) {
+    saveStructureKey(uid, entId, 'planComptable', val);
+  }
 }
 
 export function updateRules(val) {
   rules.set(val);
-  localStorage.setItem(`saas_compta_rules_${get(activeEntityId)}`, JSON.stringify(val));
+  const entId = get(activeEntityId);
+  localStorage.setItem(`saas_compta_rules_${entId}`, JSON.stringify(val));
+  const uid = auth.currentUser?.uid;
+  if (uid && entId) {
+    saveStructureKey(uid, entId, 'rules', val);
+  }
 }
 
 export function updateMembers(val) {
   members.set(val);
-  localStorage.setItem(`saas_compta_members_${get(activeEntityId)}`, JSON.stringify(val));
+  const entId = get(activeEntityId);
+  localStorage.setItem(`saas_compta_members_${entId}`, JSON.stringify(val));
+  const uid = auth.currentUser?.uid;
+  if (uid && entId) {
+    saveStructureKey(uid, entId, 'members', val);
+  }
 }
 
 export function updateProducts(val) {
   products.set(val);
-  localStorage.setItem(`saas_compta_products_${get(activeEntityId)}`, JSON.stringify(val));
+  const entId = get(activeEntityId);
+  localStorage.setItem(`saas_compta_products_${entId}`, JSON.stringify(val));
+  const uid = auth.currentUser?.uid;
+  if (uid && entId) {
+    saveStructureKey(uid, entId, 'products', val);
+  }
 }
 
 export function updateDonors(val) {
   donors.set(val);
-  localStorage.setItem(`saas_compta_donors_${get(activeEntityId)}`, JSON.stringify(val));
+  const entId = get(activeEntityId);
+  localStorage.setItem(`saas_compta_donors_${entId}`, JSON.stringify(val));
+  const uid = auth.currentUser?.uid;
+  if (uid && entId) {
+    saveStructureKey(uid, entId, 'donors', val);
+  }
 }
 
 export function updateBills(val) {
   bills.set(val);
-  localStorage.setItem(`saas_compta_bills_${get(activeEntityId)}`, JSON.stringify(val));
+  const entId = get(activeEntityId);
+  localStorage.setItem(`saas_compta_bills_${entId}`, JSON.stringify(val));
+  const uid = auth.currentUser?.uid;
+  if (uid && entId) {
+    saveStructureKey(uid, entId, 'bills', val);
+  }
 }
 
 // Toast notification helper

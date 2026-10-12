@@ -33,14 +33,46 @@
   import DashboardAsso from './components/DashboardAsso.svelte';
   import OnboardingModal from './components/OnboardingModal.svelte';
   import WelcomeScreen from './components/WelcomeScreen.svelte';
+  import AuthScreen from './components/AuthScreen.svelte';
+  import UpgradeModal from './components/UpgradeModal.svelte';
   import Header from './components/Header.svelte';
   import Sidebar from './components/Sidebar.svelte';
+  import { currentUser, authLoading } from './lib/auth.js';
+  import { ensureUserProfile, listenUserStructures, listenUserProfile } from './lib/firestoreService.js';
+  import { userProfile } from './lib/store.js';
 
   // State for creating a new entity
   let entityNameInput = $state('');
   let entityModelInput = $state('all');
 
   let isFirstLaunch = $derived($entities.length === 0);
+
+  // Synchronisation utilisateur Firestore
+  $effect(() => {
+    if ($currentUser?.uid) {
+      ensureUserProfile($currentUser.uid, $currentUser.email || '', $currentUser.displayName || '');
+      
+      // Écoute du profil / plan d'abonnement
+      const unsubProfile = listenUserProfile($currentUser.uid, (data) => {
+        if (data) userProfile.set(data);
+      });
+
+      // Écoute des structures
+      const unsubStructures = listenUserStructures($currentUser.uid, (remoteStructures) => {
+        if (remoteStructures && remoteStructures.length > 0) {
+          updateEntities(remoteStructures);
+          if (!$activeEntityId || !remoteStructures.some(s => s.id === $activeEntityId)) {
+            updateActiveEntityId(remoteStructures[0].id);
+          }
+        }
+      });
+
+      return () => {
+        unsubProfile();
+        unsubStructures();
+      };
+    }
+  });
 
   // Tour Guide states
   let tourActive = $state(false);
@@ -236,7 +268,16 @@
   );
 </script>
 
-{#if isFirstLaunch}
+{#if $authLoading}
+  <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #2b3240; color: #ffffff; font-family: inherit;">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: #60a5fa;"></i>
+      <span style="font-size: 0.95rem; font-weight: 600; letter-spacing: 0.02em;">Chargement de votre session...</span>
+    </div>
+  </div>
+{:else if !$currentUser}
+  <AuthScreen />
+{:else if isFirstLaunch}
   <WelcomeScreen />
 {:else}
   <div class="app-container">
@@ -290,6 +331,9 @@
 
 <!-- MODAL : ONBOARDING "QUE GÉREZ-VOUS ?" -->
 <OnboardingModal />
+
+<!-- MODAL : SURCLASSEMENT VERS FORMULE ILLIMITÉE -->
+<UpgradeModal />
 
 
 
