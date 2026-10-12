@@ -10,7 +10,10 @@
     activeTxId, 
     updateTransactions, 
     updateRules, 
-    showToast 
+    showToast,
+    isPremium,
+    showUpgradeModal,
+    FREE_TIER_MAX_TRANSACTIONS
   } from "../lib/store.js";
   
   // Active tab filter: 'pending' vs 'categorized'
@@ -64,9 +67,12 @@
         return;
       }
 
+      const importId = 'import_' + Date.now();
+
       // Assign IDs and defaults to parsed transactions
       const newTxList = parsed.map((t, idx) => ({
         id: `imported_${Date.now()}_${idx}`,
+        importId,
         date: t.date || new Date().toISOString().split('T')[0],
         libelle: t.libelle || "Opération sans libellé",
         debit: t.debit || 0,
@@ -77,6 +83,29 @@
         typeOperation: t.typeOperation || "",
         reference: t.reference || ""
       }));
+
+      // Contrôle Quota Freemium (Max 50 écritures en gratuit)
+      const totalAfterImport = $transactions.length + newTxList.length;
+      let userIsPremium = false;
+      isPremium.subscribe(v => userIsPremium = v)();
+
+      if (!userIsPremium && totalAfterImport > FREE_TIER_MAX_TRANSACTIONS) {
+        showUpgradeModal.set(true);
+        showToast(`⚠️ Limite gratuite atteinte (${totalAfterImport} / ${FREE_TIER_MAX_TRANSACTIONS} écritures). Passez en formule illimitée !`);
+        return;
+      }
+
+      // Enregistrer dans l'historique d'import
+      const history = getImportsHistory();
+      history.unshift({
+        id: importId,
+        fileName: file.name,
+        date: new Date().toISOString(),
+        size: (file.size / 1024).toFixed(1) + ' KB',
+        linesCount: newTxList.length,
+        importedBy: 'Fabien Marceau'
+      });
+      saveImportsHistory(history);
 
       // Categorize using rules & dictionary
       const recatted = Categorizer.categoriserTransactions([...newTxList, ...$transactions]);
@@ -106,12 +135,66 @@
   /** @type {any[] | null} */
   let lastStateTransactions = $state(null);
 
+  import { activeEntityId } from "../lib/store.js";
+
+  // États pour l'historique des imports
+  let showHistoryDrawer = $state(false);
+  /** @type {Array<any>} */
+  let importsHistory = $state([]);
+
+  function getImportsHistory() {
+    const saved = localStorage.getItem(`saas_compta_imports_${$activeEntityId}`);
+    return saved ? JSON.parse(saved) : [];
+  }
+
+  /** @param {any[]} history */
+  function saveImportsHistory(history) {
+    localStorage.setItem(`saas_compta_imports_${$activeEntityId}`, JSON.stringify(history));
+    importsHistory = history;
+  }
+
+  function loadHistory() {
+    importsHistory = getImportsHistory();
+  }
+
   onMount(() => {
-    const hideModal = localStorage.getItem("hide_categorize_pedagogical_modal");
-    if (!hideModal) {
-      showPedagogicalModal = true;
-    }
+    // Laisser la modale fermée par défaut pour ne pas bloquer l'import ou la navigation
+    showPedagogicalModal = false;
+    loadHistory();
   });
+
+  /** 
+   * Supprimer/Annuler un import et retirer ses écritures
+   * @param {string} importId 
+   * @param {string} fileName 
+   * @param {number} linesCount 
+   */
+  function supprimerImport(importId, fileName, linesCount) {
+    if (confirm(`⚠️ Voulez-vous vraiment annuler l'import "${fileName}" ? Cela supprimera les ${linesCount} transactions associées.`)) {
+      const filteredTx = $transactions.filter(t => t.importId !== importId);
+      updateTransactions(filteredTx);
+
+      const history = getImportsHistory().filter((/** @type {any} */ h) => h.id !== importId);
+      saveImportsHistory(history);
+
+      const recatted = Categorizer.categoriserTransactions(filteredTx);
+      updateTransactions(recatted);
+
+      showToast(`🗑️ Import "${fileName}" annulé avec succès.`);
+    }
+  }
+
+  /**
+   * Effacer toutes les opérations actuellement non attribuées en 1 clic
+   */
+  function effacerToutesOperations() {
+    if ($transactions.length === 0) return;
+    if (confirm(`⚠️ Voulez-vous effacer l'ensemble des ${$transactions.length} écritures bancaires de cet espace ?`)) {
+      updateTransactions([]);
+      saveImportsHistory([]);
+      showToast('🗑️ Toutes les opérations ont été effacées.');
+    }
+  }
 
   function closePedagogicalModal() {
     if (dontShowAgain) {
@@ -403,6 +486,87 @@
       accept=".csv"
     />
   </div>
+</div>
+
+<!-- Barre d'actions & Historique des imports rétractable -->
+<div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <!-- Bouton pour déplier l'historique -->
+    <button 
+      type="button" 
+      class="btn btn-secondary btn-sm"
+      onclick={() => showHistoryDrawer = !showHistoryDrawer}
+      style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.82rem; padding: 7px 14px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px;"
+    >
+      <i class="fa-solid fa-clock-rotate-left" style="color: #6366f1;"></i>
+      Historique des imports ({importsHistory.length})
+      <i class="fa-solid {showHistoryDrawer ? 'fa-chevron-up' : 'fa-chevron-down'}" style="font-size: 0.72rem; color: var(--text-muted);"></i>
+    </button>
+
+    <!-- Bouton pour tout effacer si des opérations sont présentes -->
+    {#if $transactions.length > 0}
+      <button 
+        type="button" 
+        class="btn btn-sm"
+        onclick={effacerToutesOperations}
+        style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.8rem; padding: 6px 12px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 8px; cursor: pointer;"
+        title="Effacer toutes les écritures et réinitialiser le compteur à 0/50"
+      >
+        <i class="fa-solid fa-trash-can"></i>
+        Effacer tout le relevé ({$transactions.length} écritures)
+      </button>
+    {/if}
+  </div>
+
+  <!-- Volet déroulant : Historique des fichiers importés -->
+  {#if showHistoryDrawer}
+    <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-sm); animation: fadeIn 0.2s ease-out;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+        <span style="font-weight: 800; font-size: 0.88rem; color: var(--text-main);">
+          Fichiers CSV importés dans cet espace
+        </span>
+        <span style="font-size: 0.78rem; color: var(--text-muted);">
+          Vous pouvez annuler n'importe quel import pour retirer ses opérations
+        </span>
+      </div>
+
+      {#if importsHistory.length === 0}
+        <div style="text-align: center; padding: 14px; color: var(--text-muted); font-size: 0.85rem;">
+          Aucun fichier importé récemment enregistré dans l'historique.
+        </div>
+      {:else}
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          {#each importsHistory as item}
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 32px; height: 32px; border-radius: 6px; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0;">
+                  <i class="fa-solid fa-file-csv"></i>
+                </div>
+                <div>
+                  <div style="font-weight: 700; color: #0f172a; font-size: 0.88rem;">{item.fileName}</div>
+                  <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">
+                    {new Date(item.date).toLocaleString('fr-FR')} &bull; {item.size} &bull; <strong style="color: #0f172a;">{item.linesCount} écritures</strong>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                type="button" 
+                class="btn btn-sm"
+                onclick={() => supprimerImport(item.id, item.fileName, item.linesCount)}
+                style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.78rem; padding: 6px 12px; background: #ffffff; border: 1.5px solid #fca5a5; color: #dc2626; border-radius: 6px; cursor: pointer; transition: all 0.15s;"
+                onmouseenter={(e) => { e.currentTarget.style.background = '#fee2e2'; }}
+                onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
+              >
+                <i class="fa-solid fa-trash-can"></i>
+                Annuler cet import
+              </button>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <div style="display: block; width: 100%; margin-top: 10px;">

@@ -29,13 +29,19 @@ export const toastMessage = writable('');
 export const activeTxId = writable(null); // Active transaction in categorization panel
 
 // Entities (Multi-structure)
+const DEFAULT_ENTITIES = [
+  { id: 'entity-lyon', name: 'Test asso', model: 'asso' }
+];
+
 const savedEntities = localStorage.getItem('saas_compta_entities');
 export const showCreateEntityModal = writable(false);
-const parsedEntities = savedEntities ? JSON.parse(savedEntities) : [];
+const parsedEntities = (savedEntities && JSON.parse(savedEntities).length > 0) 
+  ? JSON.parse(savedEntities) 
+  : DEFAULT_ENTITIES;
 export const entities = writable(parsedEntities);
 
 const savedActiveEntityId = localStorage.getItem('saas_compta_active_entity_id');
-export const activeEntityId = writable(savedActiveEntityId || 'entity-lyon');
+export const activeEntityId = writable(savedActiveEntityId || parsedEntities[0].id);
 
 /** @type {Record<string, any>} */
 export const MANAGEMENT_MODELS = {
@@ -300,12 +306,12 @@ export function updateBills(val) {
   }
 }
 
-// Toast notification helper
-let toastTimeout;
+// Notification / Toast flottant temporaire
+let toastTimer = null;
 export function showToast(message) {
   toastMessage.set(message);
-  clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => {
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
     toastMessage.set('');
-  }, 4000);
+  }, 3500);
 }

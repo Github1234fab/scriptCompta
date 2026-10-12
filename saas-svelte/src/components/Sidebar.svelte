@@ -6,17 +6,25 @@
     entities, 
     showCreateEntityModal, 
     updateActiveEntityId, 
-    transactions,
-    isPremium,
-    showUpgradeModal,
-    FREE_TIER_MAX_TRANSACTIONS
+    transactions, 
+    isPremium, 
+    showUpgradeModal, 
+    FREE_TIER_MAX_TRANSACTIONS,
+    MANAGEMENT_MODELS,
+    showToast
   } from '../lib/store.js';
+  import { currentUser } from '../lib/auth.js';
+  import { updateUserPlan } from '../lib/firestoreService.js';
 
   /** @type {{ switchView: (view: string) => void, handleResetDb: () => void, startTour?: () => void }} */
   let { switchView, handleResetDb, startTour } = $props();
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0]);
   let accountingModel = $derived(activeEntity?.model || 'micro');
+  let currentModelConfig = $derived(MANAGEMENT_MODELS[accountingModel] || MANAGEMENT_MODELS.micro);
+
+  // Popover switcher d'organisation en haut
+  let showOrgDropdown = $state(false);
 
   let activityLabel = $derived(
     accountingModel === 'asso' ? 'Adhérents & Dons' :
@@ -46,10 +54,18 @@
     const savedWidth = localStorage.getItem('sidebar_width');
     if (savedWidth) {
       const parsed = parseInt(savedWidth, 10);
-      if (parsed >= 200 && parsed <= 500) {
+      if (parsed >= 220 && parsed <= 500) {
         sidebarWidth = parsed;
       }
     }
+
+    function handleDocClick(e) {
+      if (!e.target.closest('#org-switcher-container')) {
+        showOrgDropdown = false;
+      }
+    }
+    window.addEventListener('click', handleDocClick);
+    return () => window.removeEventListener('click', handleDocClick);
   });
 
   /** @param {MouseEvent} e */
@@ -83,15 +99,114 @@
   class="app-sidebar" 
   style="background: #0f172a; border-right: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; width: {sidebarWidth}px; min-width: {sidebarWidth}px; max-width: {sidebarWidth}px; height: 100vh; position: relative; user-select: {isResizing ? 'none' : 'auto'}; transition: {isResizing ? 'none' : 'width 0.1s ease'};"
 >
-  <!-- SIDEBAR HEADER LOGO -->
-  <div style="padding: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box;">
-    <div class="logo-icon" style="width: 36px; height: 36px; background: #3b82f6; color: #ffffff; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-family: var(--font-title); font-size: 1.15rem; flex-shrink: 0; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);">
-      S
+  <!-- SIDEBAR HEADER : LOGO & SWITCHER D'ORGANISATION (HAUT DE SIDEBAR) -->
+  <div style="padding: 16px 14px 14px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 12px; position: relative;" id="org-switcher-container">
+    
+    <!-- Logo brand -->
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div class="logo-icon" style="width: 32px; height: 32px; background: #3b82f6; color: #ffffff; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-family: var(--font-title); font-size: 1.05rem; flex-shrink: 0; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);">
+        S
+      </div>
+      <div class="brand-name" style="font-weight: 800; font-size: 1.2rem; color: #ffffff !important; letter-spacing: -0.02em; font-family: var(--font-title); white-space: nowrap;">
+        scriptCompta
+      </div>
     </div>
-    <div class="brand-name" style="font-weight: 800; font-size: 1.25rem; color: #ffffff !important; opacity: 1 !important; visibility: visible !important; letter-spacing: -0.02em; font-family: var(--font-title); white-space: nowrap; overflow: visible;">scriptCompta</div>
+
+    <!-- SWITCHER D'ORGANISATION FLUIDE & DISCRET -->
+    <button 
+      type="button"
+      onclick={(e) => {
+        e.stopPropagation();
+        showOrgDropdown = !showOrgDropdown;
+      }}
+      style="width: 100%; background: #162032; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 7px 10px; display: flex; align-items: center; gap: 9px; cursor: pointer; text-align: left; transition: all 0.15s; outline: none;"
+      onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = 'rgba(255, 255, 255, 0.2)'}
+      onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = 'rgba(255, 255, 255, 0.08)'}
+      title="Changer d'organisation ou en créer une"
+    >
+      <!-- Avatar de la structure -->
+      <div style="width: 26px; height: 26px; border-radius: 6px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 800; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        {activeEntity ? activeEntity.name.charAt(0).toUpperCase() : 'M'}
+      </div>
+
+      <!-- Nom & Badge -->
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-weight: 700; font-size: 0.82rem; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">
+          {activeEntity ? activeEntity.name : 'Ma structure'}
+        </div>
+        <div style="font-size: 0.65rem; color: #94a3b8; line-height: 1.2;">
+          {currentModelConfig ? currentModelConfig.title : 'Gestion'}
+        </div>
+      </div>
+
+      <!-- Chevron -->
+      <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; color: #94a3b8; transition: transform 0.2s; transform: {showOrgDropdown ? 'rotate(180deg)' : 'rotate(0)'};"></i>
+    </button>
+
+    <!-- POPOVER DU SWITCHER DE STRUCTURES -->
+    {#if showOrgDropdown}
+      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+      <div 
+        onclick={(e) => e.stopPropagation()}
+        style="position: absolute; top: calc(100% + 4px); left: 14px; right: 14px; background: #111827; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55); z-index: 1000; overflow: hidden; animation: fadeIn 0.15s ease-out;"
+      >
+        <div style="padding: 8px 10px 4px 10px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em;">
+          Mes structures
+        </div>
+
+        <div style="max-height: 200px; overflow-y: auto; padding: 4px;">
+          {#each $entities as entity}
+            {@const isSelected = entity.id === $activeEntityId}
+            <button 
+              type="button"
+              onclick={() => {
+                updateActiveEntityId(entity.id);
+                showOrgDropdown = false;
+              }}
+              style="width: 100%; padding: 8px 10px; border-radius: 6px; border: none; background: {isSelected ? '#1e293b' : 'transparent'}; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; text-align: left; transition: background 0.12s;"
+              onmouseenter={(e) => { if (!isSelected) /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1a2333'; }}
+              onmouseleave={(e) => { if (!isSelected) /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'; }}
+            >
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                <div style="width: 22px; height: 22px; border-radius: 4px; background: {isSelected ? '#2563eb' : 'rgba(255, 255, 255, 0.08)'}; color: #ffffff; font-size: 0.7rem; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  {entity.name.charAt(0).toUpperCase()}
+                </div>
+                <div style="min-width: 0;">
+                  <div style="font-weight: 700; font-size: 0.78rem; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {entity.name}
+                  </div>
+                </div>
+              </div>
+              {#if isSelected}
+                <i class="fa-solid fa-check" style="font-size: 0.72rem; color: #38bdf8;"></i>
+              {/if}
+            </button>
+          {/each}
+        </div>
+
+        <!-- Action Créer une nouvelle structure -->
+        <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding: 6px;">
+          <button 
+            type="button"
+            onclick={() => {
+              showOrgDropdown = false;
+              $showCreateEntityModal = true;
+            }}
+            style="width: 100%; padding: 8px 10px; border-radius: 6px; border: none; background: transparent; color: #60a5fa; font-weight: 700; font-size: 0.76rem; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.12s;"
+            onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = 'rgba(59, 130, 246, 0.12)'}
+            onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'}
+          >
+            <i class="fa-solid fa-plus" style="font-size: 0.72rem;"></i>
+            <span>Créer une nouvelle structure</span>
+          </button>
+        </div>
+      </div>
+    {/if}
+
   </div>
   
-  <nav style="flex: 1; padding: 16px 12px; overflow-y: auto;">
+  <!-- MENU PRINCIPAL -->
+  <nav style="flex: 1; padding: 14px 12px; overflow-y: auto;">
     <ul class="sidebar-menu" style="list-style: none; padding: 0; margin: 0;">
       
       <!-- 1. TABLEAU DE BORD -->
@@ -145,9 +260,9 @@
       <li style="margin-bottom: 6px; margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 12px;">
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <span 
-           id="start-tour-btn"
-           class="menu-item"
-           style="color: #60a5fa;"
+           id="start-tour-btn" 
+           class="menu-item" 
+           style="color: #60a5fa;" 
            onclick={() => startTour && startTour()}>
           <i class="fa-solid fa-circle-play" style="color: #60a5fa;"></i> Guide d'utilisation
         </span>
@@ -156,70 +271,84 @@
     </ul>
   </nav>
   
-  <!-- GROS BOUTON + NOUVELLE STRUCTURE ET SÉLECTEUR EN BAS DE SIDEBAR -->
-  <div style="padding: 0 12px; margin-bottom: 4px;">
-    <button 
-      onclick={() => $showCreateEntityModal = true}
-      style="width: 100%; padding: 11px 16px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; border: none; border-radius: 10px; font-weight: 800; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); transition: all 0.2s;"
-      title="Ajouter une nouvelle structure"
-    >
-      <i class="fa-solid fa-plus" style="font-size: 1.1rem; background: rgba(255, 255, 255, 0.2); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center;"></i> 
-      <span>Nouvelle structure</span>
-    </button>
-  </div>
-
-  <div class="sidebar-footer-card" style="margin: 6px 12px 14px 12px; padding: 10px 14px; border-top: 1px solid rgba(0, 0, 0, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.08); border-left: 1px solid rgba(0, 0, 0, 0.4); border-right: 1px solid rgba(0, 0, 0, 0.4); background: #0c1322; border-radius: 8px; box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.75); box-sizing: border-box;">
-    <div style="font-size: 0.68rem; text-transform: uppercase; font-weight: 700; color: #94a3b8; margin-bottom: 6px; letter-spacing: 0.05em;">Structure / Dossier</div>
-    <div style="display: flex; align-items: center; width: 100%;">
-      <select 
-        value={$activeEntityId} 
-        onchange={(e) => {
-          const target = /** @type {HTMLSelectElement} */ (e.target);
-          if (target && target.value === 'create_new') {
-            $showCreateEntityModal = true;
-            target.value = $activeEntityId;
-          } else if (target) {
-            updateActiveEntityId(target.value);
-          }
-        }} 
-        style="flex: 1; min-width: 0; width: 100%; background: #060b14; border-top: 1px solid rgba(0, 0, 0, 0.7); border-bottom: 1px solid rgba(255, 255, 255, 0.08); border-left: 1px solid rgba(0, 0, 0, 0.4); border-right: 1px solid rgba(0, 0, 0, 0.4); border-radius: 6px; color: #ffffff; font-weight: 600; font-size: 0.82rem; padding: 8px 10px; outline: none; cursor: pointer; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);"
-      >
-        {#each $entities as entity}
-          <option value={entity.id}>{entity.name}</option>
-        {/each}
-        <option value="create_new">➕ Créer une structure...</option>
-      </select>
-    </div>
-
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; font-size: 0.72rem; color: #94a3b8; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 8px;">
-      {#if $isPremium}
+  <!-- PIED DE BARRE LATÉRALE ÉPURÉ : UNIQUE CARTE QUOTA / UPGRADE -->
+  <div class="sidebar-bottom-panel" style="padding: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: #0c1220; box-sizing: border-box;">
+    
+    {#if $isPremium}
+      <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.22); border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div 
+            role="button"
+            tabindex="0"
+            ondblclick={async () => {
+              if ($currentUser?.uid) {
+                await updateUserPlan($currentUser.uid, 'free', 'inactive');
+              }
+            }}
+            style="font-size: 0.78rem; font-weight: 800; color: #34d399; cursor: pointer; user-select: none;"
+            title="Double-cliquez pour repasser en mode gratuit"
+          >
+            Formule Illimitée
+          </div>
+          <div style="font-size: 0.68rem; color: #94a3b8;">Accès complet actif</div>
+        </div>
         <a 
           href={import.meta.env.VITE_STRIPE_PORTAL_LINK || 'https://billing.stripe.com/p/login/test_8x24gy0MPgJi8wg3TP6c000'}
           target="_blank"
           rel="noopener noreferrer"
-          style="color: #10b981; font-weight: 700; display: flex; align-items: center; gap: 4px; text-decoration: none;"
+          style="background: rgba(255, 255, 255, 0.08); color: #ffffff; padding: 5px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center;"
           title="Gérer ou résilier mon abonnement"
         >
-          <i class="fa-solid fa-crown" style="font-size: 0.7rem;"></i> Illimité (Gérer ⚙️)
+          Gérer
         </a>
-      {:else}
-        <button 
-          onclick={() => $showUpgradeModal = true}
-          style="background: none; border: none; padding: 0; color: #60a5fa; font-weight: 700; font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; gap: 4px; text-decoration: underline;"
-          title="Passer en illimité"
-        >
-          <span>Gratuit ({$transactions.length}/{FREE_TIER_MAX_TRANSACTIONS})</span> ➔
-        </button>
-      {/if}
+      </div>
+    {:else}
+      {@const usedCount = $transactions.length}
+      {@const pct = Math.min(100, Math.round((usedCount / FREE_TIER_MAX_TRANSACTIONS) * 100))}
+      
+      <!-- Petite carte compacte & soignée -->
+      <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+        
+        <!-- En-tête Quota (Double-clic sur 'Quota gratuit' bascule le plan en illimité pour tester) -->
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span 
+            role="button"
+            tabindex="0"
+            ondblclick={async () => {
+              if ($currentUser?.uid) {
+                await updateUserPlan($currentUser.uid, 'premium', 'active');
+                showToast('👑 Félicitations ! Votre compte est désormais en Formule Illimitée.');
+              }
+            }}
+            style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; cursor: pointer; user-select: none;"
+            title="Double-cliquez pour simuler le passage en illimité"
+          >
+            Quota gratuit
+          </span>
+          <span style="font-size: 0.75rem; font-weight: 800; color: {pct >= 90 ? '#f87171' : pct >= 70 ? '#fbbf24' : '#60a5fa'};">
+            {usedCount} / {FREE_TIER_MAX_TRANSACTIONS}
+          </span>
+        </div>
 
-      <button 
-        onclick={handleResetDb} 
-        style="background: none; border: none; color: #f87171; cursor: pointer; font-size: 0.72rem; padding: 0; font-weight: 600; transition: color 0.2s;"
-        title="Réinitialiser les données"
-      >
-        <i class="fa-solid fa-rotate-right"></i> Reset
-      </button>
-    </div>
+        <!-- Fine barre de progression (3.5px) -->
+        <div style="width: 100%; height: 3.5px; background: rgba(255, 255, 255, 0.08); border-radius: 9999px; overflow: hidden;">
+          <div style="width: {pct}%; height: 100%; background: {pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#3b82f6'}; border-radius: 9999px; transition: width 0.3s ease;"></div>
+        </div>
+
+        <!-- Call-to-action unique et élégant -->
+        <button 
+          type="button"
+          onclick={() => showUpgradeModal.set(true)}
+          style="margin-top: 4px; width: 100%; height: 36px; background: #2563eb; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);"
+          onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1d4ed8'}
+          onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#2563eb'}
+          title="Passer en illimité à 9,90€/mois"
+        >
+          <span>Passer en illimité (9,90 €)</span> ➔
+        </button>
+      </div>
+    {/if}
+
   </div>
 
   <!-- DRAG HANDLE POUR REDIMENSIONNER À LA SOURIS -->

@@ -26,18 +26,36 @@
   }
 </script>
 
+<style>
+  .upgrade-modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(15, 23, 42, 0.75) !important;
+    backdrop-filter: blur(8px) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 9999999 !important;
+    padding: 20px !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+</style>
+
 {#if $showUpgradeModal}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div 
-    class="modal-overlay" 
+    class="upgrade-modal-overlay" 
     onclick={handleClose}
-    style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 999999; padding: 20px;"
   >
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div 
       class="modal-card" 
       onclick={(e) => e.stopPropagation()}
-      style="max-width: 520px; width: 100%; background: #ffffff; border-radius: 20px; padding: 36px 32px; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35); text-align: center; position: relative;"
+      style="max-width: 520px; width: 100%; background: #ffffff !important; border-radius: 20px; padding: 36px 32px; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35); text-align: center; position: relative; z-index: 10000000;"
     >
       <button 
         onclick={handleClose} 

@@ -15,22 +15,27 @@ import {
  */
 export async function ensureUserProfile(uid, email, name = '') {
   if (!uid) return null;
-  const userRef = doc(db, 'users', uid);
-  const snap = await getDoc(userRef);
+  try {
+    const userRef = doc(db, 'users', uid);
+    const snap = await getDoc(userRef);
 
-  if (!snap.exists()) {
-    const initialProfile = {
-      email,
-      name: name || '',
-      createdAt: new Date().toISOString(),
-      plan: 'free', // 'free' (limité à 50 écritures) ou 'premium'
-      subscriptionStatus: 'inactive',
-      structuresCount: 0
-    };
-    await setDoc(userRef, initialProfile);
-    return initialProfile;
+    if (!snap.exists()) {
+      const initialProfile = {
+        email,
+        name: name || '',
+        createdAt: new Date().toISOString(),
+        plan: 'free', // 'free' (limité à 50 écritures) ou 'premium'
+        subscriptionStatus: 'inactive',
+        structuresCount: 0
+      };
+      await setDoc(userRef, initialProfile);
+      return initialProfile;
+    }
+    return snap.data();
+  } catch (err) {
+    console.warn("Notice: ensureUserProfile offline or restricted:", err);
+    return null;
   }
-  return snap.data();
 }
 
 /**
@@ -130,3 +135,20 @@ export function listenUserProfile(uid, callback) {
     console.warn('Erreur écoute profil utilisateur:', err);
   });
 }
+
+/**
+ * Mettre à jour le plan utilisateur (free ou premium)
+ * @param {string} uid
+ * @param {'free' | 'premium'} plan
+ * @param {'active' | 'inactive'} [subscriptionStatus]
+ */
+export async function updateUserPlan(uid, plan, subscriptionStatus = 'active') {
+  if (!uid) return;
+  const ref = doc(db, 'users', uid);
+  await setDoc(ref, {
+    plan,
+    subscriptionStatus,
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+}
+

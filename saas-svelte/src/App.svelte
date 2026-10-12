@@ -49,16 +49,18 @@
 
   // Synchronisation utilisateur Firestore
   $effect(() => {
-    if ($currentUser?.uid) {
-      ensureUserProfile($currentUser.uid, $currentUser.email || '', $currentUser.displayName || '');
+    /** @type {any} */
+    const user = $currentUser;
+    if (user?.uid) {
+      ensureUserProfile(user.uid, user.email || '', user.displayName || '');
       
       // Écoute du profil / plan d'abonnement
-      const unsubProfile = listenUserProfile($currentUser.uid, (data) => {
+      const unsubProfile = listenUserProfile(user.uid, (data) => {
         if (data) userProfile.set(data);
       });
 
       // Écoute des structures
-      const unsubStructures = listenUserStructures($currentUser.uid, (remoteStructures) => {
+      const unsubStructures = listenUserStructures(user.uid, (remoteStructures) => {
         if (remoteStructures && remoteStructures.length > 0) {
           updateEntities(remoteStructures);
           if (!$activeEntityId || !remoteStructures.some(s => s.id === $activeEntityId)) {
@@ -268,21 +270,9 @@
   );
 </script>
 
-{#if $authLoading}
-  <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #2b3240; color: #ffffff; font-family: inherit;">
-    <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
-      <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: #60a5fa;"></i>
-      <span style="font-size: 0.95rem; font-weight: 600; letter-spacing: 0.02em;">Chargement de votre session...</span>
-    </div>
-  </div>
-{:else if !$currentUser}
-  <AuthScreen />
-{:else if isFirstLaunch}
-  <WelcomeScreen />
-{:else}
-  <div class="app-container">
-    <!-- SIDEBAR NAVIGATION -->
-    <Sidebar {switchView} {handleResetDb} {startTour} />
+<div class="app-container">
+  <!-- SIDEBAR NAVIGATION -->
+  <Sidebar {switchView} {handleResetDb} {startTour} />
 
     <!-- MAIN CONTENT CONTAINER -->
     <main class="app-content">
@@ -319,18 +309,33 @@
 
     </main>
   </div>
-{/if}
 
-<!-- TOAST NOTIFICATION -->
+<!-- TOAST NOTIFICATION FLOTTANTE (Non intrusive) -->
 {#if $toastMessage}
-  <div style="position: fixed; bottom: 20px; right: 20px; backgroundColor: rgba(26, 34, 63, 0.95); border: 1px solid var(--color-primary-light); color: #fff; padding: 12px 24px; borderRadius: 8px; boxShadow: var(--shadow-md); zIndex: 10000; fontSize: 0.9rem; fontFamily: var(--font-body); display: flex; alignItems: center; gap: 8px;">
-    <i class="fa-solid fa-circle-info" style="color: var(--color-primary-light)"></i>
-    {$toastMessage}
+  <div 
+    class="toast-floating-container" 
+    style="position: fixed; bottom: 28px; right: 28px; z-index: 9999999; animation: slideUpToast 0.25s cubic-bezier(0.16, 1, 0.3, 1);"
+  >
+    <div 
+      style="background: #0f172a; color: #ffffff; padding: 14px 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; gap: 14px; font-weight: 600; font-size: 0.92rem; max-width: 480px;"
+    >
+      <div style="flex: 1; line-height: 1.4;">{$toastMessage}</div>
+      <button 
+        type="button" 
+        onclick={() => $toastMessage = ''}
+        style="background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer; padding: 0 4px; display: flex; align-items: center;"
+        title="Fermer"
+      >
+        &times;
+      </button>
+    </div>
   </div>
 {/if}
 
-<!-- MODAL : ONBOARDING "QUE GÉREZ-VOUS ?" -->
-<OnboardingModal />
+<!-- MODAL : ONBOARDING "QUE GÉREZ-VOUS ?" (uniquement quand l'utilisateur souhaite ajouter une 2e structure) -->
+{#if $currentUser && !isFirstLaunch}
+  <OnboardingModal />
+{/if}
 
 <!-- MODAL : SURCLASSEMENT VERS FORMULE ILLIMITÉE -->
 <UpgradeModal />

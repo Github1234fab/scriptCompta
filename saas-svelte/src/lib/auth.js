@@ -15,15 +15,43 @@ import {
  * @property {string|null} error
  */
 
-export const currentUser = writable(null);
-export const authLoading = writable(true);
+// Récupération immédiate du cache de session pour affichage instantané sans blocage
+const cachedUser = (() => {
+  try {
+    const raw = localStorage.getItem('saas_compta_auth_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+})();
+
+/** @type {import('svelte/store').Writable<import('firebase/auth').User | null>} */
+export const currentUser = writable(cachedUser);
+export const authLoading = writable(false);
 export const authError = writable(null);
 
-// Écoute de l'état d'authentification Firebase
-onAuthStateChanged(auth, (user) => {
-  currentUser.set(user);
-  authLoading.set(false);
-});
+onAuthStateChanged(
+  auth, 
+  (user) => {
+    if (user) {
+      const serialized = {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName
+      };
+      localStorage.setItem('saas_compta_auth_user', JSON.stringify(serialized));
+      currentUser.set(user);
+    } else {
+      // Si aucun utilisateur en cache, rester sur null
+      if (!localStorage.getItem('saas_compta_auth_user')) {
+        currentUser.set(null);
+      }
+    }
+  },
+  (error) => {
+    console.error("Firebase auth error:", error);
+  }
+);
 
 /**
  * Inscription Email/Mot de passe
@@ -77,6 +105,7 @@ export async function logoutUser() {
   authLoading.set(true);
   try {
     await signOut(auth);
+    localStorage.removeItem('saas_compta_auth_user');
     currentUser.set(null);
   } catch (err) {
     console.error('Erreur déconnexion:', err);
