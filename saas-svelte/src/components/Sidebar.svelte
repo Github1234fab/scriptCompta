@@ -158,8 +158,7 @@
 
   <div class="sidebar-footer-card" style="margin: 6px 12px 14px 12px; padding: 10px 14px; border-top: 1px solid rgba(0, 0, 0, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.08); border-left: 1px solid rgba(0, 0, 0, 0.4); border-right: 1px solid rgba(0, 0, 0, 0.4); background: #0c1322; border-radius: 8px; box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.75); box-sizing: border-box;">
     <div style="font-size: 0.68rem; text-transform: uppercase; font-weight: 700; color: #94a3b8; margin-bottom: 6px; letter-spacing: 0.05em;">Structure / Dossier</div>
-    <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
-      <i class="fa-solid fa-building-columns" style="color: #60a5fa; font-size: 0.85rem; flex-shrink: 0;"></i>
+    <div style="display: flex; align-items: center; width: 100%;">
       <select 
         value={$activeEntityId} 
         onchange={(e) => {
@@ -171,7 +170,7 @@
             updateActiveEntityId(target.value);
           }
         }} 
-        style="flex: 1; min-width: 0; background: #060b14; border-top: 1px solid rgba(0, 0, 0, 0.7); border-bottom: 1px solid rgba(255, 255, 255, 0.08); border-left: 1px solid rgba(0, 0, 0, 0.4); border-right: 1px solid rgba(0, 0, 0, 0.4); border-radius: 6px; color: #ffffff; font-weight: 600; font-size: 0.82rem; padding: 8px 10px; outline: none; cursor: pointer; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);"
+        style="flex: 1; min-width: 0; width: 100%; background: #060b14; border-top: 1px solid rgba(0, 0, 0, 0.7); border-bottom: 1px solid rgba(255, 255, 255, 0.08); border-left: 1px solid rgba(0, 0, 0, 0.4); border-right: 1px solid rgba(0, 0, 0, 0.4); border-radius: 6px; color: #ffffff; font-weight: 600; font-size: 0.82rem; padding: 8px 10px; outline: none; cursor: pointer; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);"
       >
         {#each $entities as entity}
           <option value={entity.id}>{entity.name}</option>

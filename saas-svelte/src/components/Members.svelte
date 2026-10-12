@@ -34,11 +34,9 @@
   ];
 
   let allAssoTransactions = $derived.by(() => {
-    const fromStore = $transactions.filter((/** @type {any} */ t) => 
+    return $transactions.filter((/** @type {any} */ t) => 
       (t.compteAttribué === "756" || t.compteAttribué === "706" || t.compteCredit === "756" || t.compteCredit === "706" || t.compte === "756" || t.compte === "706") && t.credit > 0
     );
-    if (fromStore.length > 0) return fromStore;
-    return sampleAssoTx;
   });
 
   let filteredOperations = $derived(

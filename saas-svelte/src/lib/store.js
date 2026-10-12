@@ -34,7 +34,7 @@ export const MANAGEMENT_MODELS = {
     desc: 'Livre des recettes, registre des achats, jauge franchise TVA (293B) & Urssaf.',
     onboardingTitle: "Nom de l'exploitant / Nom commercial",
     onboardingSubtitle: "En auto-entreprise, les factures portent votre Nom Prénom (ex: Dupont Consulting). Vous pouvez aussi préciser votre nom commercial.",
-    onboardingLabel: "Nom Prénom (et nom commercial optionnel)",
+    onboardingLabel: "Nom et prénom (nom commercial optionnel)",
     onboardingPlaceholder: "ex: Thomas Martin (TM Digital Services)"
   },
   tpe: {
