@@ -1,5 +1,5 @@
 <script>
-  import { showCreateEntityModal, updateEntities, updateActiveEntityId, entities, showToast, MANAGEMENT_MODELS } from '../lib/store.js';
+  import { showCreateEntityModal, updateEntities, updateActiveEntityId, entities, showToast, MANAGEMENT_MODELS, activeView } from '../lib/store.js';
   import { currentUser } from '../lib/auth.js';
   import { saveEntityData } from '../lib/firestoreService.js';
 
@@ -20,6 +20,7 @@
 
     updateEntities([...$entities, newEntity]);
     updateActiveEntityId(newId);
+    $activeView = 'dashboard';
 
     if ($currentUser?.uid) {
       await saveEntityData($currentUser.uid, newId, newEntity);

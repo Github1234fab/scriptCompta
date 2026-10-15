@@ -28,20 +28,33 @@ export const activeView = writable('dashboard');
 export const toastMessage = writable('');
 export const activeTxId = writable(null); // Active transaction in categorization panel
 
+// Helper sécurisé pour la lecture LocalStorage
+export function safeGetJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw || raw === 'undefined' || raw === 'null') return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch (err) {
+    console.warn(`Erreur lecture LocalStorage pour "${key}":`, err);
+    return fallback;
+  }
+}
+
 // Entities (Multi-structure)
 const DEFAULT_ENTITIES = [
   { id: 'entity-lyon', name: 'Test asso', model: 'asso' }
 ];
 
-const savedEntities = localStorage.getItem('saas_compta_entities');
+const savedEntities = safeGetJson('saas_compta_entities', null);
 export const showCreateEntityModal = writable(false);
-const parsedEntities = (savedEntities && JSON.parse(savedEntities).length > 0) 
-  ? JSON.parse(savedEntities) 
+const parsedEntities = (Array.isArray(savedEntities) && savedEntities.length > 0) 
+  ? savedEntities 
   : DEFAULT_ENTITIES;
 export const entities = writable(parsedEntities);
 
 const savedActiveEntityId = localStorage.getItem('saas_compta_active_entity_id');
-export const activeEntityId = writable(savedActiveEntityId || parsedEntities[0].id);
+export const activeEntityId = writable((savedActiveEntityId && savedActiveEntityId !== 'undefined') ? savedActiveEntityId : parsedEntities[0].id);
 
 /** @type {Record<string, any>} */
 export const MANAGEMENT_MODELS = {
@@ -53,6 +66,10 @@ export const MANAGEMENT_MODELS = {
     accentColor: '#10b981',
     accentBg: 'rgba(16, 185, 129, 0.12)',
     desc: 'Livre des recettes, registre des achats, jauge franchise TVA (293B) & Urssaf.',
+    activityMenu: { label: 'Facturation & Recettes', icon: 'fa-file-invoice-dollar' },
+    booksMenu: { label: 'Registres Légaux Micro', icon: 'fa-book-journal-whills' },
+    dashboardTitle: 'Tableau de bord Micro-entreprise',
+    legalBadge: 'Régime Micro-fiscal (Comptabilité allégée)',
     onboardingTitle: "Nom de l'exploitant / Nom commercial",
     onboardingSubtitle: "En auto-entreprise, les factures portent votre Nom Prénom (ex: Dupont Consulting). Vous pouvez aussi préciser votre nom commercial.",
     onboardingLabel: "Nom et prénom (nom commercial optionnel)",
@@ -66,6 +83,10 @@ export const MANAGEMENT_MODELS = {
     accentColor: '#38bdf8',
     accentBg: 'rgba(56, 189, 248, 0.12)',
     desc: 'Comptabilité d’engagement, Livre-journal, Grand-livre, TVA CA3/CA12 & export FEC.',
+    activityMenu: { label: 'Facturation & Pilotage', icon: 'fa-briefcase' },
+    booksMenu: { label: 'Documents & Clôture FEC', icon: 'fa-file-invoice' },
+    dashboardTitle: 'Tableau de bord Société / TPE',
+    legalBadge: "Comptabilité d'engagement",
     onboardingTitle: "Raison sociale de la société",
     onboardingSubtitle: "Dénomination officielle figurant sur votre extrait Kbis et vos statuts.",
     onboardingLabel: "Raison sociale (Nom officiel de la société)",
@@ -79,6 +100,10 @@ export const MANAGEMENT_MODELS = {
     accentColor: '#c084fc',
     accentBg: 'rgba(192, 132, 252, 0.12)',
     desc: 'Cotisations adhérents, subventions CERFA 15059, reçus fiscaux dons CERFA 11580.',
+    activityMenu: { label: 'Adhérents, Dons & Ventes', icon: 'fa-users-heart' },
+    booksMenu: { label: 'Registres & Bilan Asso', icon: 'fa-file-contract' },
+    dashboardTitle: 'Tableau de bord Association',
+    legalBadge: 'Association Loi 1901',
     onboardingTitle: "Nom de l'association",
     onboardingSubtitle: "Nom officiel figurant sur le journal officiel (JOAFE) et les statuts déposés en préfecture.",
     onboardingLabel: "Nom complet de l'association",
@@ -92,6 +117,10 @@ export const MANAGEMENT_MODELS = {
     accentColor: '#f59e0b',
     accentBg: 'rgba(245, 158, 11, 0.12)',
     desc: 'Livre-journal BNC, barème kilométrique, amortissements & préparation liasse 2035.',
+    activityMenu: { label: 'Activité BNC & Frais', icon: 'fa-scale-balanced' },
+    booksMenu: { label: 'Registres & Déclaration 2035', icon: 'fa-file-lines' },
+    dashboardTitle: 'Tableau de bord Profession Libérale',
+    legalBadge: 'Régime BNC (Déclaration 2035)',
     onboardingTitle: "Nom du cabinet et du praticien",
     onboardingSubtitle: "Réglementation BNC (avocats, médecins, consultants, architectes).",
     onboardingLabel: "Nom du cabinet et de la profession exercée",
@@ -105,6 +134,10 @@ export const MANAGEMENT_MODELS = {
     accentColor: '#ec4899',
     accentBg: 'rgba(236, 72, 153, 0.12)',
     desc: 'Gestion des loyers, quittances 1-clic, apports CCA & préparation déclaration 2072.',
+    activityMenu: { label: 'Gestion Locative SCI', icon: 'fa-house' },
+    booksMenu: { label: 'Registre SCI & 2072', icon: 'fa-building' },
+    dashboardTitle: 'Tableau de bord SCI Familiale',
+    legalBadge: 'Régime des Sociétés de Personnes (2072)',
     onboardingTitle: "Dénomination de la SCI",
     onboardingSubtitle: "Nom figurant sur le Kbis de la Société Civile Immobilière et le bail locatif.",
     onboardingLabel: "Nom de la SCI",
@@ -118,6 +151,10 @@ export const MANAGEMENT_MODELS = {
     accentColor: '#6366f1',
     accentBg: 'rgba(99, 102, 241, 0.12)',
     desc: 'Lots & tantièmes, appels de fonds trimestriels, fonds travaux ALUR & régul annuelle.',
+    activityMenu: { label: 'Lots & Copropriétaires', icon: 'fa-building-user' },
+    booksMenu: { label: 'Grand-Livre & Annexes Copro', icon: 'fa-landmark' },
+    dashboardTitle: 'Tableau de bord Copropriété',
+    legalBadge: 'Syndic Bénévole / Coopératif',
     onboardingTitle: "Nom de la Copropriété / Immeuble",
     onboardingSubtitle: "Nom de la résidence ou adresse de l'immeuble géré en syndic bénévole / coopératif.",
     onboardingLabel: "Désignation de la résidence ou copropriété",
@@ -137,52 +174,30 @@ export const bills = writable([]);
 
 // Explicit load function
 export function loadEntityData(entityId) {
-  if (!entityId) return;
+  if (!entityId || entityId === 'undefined') return;
 
   // 1. Chargement instantané depuis LocalStorage (cache local)
   const m = localStorage.getItem(`saas_compta_closing_month_${entityId}`);
-  closingMonth.set(m ? parseInt(m) : 9);
+  closingMonth.set(m && !isNaN(parseInt(m)) ? parseInt(m) : 9);
 
-  const p = localStorage.getItem(`saas_compta_plan_${entityId}`);
-  planComptable.set(p ? JSON.parse(p) : [...INITIAL_PLAN_COMPTABLE]);
+  planComptable.set(safeGetJson(`saas_compta_plan_${entityId}`, [...INITIAL_PLAN_COMPTABLE]));
 
-  const r = localStorage.getItem(`saas_compta_rules_${entityId}`);
-  if (r) {
-    rules.set(JSON.parse(r));
-  } else {
-    rules.set(entityId === 'entity-lyon' ? [...INITIAL_RULES_LYON] : []);
-  }
+  const r = safeGetJson(`saas_compta_rules_${entityId}`, null);
+  rules.set(r !== null ? r : (entityId === 'entity-lyon' ? [...INITIAL_RULES_LYON] : []));
 
-  const mem = localStorage.getItem(`saas_compta_members_${entityId}`);
-  if (mem) {
-    members.set(JSON.parse(mem));
-  } else {
-    members.set(entityId === 'entity-lyon' ? [...INITIAL_MEMBERS_LYON] : []);
-  }
+  const mem = safeGetJson(`saas_compta_members_${entityId}`, null);
+  members.set(mem !== null ? mem : (entityId === 'entity-lyon' ? [...INITIAL_MEMBERS_LYON] : []));
 
-  const prod = localStorage.getItem(`saas_compta_products_${entityId}`);
-  if (prod) {
-    products.set(JSON.parse(prod));
-  } else {
-    products.set(entityId === 'entity-lyon' ? [...INITIAL_PRODUCTS_LYON] : []);
-  }
+  const prod = safeGetJson(`saas_compta_products_${entityId}`, null);
+  products.set(prod !== null ? prod : (entityId === 'entity-lyon' ? [...INITIAL_PRODUCTS_LYON] : []));
 
-  const don = localStorage.getItem(`saas_compta_donors_${entityId}`);
-  if (don) {
-    donors.set(JSON.parse(don));
-  } else {
-    donors.set(entityId === 'entity-lyon' ? [...INITIAL_DONORS_LYON] : []);
-  }
+  const don = safeGetJson(`saas_compta_donors_${entityId}`, null);
+  donors.set(don !== null ? don : (entityId === 'entity-lyon' ? [...INITIAL_DONORS_LYON] : []));
 
-  const b = localStorage.getItem(`saas_compta_bills_${entityId}`);
-  if (b) {
-    bills.set(JSON.parse(b));
-  } else {
-    bills.set(entityId === 'entity-lyon' ? [...INITIAL_BILLS_LYON] : []);
-  }
+  const b = safeGetJson(`saas_compta_bills_${entityId}`, null);
+  bills.set(b !== null ? b : (entityId === 'entity-lyon' ? [...INITIAL_BILLS_LYON] : []));
 
-  const tx = localStorage.getItem(`saas_compta_transactions_${entityId}`);
-  transactions.set(tx ? JSON.parse(tx) : []);
+  transactions.set(safeGetJson(`saas_compta_transactions_${entityId}`, []));
 
   // 2. Hydratation Firestore si connecté
   const uid = auth.currentUser?.uid;

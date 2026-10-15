@@ -26,21 +26,10 @@
   // Popover switcher d'organisation en haut
   let showOrgDropdown = $state(false);
 
-  let activityLabel = $derived(
-    accountingModel === 'asso' ? 'Adhérents & Dons' :
-    accountingModel === 'micro' ? 'Recettes Micro' :
-    accountingModel === 'bnc' ? 'Registre BNC' :
-    accountingModel === 'sci' ? 'Gestion Locative' :
-    accountingModel === 'copro' ? 'Copropriété & Lots' : 'Factures & Ventes'
-  );
-
-  let activityIcon = $derived(
-    accountingModel === 'asso' ? 'fa-users-heart' :
-    accountingModel === 'micro' ? 'fa-file-invoice-dollar' :
-    accountingModel === 'bnc' ? 'fa-scale-balanced' :
-    accountingModel === 'sci' ? 'fa-house' :
-    accountingModel === 'copro' ? 'fa-building-user' : 'fa-briefcase'
-  );
+  let activityLabel = $derived(currentModelConfig?.activityMenu?.label || 'Mon Activité');
+  let activityIcon = $derived(currentModelConfig?.activityMenu?.icon || 'fa-briefcase');
+  let booksLabel = $derived(currentModelConfig?.booksMenu?.label || 'Documents & Clôture');
+  let booksIcon = $derived(currentModelConfig?.booksMenu?.icon || 'fa-file-contract');
 
   let pendingTxBadgeCount = $derived($transactions.filter(
     (/** @type {any} */ t) => t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere'
@@ -162,6 +151,8 @@
               onclick={() => {
                 updateActiveEntityId(entity.id);
                 showOrgDropdown = false;
+                const m = MANAGEMENT_MODELS[entity.model] || MANAGEMENT_MODELS.micro;
+                showToast(`Structure active : ${entity.name} (${m.title})`);
               }}
               style="width: 100%; padding: 8px 10px; border-radius: 6px; border: none; background: {isSelected ? '#1e293b' : 'transparent'}; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; text-align: left; transition: background 0.12s;"
               onmouseenter={(e) => { if (!isSelected) /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1a2333'; }}
@@ -174,6 +165,9 @@
                 <div style="min-width: 0;">
                   <div style="font-weight: 700; font-size: 0.78rem; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     {entity.name}
+                  </div>
+                  <div style="font-size: 0.65rem; color: #94a3b8; line-height: 1.1;">
+                    {MANAGEMENT_MODELS[entity.model]?.badge || entity.model}
                   </div>
                 </div>
               </div>
@@ -245,14 +239,14 @@
         </span>
       </li>
 
-      <!-- 4. DOCUMENTS & CLÔTURE -->
+      <!-- 4. DOCUMENTS & CLÔTURE (DYNAMIQUE) -->
       <li style="margin-bottom: 6px;">
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <span 
            id="menu-books" 
            class="menu-item {$activeView === 'books' || $activeView === 'livre_recettes' ? 'active' : ''}" 
            onclick={() => switchView('books')}>
-          <i class="fa-solid fa-file-contract"></i> Documents & Clôture
+          <i class="fa-solid {booksIcon}"></i> {booksLabel}
         </span>
       </li>
 

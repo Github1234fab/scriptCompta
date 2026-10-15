@@ -19,21 +19,10 @@
     return 'SC';
   });
 
-  let activityLabel = $derived(
-    accountingModel === 'asso' ? 'Adhérents & Dons' :
-    accountingModel === 'micro' ? 'Recettes Micro' :
-    accountingModel === 'bnc' ? 'Registre & Frais BNC' :
-    accountingModel === 'sci' ? 'Loyers & Associés' :
-    accountingModel === 'copro' ? 'Lots & Tantièmes' : 'Factures & Ventes'
-  );
-
-  let activityIcon = $derived(
-    accountingModel === 'asso' ? 'fa-users-heart' :
-    accountingModel === 'micro' ? 'fa-file-invoice-dollar' :
-    accountingModel === 'bnc' ? 'fa-scale-balanced' :
-    accountingModel === 'sci' ? 'fa-house' :
-    accountingModel === 'copro' ? 'fa-building-user' : 'fa-briefcase'
-  );
+  let activityLabel = $derived(modelObj?.activityMenu?.label || 'Mon Activité');
+  let activityIcon = $derived(modelObj?.activityMenu?.icon || 'fa-briefcase');
+  let booksLabel = $derived(modelObj?.booksMenu?.label || 'Documents & Clôture');
+  let booksIcon = $derived(modelObj?.booksMenu?.icon || 'fa-file-contract');
 
   async function handleLogout() {
     await logoutUser();
@@ -45,19 +34,22 @@
   <div>
     <h2 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
       {#if $activeView === 'dashboard'}
-        <i class="fa-solid fa-chart-simple" style="color: var(--color-accent);"></i> Tableau de bord
+        <i class="fa-solid fa-chart-simple" style="color: var(--color-accent);"></i> {modelObj?.dashboardTitle || 'Tableau de bord'}
       {:else if $activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces'}
         <i class="fa-solid fa-wallet" style="color: var(--color-accent);"></i> Banque & Pièces
       {:else if $activeView === 'activity' || $activeView.startsWith('workspace_')}
         <i class="fa-solid {activityIcon}" style="color: var(--color-accent);"></i> {activityLabel}
-      {:else if $activeView === 'books'}
-        <i class="fa-solid fa-file-contract" style="color: var(--color-accent);"></i> Documents & Clôture
+      {:else if $activeView === 'books' || $activeView === 'recettes'}
+        <i class="fa-solid {booksIcon}" style="color: var(--color-accent);"></i> {booksLabel}
       {:else}
         <i class="fa-solid fa-cube" style="color: var(--color-accent);"></i> scriptCompta
       {/if}
     </h2>
-    <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">
-      Structure : <strong>{activeEntity ? activeEntity.name : ''}</strong> ({modelObj ? modelObj.title : 'Entité'})
+    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+      <span>Structure : <strong style="color: #0f172a;">{activeEntity ? activeEntity.name : ''}</strong></span>
+      <span style="background: {modelObj?.accentBg || '#f1f5f9'}; color: {modelObj?.accentColor || '#2563eb'}; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 4px;">
+        {modelObj ? modelObj.title : 'Entité'}
+      </span>
     </p>
   </div>
 

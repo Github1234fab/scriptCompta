@@ -332,10 +332,8 @@
   </div>
 {/if}
 
-<!-- MODAL : ONBOARDING "QUE GÉREZ-VOUS ?" (uniquement quand l'utilisateur souhaite ajouter une 2e structure) -->
-{#if $currentUser && !isFirstLaunch}
-  <OnboardingModal />
-{/if}
+<!-- MODAL : ONBOARDING "QUE GÉREZ-VOUS ?" (Création ou ajout de structure) -->
+<OnboardingModal />
 
 <!-- MODAL : SURCLASSEMENT VERS FORMULE ILLIMITÉE -->
 <UpgradeModal />
