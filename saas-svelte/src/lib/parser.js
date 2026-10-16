@@ -49,11 +49,22 @@ export const CSVParser = {
           .trim();
       });
       
-      indexDate = entetes.findIndex(h => h.includes('dat'));
-      indexLibelle = entetes.findIndex(h => h.includes('lib') || h.includes('tex') || h.includes('des'));
-      indexDebit = entetes.findIndex(h => h.includes('deb') || h.includes('dep') || h.includes('sor'));
-      indexCredit = entetes.findIndex(h => h.includes('cre') || h.includes('rec') || h.includes('ent'));
-      indexMontant = entetes.findIndex(h => h.includes('mon') || h.includes('val') || h.includes('som') || h.includes('amo'));
+      // Détection des en-têtes avec priorité stricte pour éviter les collisions (ex: "date de valeur" ne doit JAMAIS matcher le montant)
+      indexDate = entetes.findIndex(h => h.includes('dat') && !h.includes('val'));
+      if (indexDate === -1) indexDate = entetes.findIndex(h => h.includes('dat'));
+
+      indexLibelle = entetes.findIndex(h => h.includes('lib') || h.includes('tex') || h.includes('des') || h.includes('mot') || h.includes('nom'));
+      
+      // Débit et Crédit : ne doivent JAMAIS contenir "dat" (ex: "date op")
+      indexDebit = entetes.findIndex(h => !h.includes('dat') && (h.includes('deb') || h.includes('dep') || h.includes('sor')));
+      indexCredit = entetes.findIndex(h => !h.includes('dat') && (h.includes('cre') || h.includes('rec') || h.includes('ent')));
+      
+      // Montant : priorité absolue à "montant", "amount", "somme". Exclure formellement toute colonne contenant "dat" (comme "date valeur")
+      indexMontant = entetes.findIndex(h => !h.includes('dat') && (h.includes('mont') || h.includes('amount') || h.includes('somme')));
+      if (indexMontant === -1) {
+        indexMontant = entetes.findIndex(h => !h.includes('dat') && (h === 'valeur' || h.includes('total') || h.includes('solde')));
+      }
+
       indexInfo = entetes.findIndex(h => h.includes('inf') || h.includes('det') || h.includes('com'));
       indexTypeOp = entetes.findIndex(h => h.includes('typ') || h.includes('mod') || h.includes('pai'));
       indexReference = entetes.findIndex(h => h.includes('ref') || h.includes('num') || h.includes('ide'));
@@ -174,6 +185,9 @@ export const CSVParser = {
       
     if (str === '' || str === '-') return 0;
     
+    // Si la chaîne a la structure d'une date (ex: 10/09/2026 ou 10-09-26), ce n'est pas un montant
+    if (/^\d{1,4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,4}$/.test(str)) return 0;
+
     str = str.replace(',', '.');
     
     const num = parseFloat(str);

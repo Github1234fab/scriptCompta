@@ -5,14 +5,16 @@
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { name: 'Mon Association', model: 'asso' });
 
-  let totalBanque = $derived($transactions.reduce((sum, tx) => {
+  let activeTx = $derived($transactions.filter((/** @type {any} */ tx) => !tx.entityId || tx.entityId === $activeEntityId));
+
+  let totalBanque = $derived(activeTx.reduce((sum, tx) => {
     if (tx.compteAttribué !== '699' && tx.statut === 'attribue' && tx.compteAttribué !== '530') {
       return sum + (tx.credit - tx.debit);
     }
     return sum;
   }, 0));
 
-  let cotisationsEncaissées = $derived($transactions.reduce((sum, tx) => {
+  let cotisationsEncaissées = $derived(activeTx.reduce((sum, tx) => {
     if (tx.compteAttribué === '756' && tx.statut === 'attribue') {
       return sum + tx.credit;
     }
@@ -26,7 +28,7 @@
 
   let retardsCount = $derived($members.filter(m => (m.forfait - m.dejaPaye) > 0).length);
 
-  let pendingTxCount = $derived($transactions.filter(
+  let pendingTxCount = $derived(activeTx.filter(
     t => t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere'
   ).length);
 </script>
@@ -97,7 +99,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each $transactions.slice(0, 8) as tx}
+          {#each activeTx.slice(0, 8) as tx}
             <tr>
               <td style="color: var(--text-muted); white-space: nowrap;">{tx.date}</td>
               <td style="font-weight: 600; color: var(--text-main);">{tx.libelle}</td>

@@ -7,6 +7,7 @@ import {
   signOut,
   updateProfile
 } from 'firebase/auth';
+import { resetAllStores } from './store.js';
 
 /**
  * @typedef {Object} UserState
@@ -27,6 +28,7 @@ const cachedUser = (() => {
 
 /** @type {import('svelte/store').Writable<import('firebase/auth').User | null>} */
 export const currentUser = writable(cachedUser);
+export const authInitialized = writable(false);
 export const authLoading = writable(false);
 export const authError = writable(null);
 
@@ -42,14 +44,18 @@ onAuthStateChanged(
       localStorage.setItem('saas_compta_auth_user', JSON.stringify(serialized));
       currentUser.set(user);
     } else {
-      // Si aucun utilisateur en cache, rester sur null
-      if (!localStorage.getItem('saas_compta_auth_user')) {
-        currentUser.set(null);
-      }
+      // Déconnecté ou compte supprimé de Firebase
+      localStorage.removeItem('saas_compta_auth_user');
+      currentUser.set(null);
+      resetAllStores();
     }
+    authLoading.set(false);
+    authInitialized.set(true);
   },
   (error) => {
     console.error("Firebase auth error:", error);
+    authLoading.set(false);
+    authInitialized.set(true);
   }
 );
 
@@ -106,6 +112,7 @@ export async function logoutUser() {
   try {
     await signOut(auth);
     localStorage.removeItem('saas_compta_auth_user');
+    resetAllStores();
     currentUser.set(null);
   } catch (err) {
     console.error('Erreur déconnexion:', err);

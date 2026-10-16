@@ -35,17 +35,18 @@
   let selectedRegimeKey = $state('services_bic');
   let selectedRegime = $derived(REGIMES_URSSAF[selectedRegimeKey] || REGIMES_URSSAF.services_bic);
 
-  // Recettes réelles (crédits attribués)
+  // Recettes et achats réels filtrés strictement pour la structure active
+  let structureTx = $derived($transactions.filter((/** @type {any} */ tx) => !tx.entityId || tx.entityId === $activeEntityId));
+
   let recettesList = $derived(
-    $transactions
+    structureTx
       .filter((/** @type {any} */ tx) => tx.credit > 0 && tx.statut === 'attribue')
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   );
   let totalCA = $derived(recettesList.reduce((sum, r) => sum + r.credit, 0));
 
-  // Achats réels (dépenses attribuées)
   let achatsList = $derived(
-    $transactions
+    structureTx
       .filter((/** @type {any} */ tx) => tx.debit > 0 && tx.statut === 'attribue')
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   );

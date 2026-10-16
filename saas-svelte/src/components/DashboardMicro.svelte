@@ -16,8 +16,10 @@
   let activeRateObj = $derived(URSSAF_RATES[currentMicroActivity] || URSSAF_RATES.services_bic);
   let activeRate = $derived(activeRateObj.rate);
 
+  let activeTx = $derived($transactions.filter((/** @type {any} */ tx) => !tx.entityId || tx.entityId === $activeEntityId));
+
   // Recettes encaissées (comptabilité d'encaissement pure)
-  let caEncaissé = $derived($transactions.reduce((sum, tx) => {
+  let caEncaissé = $derived(activeTx.reduce((sum, tx) => {
     if (tx.compteAttribué !== '699' && tx.statut === 'attribue') {
       const cpt = $planComptable.find((/** @type {any} */ p) => p.compte === tx.compteAttribué);
       if (cpt && cpt.type === 'Produit') return sum + tx.credit;
@@ -26,7 +28,7 @@
   }, 0));
 
   // Charges réelles
-  let depensesReelles = $derived($transactions.reduce((sum, tx) => {
+  let depensesReelles = $derived(activeTx.reduce((sum, tx) => {
     if (tx.compteAttribué !== '699' && tx.statut === 'attribue') {
       const cpt = $planComptable.find((/** @type {any} */ p) => p.compte === tx.compteAttribué);
       if (cpt && cpt.type === 'Charge') return sum + tx.debit;
@@ -118,7 +120,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each $transactions.filter(t => t.credit > 0).slice(0, 6) as tx}
+          {#each activeTx.filter(t => t.credit > 0).slice(0, 6) as tx}
             <tr>
               <td style="color: var(--text-muted); white-space: nowrap;">{tx.date}</td>
               <td style="font-weight: 600; color: var(--text-main);">{tx.libelle}</td>

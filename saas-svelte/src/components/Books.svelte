@@ -50,7 +50,7 @@
 
   // Filter and sort transactions chronologically (Svelte 5 derived rune)
   let sortedTxList = $derived([...$transactions]
-    .filter(t => t.compteAttribué !== '699' && t.statut === 'attribue')
+    .filter(t => (!t.entityId || t.entityId === $activeEntityId) && t.compteAttribué !== '699' && t.statut === 'attribue')
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
 
   // 1. LIVRE-JOURNAL CALCULATION

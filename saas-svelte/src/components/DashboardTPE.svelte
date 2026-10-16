@@ -5,14 +5,16 @@
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { name: 'Ma Structure', model: 'tpe' });
 
-  let totalBanque = $derived($transactions.reduce((sum, tx) => {
+  let activeTx = $derived($transactions.filter((/** @type {any} */ tx) => !tx.entityId || tx.entityId === $activeEntityId));
+
+  let totalBanque = $derived(activeTx.reduce((sum, tx) => {
     if (tx.compteAttribué !== '699' && tx.statut === 'attribue' && tx.compteAttribué !== '530') {
       return sum + (tx.credit - tx.debit);
     }
     return sum;
   }, 0));
 
-  let recettes = $derived($transactions.reduce((sum, tx) => {
+  let recettes = $derived(activeTx.reduce((sum, tx) => {
     if (tx.compteAttribué !== '699' && tx.statut === 'attribue') {
       const cpt = $planComptable.find((/** @type {any} */ p) => p.compte === tx.compteAttribué);
       if (cpt && cpt.type === 'Produit') return sum + tx.credit;
@@ -20,7 +22,7 @@
     return sum;
   }, 0));
 
-  let depenses = $derived($transactions.reduce((sum, tx) => {
+  let depenses = $derived(activeTx.reduce((sum, tx) => {
     if (tx.compteAttribué !== '699' && tx.statut === 'attribue') {
       const cpt = $planComptable.find((/** @type {any} */ p) => p.compte === tx.compteAttribué);
       if (cpt && cpt.type === 'Charge') return sum + tx.debit;
@@ -35,7 +37,7 @@
   let vraiDisponible = $derived(totalBanque - tvaNetteEstimee);
 
   // Justificatifs & Pièces manquantes
-  let debitsTotaux = $derived($transactions.filter((/** @type {any} */ t) => t.debit > 0 && t.statut === 'attribue'));
+  let debitsTotaux = $derived(activeTx.filter((/** @type {any} */ t) => t.debit > 0 && t.statut === 'attribue'));
   let piecesManquantesCount = $derived(debitsTotaux.filter((/** @type {any} */ t) => !t.factureUrl).length);
 </script>
 
@@ -104,7 +106,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each $transactions.slice(0, 8) as tx}
+          {#each activeTx.slice(0, 8) as tx}
             <tr>
               <td style="color: var(--text-muted); white-space: nowrap;">{tx.date}</td>
               <td style="font-weight: 600; color: var(--text-main);">{tx.libelle}</td>

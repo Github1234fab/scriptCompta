@@ -32,7 +32,7 @@
   let booksIcon = $derived(currentModelConfig?.booksMenu?.icon || 'fa-file-contract');
 
   let pendingTxBadgeCount = $derived($transactions.filter(
-    (/** @type {any} */ t) => t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere'
+    (/** @type {any} */ t) => (!t.entityId || t.entityId === $activeEntityId) && (t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere')
   ).length);
 
   // Resizable Sidebar width state

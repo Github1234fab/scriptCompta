@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from 'svelte';
   import { 
     loginWithEmail, 
     registerWithEmail, 
@@ -13,10 +14,25 @@
   let displayName = $state('');
   let localError = $state('');
 
+  onMount(() => {
+    clearErrors();
+  });
+
+  function clearErrors() {
+    localError = '';
+    authError.set(null);
+  }
+
+  /** @param {'login' | 'register'} newMode */
+  function switchMode(newMode) {
+    mode = newMode;
+    clearErrors();
+  }
+
   /** @param {any} e */
   async function handleSubmit(e) {
     e.preventDefault();
-    localError = '';
+    clearErrors();
 
     if (!email || !password) {
       localError = 'Veuillez remplir tous les champs.';
@@ -61,7 +77,7 @@
         type="button" 
         class="tab-btn" 
         class:active={mode === 'login'}
-        onclick={() => { mode = 'login'; localError = ''; }}
+        onclick={() => switchMode('login')}
       >
         Se connecter
       </button>
@@ -69,7 +85,7 @@
         type="button" 
         class="tab-btn" 
         class:active={mode === 'register'}
-        onclick={() => { mode = 'register'; localError = ''; }}
+        onclick={() => switchMode('register')}
       >
         Créer un compte
       </button>
@@ -90,6 +106,7 @@
             type="text" 
             id="auth-name"
             bind:value={displayName}
+            oninput={clearErrors}
             placeholder="ex: Thomas Martin"
             class="auth-input"
           />
@@ -102,6 +119,7 @@
           type="email" 
           id="auth-email"
           bind:value={email}
+          oninput={clearErrors}
           required
           placeholder="nom@exemple.fr"
           class="auth-input"
@@ -114,6 +132,7 @@
           type="password" 
           id="auth-pwd"
           bind:value={password}
+          oninput={clearErrors}
           required
           minlength="6"
           placeholder="••••••••"
@@ -142,12 +161,12 @@
     <div class="auth-footer">
       {#if mode === 'login'}
         <span>Pas encore de compte ?</span>
-        <button type="button" class="link-btn" onclick={() => { mode = 'register'; localError = ''; }}>
+        <button type="button" class="link-btn" onclick={() => switchMode('register')}>
           Créer un compte gratuit
         </button>
       {:else}
         <span>Déjà un compte ?</span>
-        <button type="button" class="link-btn" onclick={() => { mode = 'login'; localError = ''; }}>
+        <button type="button" class="link-btn" onclick={() => switchMode('login')}>
           Se connecter
         </button>
       {/if}

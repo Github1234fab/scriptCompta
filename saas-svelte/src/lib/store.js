@@ -42,9 +42,7 @@ export function safeGetJson(key, fallback) {
 }
 
 // Entities (Multi-structure)
-const DEFAULT_ENTITIES = [
-  { id: 'entity-lyon', name: 'Test asso', model: 'asso' }
-];
+const DEFAULT_ENTITIES = [];
 
 const savedEntities = safeGetJson('saas_compta_entities', null);
 export const showCreateEntityModal = writable(false);
@@ -54,7 +52,7 @@ const parsedEntities = (Array.isArray(savedEntities) && savedEntities.length > 0
 export const entities = writable(parsedEntities);
 
 const savedActiveEntityId = localStorage.getItem('saas_compta_active_entity_id');
-export const activeEntityId = writable((savedActiveEntityId && savedActiveEntityId !== 'undefined') ? savedActiveEntityId : parsedEntities[0].id);
+export const activeEntityId = writable((savedActiveEntityId && savedActiveEntityId !== 'undefined') ? savedActiveEntityId : (parsedEntities[0]?.id || ''));
 
 /** @type {Record<string, any>} */
 export const MANAGEMENT_MODELS = {
@@ -62,7 +60,7 @@ export const MANAGEMENT_MODELS = {
     id: 'micro',
     title: 'Micro-entreprise',
     badge: 'Auto-entrepreneur',
-    icon: '🚀',
+    icon: 'fa-user-tie',
     accentColor: '#10b981',
     accentBg: 'rgba(16, 185, 129, 0.12)',
     desc: 'Livre des recettes, registre des achats, jauge franchise TVA (293B) & Urssaf.',
@@ -71,7 +69,7 @@ export const MANAGEMENT_MODELS = {
     dashboardTitle: 'Tableau de bord Micro-entreprise',
     legalBadge: 'Régime Micro-fiscal (Comptabilité allégée)',
     onboardingTitle: "Nom de l'exploitant / Nom commercial",
-    onboardingSubtitle: "En auto-entreprise, les factures portent votre Nom Prénom (ex: Dupont Consulting). Vous pouvez aussi préciser votre nom commercial.",
+    onboardingSubtitle: "En auto-entreprise, les factures portent votre Nom Prénom. Vous pouvez aussi préciser votre nom commercial.",
     onboardingLabel: "Nom et prénom (nom commercial optionnel)",
     onboardingPlaceholder: "ex: Thomas Martin (TM Digital Services)"
   },
@@ -79,7 +77,7 @@ export const MANAGEMENT_MODELS = {
     id: 'tpe',
     title: 'Société / TPE',
     badge: 'SASU, EURL, SARL, SAS',
-    icon: '🏢',
+    icon: 'fa-building',
     accentColor: '#38bdf8',
     accentBg: 'rgba(56, 189, 248, 0.12)',
     desc: 'Comptabilité d’engagement, Livre-journal, Grand-livre, TVA CA3/CA12 & export FEC.',
@@ -96,7 +94,7 @@ export const MANAGEMENT_MODELS = {
     id: 'asso',
     title: 'Association Loi 1901',
     badge: 'Club / Assos',
-    icon: '🤝',
+    icon: 'fa-users',
     accentColor: '#c084fc',
     accentBg: 'rgba(192, 132, 252, 0.12)',
     desc: 'Cotisations adhérents, subventions CERFA 15059, reçus fiscaux dons CERFA 11580.',
@@ -113,7 +111,7 @@ export const MANAGEMENT_MODELS = {
     id: 'bnc',
     title: 'Profession Libérale',
     badge: 'Déclaration 2035 BNC',
-    icon: '⚖️',
+    icon: 'fa-scale-balanced',
     accentColor: '#f59e0b',
     accentBg: 'rgba(245, 158, 11, 0.12)',
     desc: 'Livre-journal BNC, barème kilométrique, amortissements & préparation liasse 2035.',
@@ -130,7 +128,7 @@ export const MANAGEMENT_MODELS = {
     id: 'sci',
     title: 'SCI Familiale',
     badge: 'Impôt sur le Revenu (IR)',
-    icon: '🏡',
+    icon: 'fa-house-chimney',
     accentColor: '#ec4899',
     accentBg: 'rgba(236, 72, 153, 0.12)',
     desc: 'Gestion des loyers, quittances 1-clic, apports CCA & préparation déclaration 2072.',
@@ -147,7 +145,7 @@ export const MANAGEMENT_MODELS = {
     id: 'copro',
     title: 'Copropriété Bénévole',
     badge: 'Syndic Coopératif',
-    icon: '🏛️',
+    icon: 'fa-landmark',
     accentColor: '#6366f1',
     accentBg: 'rgba(99, 102, 241, 0.12)',
     desc: 'Lots & tantièmes, appels de fonds trimestriels, fonds travaux ALUR & régul annuelle.',
@@ -172,11 +170,24 @@ export const products = writable([]);
 export const donors = writable([]);
 export const bills = writable([]);
 
+// Variable globale pour gérer l'abonnement Firestore unique de la structure active
+let currentStructureUnsub = null;
+
 // Explicit load function
 export function loadEntityData(entityId) {
   if (!entityId || entityId === 'undefined') return;
 
-  // 1. Chargement instantané depuis LocalStorage (cache local)
+  // 0. Désabonner immédiatement l'écoute de l'ancienne structure pour éviter toute fuite ou écrasement croisé
+  if (currentStructureUnsub) {
+    try {
+      currentStructureUnsub();
+    } catch (e) {
+      console.warn("Erreur désabonnement structure précédente:", e);
+    }
+    currentStructureUnsub = null;
+  }
+
+  // 1. Chargement instantané depuis LocalStorage (cache local strictement cloisonné par entityId)
   const m = localStorage.getItem(`saas_compta_closing_month_${entityId}`);
   closingMonth.set(m && !isNaN(parseInt(m)) ? parseInt(m) : 9);
 
@@ -197,17 +208,30 @@ export function loadEntityData(entityId) {
   const b = safeGetJson(`saas_compta_bills_${entityId}`, null);
   bills.set(b !== null ? b : (entityId === 'entity-lyon' ? [...INITIAL_BILLS_LYON] : []));
 
-  transactions.set(safeGetJson(`saas_compta_transactions_${entityId}`, []));
+  const rawTx = safeGetJson(`saas_compta_transactions_${entityId}`, []);
+  // Taguer explicitement avec l'entityId actuel
+  const cleanTx = (Array.isArray(rawTx) ? rawTx : []).map(t => ({ ...t, entityId }));
+  transactions.set(cleanTx);
 
   // 2. Hydratation Firestore si connecté
   const uid = auth.currentUser?.uid;
   if (uid) {
     import('./firestoreService.js').then(({ listenStructureData }) => {
-      listenStructureData(uid, entityId, (remoteData) => {
+      // Vérifier à nouveau qu'on n'a pas basculé sur une autre entité entre-temps
+      if (get(activeEntityId) !== entityId) return;
+
+      currentStructureUnsub = listenStructureData(uid, entityId, (remoteData) => {
         if (!remoteData) return;
+        // VÉRIFICATION DE SÉCURITÉ CRITIQUE : s'assurer que l'entité reçue est bien celle actuellement affichée
+        if (get(activeEntityId) !== entityId) {
+          console.warn(`[scriptCompta] Snapshot différé ignoré pour l'ancienne structure ${entityId}.`);
+          return;
+        }
+
         if (Array.isArray(remoteData.transactions)) {
-          transactions.set(remoteData.transactions);
-          localStorage.setItem(`saas_compta_transactions_${entityId}`, JSON.stringify(remoteData.transactions));
+          const cleanRemoteTx = remoteData.transactions.map(t => ({ ...t, entityId }));
+          transactions.set(cleanRemoteTx);
+          localStorage.setItem(`saas_compta_transactions_${entityId}`, JSON.stringify(cleanRemoteTx));
         }
         if (Array.isArray(remoteData.rules)) {
           rules.set(remoteData.rules);
@@ -229,8 +253,54 @@ export function loadEntityData(entityId) {
 // Trigger initial load
 loadEntityData(get(activeEntityId));
 
+// Nettoyage complet du cache LocalStorage lié à ScriptCompta
+export function clearAllLocalComptaData() {
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('saas_compta_') || key.startsWith('sidebar_width'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch (e) {
+    console.warn("Erreur nettoyage LocalStorage:", e);
+  }
+}
+
+// Réinitialisation de tous les stores et caches
+export function resetAllStores() {
+  clearAllLocalComptaData();
+  if (currentStructureUnsub) {
+    try {
+      currentStructureUnsub();
+    } catch (e) {}
+    currentStructureUnsub = null;
+  }
+  entities.set([]);
+  activeEntityId.set('');
+  transactions.set([]);
+  rules.set([]);
+  members.set([]);
+  products.set([]);
+  donors.set([]);
+  bills.set([]);
+  closingMonth.set(9);
+  userProfile.set({
+    plan: 'free',
+    subscriptionStatus: 'inactive',
+    structuresCount: 0
+  });
+}
+
 // Explicit update functions that also persist to LocalStorage
 export function updateActiveEntityId(id) {
+  if (!id) {
+    activeEntityId.set('');
+    localStorage.removeItem('saas_compta_active_entity_id');
+    return;
+  }
   activeEntityId.set(id);
   localStorage.setItem('saas_compta_active_entity_id', id);
   loadEntityData(id);
@@ -242,12 +312,20 @@ export function updateEntities(val) {
 }
 
 export function updateTransactions(val) {
-  transactions.set(val);
   const entId = get(activeEntityId);
-  localStorage.setItem(`saas_compta_transactions_${entId}`, JSON.stringify(val));
+  if (!entId) return;
+
+  // Garantir que chaque écriture porte obligatoirement l'identifiant strict de sa structure
+  const taggedVal = (Array.isArray(val) ? val : []).map(t => ({
+    ...t,
+    entityId: entId
+  }));
+
+  transactions.set(taggedVal);
+  localStorage.setItem(`saas_compta_transactions_${entId}`, JSON.stringify(taggedVal));
   const uid = auth.currentUser?.uid;
   if (uid && entId) {
-    saveTransactions(uid, entId, val);
+    saveTransactions(uid, entId, taggedVal);
   }
 }
 

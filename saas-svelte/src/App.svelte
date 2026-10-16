@@ -9,7 +9,8 @@
     showToast,
     updateActiveEntityId,
     updateEntities,
-    showCreateEntityModal
+    showCreateEntityModal,
+    resetAllStores
   } from './lib/store.js';
 
   // Import components
@@ -37,7 +38,7 @@
   import UpgradeModal from './components/UpgradeModal.svelte';
   import Header from './components/Header.svelte';
   import Sidebar from './components/Sidebar.svelte';
-  import { currentUser, authLoading } from './lib/auth.js';
+  import { currentUser, authInitialized } from './lib/auth.js';
   import { ensureUserProfile, listenUserStructures, listenUserProfile } from './lib/firestoreService.js';
   import { userProfile } from './lib/store.js';
 
@@ -62,10 +63,21 @@
       // Écoute des structures
       const unsubStructures = listenUserStructures(user.uid, (remoteStructures) => {
         if (remoteStructures && remoteStructures.length > 0) {
-          updateEntities(remoteStructures);
+          // Extraire uniquement les métadonnées de structure pour éviter de polluer le store des structures
+          const sanitized = remoteStructures.map(s => ({
+            id: s.id,
+            name: s.name,
+            model: s.model,
+            microActivity: s.microActivity
+          }));
+          updateEntities(sanitized);
           if (!$activeEntityId || !remoteStructures.some(s => s.id === $activeEntityId)) {
             updateActiveEntityId(remoteStructures[0].id);
           }
+        } else {
+          // L'utilisateur n'a aucune structure dans Firestore (nouveau compte ou compte réinitialisé)
+          updateEntities([]);
+          updateActiveEntityId('');
         }
       });
 
@@ -127,9 +139,7 @@
 
   function handleResetDb() {
     if (confirm("⚠️ Voulez-vous vraiment réinitialiser toutes les données de l'application ? Cela effacera tout votre historique de tri, vos élèves, vos boutique et vos dons.")) {
-      localStorage.clear();
-      updateEntities([]);
-      $showCreateEntityModal = true;
+      resetAllStores();
       showToast("✨ Application réinitialisée ! Veuillez configurer votre premier espace.");
     }
   }
@@ -142,12 +152,12 @@
     localStorage.setItem('saas_compta_entities', JSON.stringify($entities));
     /** @type {Record<string, string>} */
     const labels = {
-      micro: '🚀 Micro-entreprise / Indépendant',
-      tpe: '🏢 Société / TPE (SASU, SARL...)',
-      asso: '🤝 Association (Loi 1901)',
-      all: '⚙️ Modèle Complet (Hybride)'
+      micro: 'Micro-entreprise / Indépendant',
+      tpe: 'Société / TPE (SASU, SARL...)',
+      asso: 'Association (Loi 1901)',
+      all: 'Modèle Complet (Hybride)'
     };
-    showToast(`✅ Profil configuré : ${labels[modelKey] || modelKey}`);
+    showToast(`Profil configuré : ${labels[modelKey] || modelKey}`);
   }
 
   /** @param {any} e */
@@ -270,9 +280,21 @@
   );
 </script>
 
-<div class="app-container">
-  <!-- SIDEBAR NAVIGATION -->
-  <Sidebar {switchView} {handleResetDb} {startTour} />
+{#if !$authInitialized}
+  <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #0f172a; color: #ffffff; font-family: inherit;">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: #3b82f6;"></i>
+      <span style="font-size: 0.95rem; font-weight: 600; letter-spacing: 0.02em;">Chargement de votre session...</span>
+    </div>
+  </div>
+{:else if !$currentUser}
+  <AuthScreen />
+{:else if isFirstLaunch}
+  <WelcomeScreen />
+{:else}
+  <div class="app-container">
+    <!-- SIDEBAR NAVIGATION -->
+    <Sidebar {switchView} {handleResetDb} {startTour} />
 
     <!-- MAIN CONTENT CONTAINER -->
     <main class="app-content">
@@ -309,6 +331,7 @@
 
     </main>
   </div>
+{/if}
 
 <!-- TOAST NOTIFICATION FLOTTANTE (Non intrusive) -->
 {#if $toastMessage}
@@ -333,7 +356,9 @@
 {/if}
 
 <!-- MODAL : ONBOARDING "QUE GÉREZ-VOUS ?" (Création ou ajout de structure) -->
-<OnboardingModal />
+{#if $currentUser && !isFirstLaunch}
+  <OnboardingModal />
+{/if}
 
 <!-- MODAL : SURCLASSEMENT VERS FORMULE ILLIMITÉE -->
 <UpgradeModal />

@@ -3,10 +3,10 @@
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { name: 'Ma Structure' });
 
-  // Recettes d'encaissement pur (crédits attribués)
+  // Recettes d'encaissement pur (crédits attribués) filtrées pour l'entité active
   let recettesLégales = $derived(
     $transactions
-      .filter(tx => tx.credit > 0 && tx.statut === 'attribue')
+      .filter(tx => (!tx.entityId || tx.entityId === $activeEntityId) && tx.credit > 0 && tx.statut === 'attribue')
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Chronologique obligatoire
       .map((tx, index) => ({
         numeroOrdre: index + 1,

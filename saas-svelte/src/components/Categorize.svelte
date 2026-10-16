@@ -68,10 +68,12 @@
       }
 
       const importId = 'import_' + Date.now();
+      const currentEntId = $activeEntityId;
 
       // Assign IDs and defaults to parsed transactions
       const newTxList = parsed.map((t, idx) => ({
         id: `imported_${Date.now()}_${idx}`,
+        entityId: currentEntId,
         importId,
         date: t.date || new Date().toISOString().split('T')[0],
         libelle: t.libelle || "Opération sans libellé",
@@ -85,7 +87,8 @@
       }));
 
       // Contrôle Quota Freemium (Max 50 écritures en gratuit)
-      const totalAfterImport = $transactions.length + newTxList.length;
+      const currentStructureTx = $transactions.filter(t => !t.entityId || t.entityId === currentEntId);
+      const totalAfterImport = currentStructureTx.length + newTxList.length;
       let userIsPremium = false;
       isPremium.subscribe(v => userIsPremium = v)();
 
@@ -108,7 +111,7 @@
       saveImportsHistory(history);
 
       // Categorize using rules & dictionary
-      const recatted = Categorizer.categoriserTransactions([...newTxList, ...$transactions]);
+      const recatted = Categorizer.categoriserTransactions([...newTxList, ...currentStructureTx]);
       updateTransactions(recatted);
       showToast(`✅ ${newTxList.length} opération(s) importée(s) avec succès depuis "${file.name}" !`);
     };
@@ -163,6 +166,15 @@
     loadHistory();
   });
 
+  // Recharger l'historique et réinitialiser les sélections en cours quand on change de structure
+  $effect(() => {
+    if ($activeEntityId) {
+      loadHistory();
+      selectedCategoryMap = {};
+      lastStateTransactions = null;
+    }
+  });
+
   /** 
    * Supprimer/Annuler un import et retirer ses écritures
    * @param {string} importId 
@@ -171,9 +183,7 @@
    */
   function supprimerImport(importId, fileName, linesCount) {
     if (confirm(`⚠️ Voulez-vous vraiment annuler l'import "${fileName}" ? Cela supprimera les ${linesCount} transactions associées.`)) {
-      const filteredTx = $transactions.filter(t => t.importId !== importId);
-      updateTransactions(filteredTx);
-
+      const filteredTx = $transactions.filter(t => t.importId !== importId && (!t.entityId || t.entityId === $activeEntityId));
       const history = getImportsHistory().filter((/** @type {any} */ h) => h.id !== importId);
       saveImportsHistory(history);
 
@@ -185,14 +195,14 @@
   }
 
   /**
-   * Effacer toutes les opérations actuellement non attribuées en 1 clic
+   * Effacer toutes les opérations actuellement de cet espace
    */
   function effacerToutesOperations() {
-    if ($transactions.length === 0) return;
-    if (confirm(`⚠️ Voulez-vous effacer l'ensemble des ${$transactions.length} écritures bancaires de cet espace ?`)) {
+    if (currentStructureTx.length === 0) return;
+    if (confirm(`⚠️ Voulez-vous effacer l'ensemble des ${currentStructureTx.length} écritures bancaires de cet espace ?`)) {
       updateTransactions([]);
       saveImportsHistory([]);
-      showToast('🗑️ Toutes les opérations ont été effacées.');
+      showToast('🗑️ Toutes les opérations de cet espace ont été effacées.');
     }
   }
 
@@ -230,9 +240,10 @@
     }
   }
 
-  // Reactive transaction lists
-  let nonTriees = $derived($transactions.filter((t) => t.compteAttribué === "699" || t.statut === "non_attribue" || t.statut === "suggere"));
-  let triees = $derived($transactions.filter((t) => t.compteAttribué !== "699" && t.statut === "attribue"));
+  // Reactive transaction lists filtrées strictement par structure
+  let currentStructureTx = $derived($transactions.filter((t) => (!t.entityId || t.entityId === $activeEntityId)));
+  let nonTriees = $derived(currentStructureTx.filter((t) => t.compteAttribué === "699" || t.statut === "non_attribue" || t.statut === "suggere"));
+  let triees = $derived(currentStructureTx.filter((t) => t.compteAttribué !== "699" && t.statut === "attribue"));
   let displayedTxList = $derived(activeTab === "pending" ? nonTriees : triees);
 
   // Auto-recognized transactions ready for 1-click batch validation
@@ -504,16 +515,16 @@
     </button>
 
     <!-- Bouton pour tout effacer si des opérations sont présentes -->
-    {#if $transactions.length > 0}
+    {#if currentStructureTx.length > 0}
       <button 
         type="button" 
         class="btn btn-sm"
         onclick={effacerToutesOperations}
         style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.8rem; padding: 6px 12px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 8px; cursor: pointer;"
-        title="Effacer toutes les écritures et réinitialiser le compteur à 0/50"
+        title="Effacer toutes les écritures de cette structure"
       >
         <i class="fa-solid fa-trash-can"></i>
-        Effacer tout le relevé ({$transactions.length} écritures)
+        Effacer tout le relevé ({currentStructureTx.length} écritures)
       </button>
     {/if}
   </div>
