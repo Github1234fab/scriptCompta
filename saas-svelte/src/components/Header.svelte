@@ -36,7 +36,7 @@
       {#if $activeView === 'dashboard'}
         <i class="fa-solid fa-chart-simple" style="color: var(--color-accent);"></i> {modelObj?.dashboardTitle || 'Tableau de bord'}
       {:else if $activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces'}
-        <i class="fa-solid fa-wallet" style="color: var(--color-accent);"></i> Banque & Pièces
+        <i class="fa-solid fa-list-check" style="color: var(--color-accent);"></i> Libellés & Attribution
       {:else if $activeView === 'activity' || $activeView.startsWith('workspace_')}
         <i class="fa-solid {activityIcon}" style="color: var(--color-accent);"></i> {activityLabel}
       {:else if $activeView === 'books' || $activeView === 'recettes'}

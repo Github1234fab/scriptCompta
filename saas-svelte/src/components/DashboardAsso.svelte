@@ -50,30 +50,18 @@
       label="Trésorerie Disponible" 
       value={totalBanque.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
       subtext="Solde bancaire disponible"
-      bgColor="#eff6ff"
-      borderColor="#bfdbfe"
-      textColor="#1e3a8a"
-      subtextColor="#2563eb"
     />
 
     <KpiCard 
       label="Cotisations Encaissées" 
       value={cotisationsEncaissées.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
       subtext="Recettes adhésions cumulées"
-      bgColor="#faf5ff"
-      borderColor="#e9d5ff"
-      textColor="#581c87"
-      subtextColor="#9333ea"
     />
 
     <KpiCard 
       label="Adhésions à recouvrer" 
       value={resteAEncaisser.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-      subtext={`${retardsCount} adhésions en retard de paiement`}
-      bgColor="#fff7ed"
-      borderColor="#ffedd5"
-      textColor="#9a3412"
-      subtextColor="#ea580c"
+      subtext={`${retardsCount} adhésion${retardsCount > 1 ? 's' : ''} en retard de paiement`}
     />
   </div>
 

@@ -49,20 +49,40 @@ export const CSVParser = {
           .trim();
       });
       
+      // Colonnes d'informations textuelles ou de métadonnées qui ne doivent JAMAIS être considérées comme Débit, Crédit ou Montant
+      const isTextOrMetaHeader = (h) => (
+        h.includes('inf') || h.includes('det') || h.includes('com') || 
+        h.includes('lib') || h.includes('ref') || h.includes('typ') || 
+        h.includes('mod') || h.includes('poi') || h.includes('cat') ||
+        h.includes('tex') || h.includes('des') || h.includes('num') ||
+        h.includes('rem') || h.includes('obs') || h.includes('noti')
+      );
+
       // Détection des en-têtes avec priorité stricte pour éviter les collisions (ex: "date de valeur" ne doit JAMAIS matcher le montant)
       indexDate = entetes.findIndex(h => h.includes('dat') && !h.includes('val'));
       if (indexDate === -1) indexDate = entetes.findIndex(h => h.includes('dat'));
 
-      indexLibelle = entetes.findIndex(h => h.includes('lib') || h.includes('tex') || h.includes('des') || h.includes('mot') || h.includes('nom'));
+      indexLibelle = entetes.findIndex(h => !h.includes('dat') && (h.includes('lib') || h.includes('tex') || h.includes('des') || h.includes('mot') || h.includes('nom')));
       
-      // Débit et Crédit : ne doivent JAMAIS contenir "dat" (ex: "date op")
-      indexDebit = entetes.findIndex(h => !h.includes('dat') && (h.includes('deb') || h.includes('dep') || h.includes('sor')));
-      indexCredit = entetes.findIndex(h => !h.includes('dat') && (h.includes('cre') || h.includes('rec') || h.includes('ent')));
+      // Débit et Crédit : Détection stricte, ne doivent JAMAIS matcher une colonne informative (comme 'informationscomplementaires')
+      indexDebit = entetes.findIndex(h => !h.includes('dat') && !isTextOrMetaHeader(h) && (
+        h === 'debit' || h === 'debits' || h === 'depense' || h === 'depenses' || h === 'sortie' || h === 'sorties' ||
+        h.startsWith('deb') || h.startsWith('dep') || h.startsWith('sort')
+      ));
+
+      indexCredit = entetes.findIndex(h => !h.includes('dat') && !isTextOrMetaHeader(h) && (
+        h === 'credit' || h === 'credits' || h === 'recette' || h === 'recettes' || h === 'entree' || h === 'entrees' ||
+        h.startsWith('cred') || h.startsWith('recett') || h.startsWith('entr')
+      ));
       
       // Montant : priorité absolue à "montant", "amount", "somme". Exclure formellement toute colonne contenant "dat" (comme "date valeur")
-      indexMontant = entetes.findIndex(h => !h.includes('dat') && (h.includes('mont') || h.includes('amount') || h.includes('somme')));
+      indexMontant = entetes.findIndex(h => !h.includes('dat') && !isTextOrMetaHeader(h) && (
+        h === 'montant' || h === 'amount' || h === 'somme' || h.startsWith('mont') || h.startsWith('amoun') || h.startsWith('somm')
+      ));
       if (indexMontant === -1) {
-        indexMontant = entetes.findIndex(h => !h.includes('dat') && (h === 'valeur' || h.includes('total') || h.includes('solde')));
+        indexMontant = entetes.findIndex(h => !h.includes('dat') && !isTextOrMetaHeader(h) && (
+          h === 'valeur' || h === 'total' || h === 'solde'
+        ));
       }
 
       indexInfo = entetes.findIndex(h => h.includes('inf') || h.includes('det') || h.includes('com'));
@@ -112,6 +132,18 @@ export const CSVParser = {
         const rawCredit = indexCredit !== -1 ? cellules[indexCredit] || '' : '';
         debit = Math.abs(this.parseMontant(rawDebit));
         credit = Math.abs(this.parseMontant(rawCredit));
+
+        // Règle comptable bancaire : une opération est soit un débit, soit un crédit, JAMAIS les deux
+        if (debit > 0 && credit > 0) {
+          if (this.parseMontant(rawDebit) > 0 && this.parseMontant(rawCredit) === 0) {
+            credit = 0;
+          } else if (this.parseMontant(rawCredit) > 0 && this.parseMontant(rawDebit) === 0) {
+            debit = 0;
+          } else {
+            // Priorité au débit si une anomalie subsiste
+            credit = 0;
+          }
+        }
       } else if (modeMontant === 'single' && indexMontant !== -1) {
         const rawMontant = cellules[indexMontant] || '';
         const montant = this.parseMontant(rawMontant);
@@ -188,8 +220,23 @@ export const CSVParser = {
     // Si la chaîne a la structure d'une date (ex: 10/09/2026 ou 10-09-26), ce n'est pas un montant
     if (/^\d{1,4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,4}$/.test(str)) return 0;
 
-    str = str.replace(',', '.');
-    
+    // Si la chaîne contient des lettres (ex: texte descriptif "110926 CB 9049-98,00EUR"), ce n'est PAS un montant
+    if (/[a-zA-Z]/.test(str)) return 0;
+
+    // Gestion propre des séparateurs de milliers et décimaux
+    if (str.includes(',') && str.includes('.')) {
+      if (str.indexOf('.') < str.indexOf(',')) {
+        str = str.replace(/\./g, '').replace(',', '.');
+      } else {
+        str = str.replace(/,/g, '');
+      }
+    } else {
+      str = str.replace(',', '.');
+    }
+
+    // Validation stricte : uniquement signe optionnel, chiffres, et décimales optionnelles
+    if (!/^[+-]?\d+(\.\d+)?$/.test(str)) return 0;
+
     const num = parseFloat(str);
     return isNaN(num) ? 0 : num;
   },

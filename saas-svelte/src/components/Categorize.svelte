@@ -33,6 +33,97 @@
   let showPedagogicalModal = $state(false);
   let dontShowAgain = $state(false);
 
+  // Dictionnaire d'attribution modal state
+  let showDictionaryModal = $state(false);
+  let newRuleKeyword = $state('');
+  let newRuleType = $state('debit'); // 'debit' | 'credit'
+  let newRuleAccount = $state('606');
+  let dictionarySearch = $state('');
+
+  let filteredRules = $derived(
+    $rules.filter(r => {
+      if (!dictionarySearch.trim()) return true;
+      const q = Categorizer.normaliserTexte(dictionarySearch);
+      const kw = Categorizer.normaliserTexte(r.motCle);
+      const note = Categorizer.normaliserTexte(r.note || '');
+      return kw.includes(q) || note.includes(q) || (r.debit && r.debit.includes(q)) || (r.credit && r.credit.includes(q));
+    })
+  );
+
+  function handleAddDictionaryRule() {
+    if (!newRuleKeyword.trim()) {
+      showToast('⚠️ Veuillez renseigner un mot-clé ou un nom.');
+      return;
+    }
+    const clean = Categorizer.normaliserTexte(newRuleKeyword);
+    const ok = Categorizer.ajouterRegle(clean, newRuleAccount, newRuleType);
+    if (ok) {
+      selectedCategoryMap = {};
+      showToast(`✅ "${clean}" ajouté au dictionnaire d'attribution !`);
+      newRuleKeyword = '';
+    }
+  }
+
+  /** @param {string} motCle */
+  function handleDeleteDictionaryRule(motCle) {
+    Categorizer.supprimerRegle(motCle);
+    selectedCategoryMap = {};
+    showToast(`🗑️ Règle "${motCle}" retirée du dictionnaire.`);
+  }
+
+  // État et fonctions d'édition en ligne du dictionnaire d'attribution
+  /** @type {string | null} */
+  let editingRuleOriginalMotCle = $state(null);
+  let editingKeyword = $state('');
+  let editingType = $state('debit');
+  let editingAccount = $state('606');
+
+  /** @param {any} rule */
+  function startEditRule(rule) {
+    editingRuleOriginalMotCle = rule.motCle;
+    editingKeyword = rule.motCle;
+    editingType = rule.debit ? 'debit' : 'credit';
+    editingAccount = rule.debit || rule.credit || '606';
+  }
+
+  function cancelEditRule() {
+    editingRuleOriginalMotCle = null;
+  }
+
+  function saveEditRule() {
+    if (!editingKeyword.trim()) {
+      showToast('⚠️ Le mot-clé ne peut pas être vide.');
+      return;
+    }
+    const cleanNew = Categorizer.normaliserTexte(editingKeyword);
+    const cleanOriginal = Categorizer.normaliserTexte(editingRuleOriginalMotCle || '');
+    
+    const currentPlan = $planComptable;
+    const descriptionCompte = currentPlan.find(p => p.compte === editingAccount)?.libelle || 'Catégorie';
+
+    const updatedRule = {
+      motCle: cleanNew,
+      debit: editingType === 'debit' ? editingAccount : '',
+      credit: editingType === 'credit' ? editingAccount : '',
+      note: descriptionCompte
+    };
+
+    const currentRules = [...$rules];
+    const idx = currentRules.findIndex(r => Categorizer.normaliserTexte(r.motCle) === cleanOriginal);
+    if (idx !== -1) {
+      currentRules[idx] = updatedRule;
+    } else {
+      currentRules.unshift(updatedRule);
+    }
+
+    updateRules(currentRules);
+    Categorizer.reappliquerReglesAuxTransactionsEnAttente();
+    selectedCategoryMap = {};
+
+    editingRuleOriginalMotCle = null;
+    showToast(`✅ Règle "${cleanNew}" mise à jour avec succès !`);
+  }
+
   // CSV Dropzone state
   let dragover = $state(false);
   /** @type {HTMLInputElement | null} */
@@ -70,8 +161,8 @@
       const importId = 'import_' + Date.now();
       const currentEntId = $activeEntityId;
 
-      // Assign IDs and defaults to parsed transactions
-      const newTxList = parsed.map((t, idx) => ({
+      // Préparation et assignation des métadonnées
+      const rawTxList = parsed.map((t, idx) => ({
         id: `imported_${Date.now()}_${idx}`,
         entityId: currentEntId,
         importId,
@@ -86,15 +177,36 @@
         reference: t.reference || ""
       }));
 
-      // Contrôle Quota Freemium (Max 50 écritures en gratuit)
+      // Déduplication intelligente basée sur date + libelle + montant
       const currentStructureTx = $transactions.filter(t => !t.entityId || t.entityId === currentEntId);
+      const existingHashes = new Set(currentStructureTx.map(tx => {
+        const amount = (tx.debit > 0 ? -tx.debit : tx.credit).toFixed(2);
+        return `${tx.date}_${tx.libelle}_${amount}`;
+      }));
+
+      /** @type {any[]} */
+      const newTxList = [];
+      rawTxList.forEach(tx => {
+        const amount = (tx.debit > 0 ? -tx.debit : tx.credit).toFixed(2);
+        const hash = `${tx.date}_${tx.libelle}_${amount}`;
+        if (!existingHashes.has(hash)) {
+          newTxList.push(tx);
+        }
+      });
+
+      if (newTxList.length === 0) {
+        showToast("Toutes les écritures de ce fichier ont déjà été importées (doublons ignorés).");
+        return;
+      }
+
+      // Contrôle Quota Freemium (Max 50 écritures en gratuit)
       const totalAfterImport = currentStructureTx.length + newTxList.length;
       let userIsPremium = false;
       isPremium.subscribe(v => userIsPremium = v)();
 
       if (!userIsPremium && totalAfterImport > FREE_TIER_MAX_TRANSACTIONS) {
         showUpgradeModal.set(true);
-        showToast(`⚠️ Limite gratuite atteinte (${totalAfterImport} / ${FREE_TIER_MAX_TRANSACTIONS} écritures). Passez en formule illimitée !`);
+        showToast(`Limite gratuite atteinte (${totalAfterImport} / ${FREE_TIER_MAX_TRANSACTIONS} écritures). Passez en formule illimitée.`);
         return;
       }
 
@@ -113,7 +225,7 @@
       // Categorize using rules & dictionary
       const recatted = Categorizer.categoriserTransactions([...newTxList, ...currentStructureTx]);
       updateTransactions(recatted);
-      showToast(`✅ ${newTxList.length} opération(s) importée(s) avec succès depuis "${file.name}" !`);
+      showToast(`${newTxList.length} opération(s) importée(s) avec succès depuis "${file.name}".`);
     };
     reader.readAsText(file);
   }
@@ -164,6 +276,7 @@
     // Laisser la modale fermée par défaut pour ne pas bloquer l'import ou la navigation
     showPedagogicalModal = false;
     loadHistory();
+    Categorizer.reappliquerReglesAuxTransactionsEnAttente();
   });
 
   // Recharger l'historique et réinitialiser les sélections en cours quand on change de structure
@@ -216,11 +329,13 @@
   /** @param {any} tx */
   function getSuggestionForTx(tx) {
     if (!tx) return null;
-    const sug = Categorizer.obtenirSuggestionDictionnaire(tx);
+    const sug = Categorizer.obtenirMeilleureSuggestion(tx);
     if (!sug) return null;
     return {
       compte: sug.compte,
-      label: formatAccountLabel(sug.compte)
+      label: sug.label || formatAccountLabel(sug.compte),
+      source: sug.source,
+      motCle: sug.motCle
     };
   }
 
@@ -248,7 +363,7 @@
 
   // Auto-recognized transactions ready for 1-click batch validation
   let recognizedList = $derived(
-    nonTriees.filter(t => t.statut === 'suggere' || t.autoRecognized)
+    nonTriees.filter(t => t.statut === 'suggere' || t.autoRecognized || Boolean(getSuggestionForTx(t)))
   );
 
   let totalRecognizedAmount = $derived(
@@ -337,7 +452,7 @@
 
       if (isRecognized || selectedCategoryMap[tx.id]) {
         count++;
-        const targetCategory = selectedCategoryMap[tx.id] || tx.compteAttribué || (tx.credit > 0 ? '756' : '606');
+        const targetCategory = selectedCategoryMap[tx.id] || (tx.compteAttribué && tx.compteAttribué !== '699' ? tx.compteAttribué : null) || getSuggestionForTx(tx)?.compte || (tx.credit > 0 ? '756' : '606');
 
         const kw = Categorizer.normaliserTexte(tx.libelle).split(' ').slice(0, 3).join(' ');
         if (kw) {
@@ -453,8 +568,8 @@
 
 <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 20px;">
   <div>
-    <h1 class="page-title" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main);">Espace d'attribution des libellés</h1>
-    <p class="page-subtitle" style="margin: 4px 0 0 0; font-size: 0.86rem; color: var(--text-muted);">Associez chaque mouvement bancaire à son numéro de compte comptable. La machine apprend automatiquement de vos choix !</p>
+    <h1 class="page-title" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main);">Libellés & Attribution</h1>
+    <p class="page-subtitle" style="margin: 4px 0 0 0; font-size: 0.86rem; color: var(--text-muted);">Importez vos opérations bancaires et attribuez-les facilement. Le dictionnaire d'attribution retient automatiquement vos choix.</p>
   </div>
 
   <div style="display: flex; gap: 10px; align-items: center;">
@@ -499,20 +614,33 @@
   </div>
 </div>
 
-<!-- Barre d'actions & Historique des imports rétractable -->
+<!-- Barre d'actions & Outils -->
 <div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-    <!-- Bouton pour déplier l'historique -->
-    <button 
-      type="button" 
-      class="btn btn-secondary btn-sm"
-      onclick={() => showHistoryDrawer = !showHistoryDrawer}
-      style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.82rem; padding: 7px 14px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px;"
-    >
-      <i class="fa-solid fa-clock-rotate-left" style="color: #6366f1;"></i>
-      Historique des imports ({importsHistory.length})
-      <i class="fa-solid {showHistoryDrawer ? 'fa-chevron-up' : 'fa-chevron-down'}" style="font-size: 0.72rem; color: var(--text-muted);"></i>
-    </button>
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <!-- Bouton pour ouvrir le Dictionnaire d'attribution -->
+      <button 
+        type="button" 
+        class="btn btn-secondary btn-sm"
+        onclick={() => showDictionaryModal = true}
+        style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.84rem; padding: 7px 14px; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); border-radius: 8px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+      >
+        <i class="fa-solid fa-book-bookmark" style="color: #6366f1;"></i>
+        Dictionnaire d'attribution ({$rules.length})
+      </button>
+
+      <!-- Bouton pour déplier l'historique -->
+      <button 
+        type="button" 
+        class="btn btn-secondary btn-sm"
+        onclick={() => showHistoryDrawer = !showHistoryDrawer}
+        style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.82rem; padding: 7px 14px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; cursor: pointer;"
+      >
+        <i class="fa-solid fa-clock-rotate-left" style="color: #64748b;"></i>
+        Historique des imports ({importsHistory.length})
+        <i class="fa-solid {showHistoryDrawer ? 'fa-chevron-up' : 'fa-chevron-down'}" style="font-size: 0.72rem; color: var(--text-muted);"></i>
+      </button>
+    </div>
 
     <!-- Bouton pour tout effacer si des opérations sont présentes -->
     {#if currentStructureTx.length > 0}
@@ -1144,6 +1272,284 @@
           style="padding: 10px 22px; font-weight: 700; background: #0f172a; color: #ffffff; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;"
         >
           <i class="fa-solid fa-check"></i> Valider l'attribution
+        </button>
+      </div>
+
+    </div>
+  </div>
+{/if}
+
+<!-- MODALE DU DICTIONNAIRE D'ATTRIBUTION -->
+{#if showDictionaryModal}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div 
+    class="modal-backdrop" 
+    role="dialog" 
+    aria-modal="true" 
+    aria-label="Dictionnaire d'attribution"
+    tabindex="-1"
+    onclick={() => {
+      showDictionaryModal = false;
+      Categorizer.reappliquerReglesAuxTransactionsEnAttente();
+      selectedCategoryMap = {};
+    }}
+    style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;"
+  >
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div 
+      class="modal-card" 
+      onclick={(e) => e.stopPropagation()}
+      style="background: #ffffff; width: 100%; max-width: 820px; max-height: 88vh; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; animation: zoomIn 0.2s ease-out;"
+    >
+      <!-- En-tête -->
+      <div style="padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: flex-start; background: #f8fafc;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 38px; height: 38px; border-radius: 8px; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;">
+            <i class="fa-solid fa-book-bookmark"></i>
+          </div>
+          <div>
+            <h2 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: #0f172a; font-family: var(--font-title);">Dictionnaire d'attribution</h2>
+            <p style="margin: 2px 0 0 0; font-size: 0.82rem; color: #64748b;">
+              Vos mots-clés mémorisés pour reconnaître et classer automatiquement vos opérations lors des imports.
+            </p>
+          </div>
+        </div>
+        <button 
+          type="button" 
+          onclick={() => {
+            showDictionaryModal = false;
+            Categorizer.reappliquerReglesAuxTransactionsEnAttente();
+            selectedCategoryMap = {};
+          }}
+          aria-label="Fermer"
+          style="background: transparent; border: none; font-size: 1.2rem; color: #94a3b8; cursor: pointer; padding: 4px;"
+        >
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Corps défilable -->
+      <div style="padding: 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- Bloc formulaire : Ajouter un nouveau mot-clé -->
+        <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px;">
+          <div style="font-weight: 700; font-size: 0.92rem; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-circle-plus" style="color: #6366f1;"></i>
+            Ajouter un mot-clé au dictionnaire
+          </div>
+
+          <div style="display: grid; grid-template-columns: 2fr 1.1fr 2.5fr auto; gap: 10px; align-items: flex-end;">
+            <div>
+              <label for="dict-kw" style="display: block; font-size: 0.76rem; font-weight: 700; color: #475569; margin-bottom: 4px;">
+                Quand le libellé contient :
+              </label>
+              <input 
+                id="dict-kw"
+                type="text" 
+                bind:value={newRuleKeyword}
+                placeholder="Ex : SPOTIFY, TOTAL, BOULANGERIE..."
+                style="width: 100%; padding: 9px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem; font-weight: 600; color: #0f172a; box-sizing: border-box;"
+              />
+            </div>
+
+            <div>
+              <label for="dict-type" style="display: block; font-size: 0.76rem; font-weight: 700; color: #475569; margin-bottom: 4px;">
+                Sens :
+              </label>
+              <select 
+                id="dict-type"
+                bind:value={newRuleType}
+                style="width: 100%; padding: 9px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem; font-weight: 600; background: #ffffff; color: #0f172a; box-sizing: border-box;"
+              >
+                <option value="debit">Dépense (-)</option>
+                <option value="credit">Recette (+)</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="dict-acc" style="display: block; font-size: 0.76rem; font-weight: 700; color: #475569; margin-bottom: 4px;">
+                Attribuer à la catégorie :
+              </label>
+              <select 
+                id="dict-acc"
+                bind:value={newRuleAccount}
+                style="width: 100%; padding: 9px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem; font-weight: 600; background: #ffffff; color: #0f172a; box-sizing: border-box;"
+              >
+                {#each $planComptable.filter(p => p.compte !== '699') as p}
+                  <option value={p.compte}>{p.compte} - {p.libelle}</option>
+                {/each}
+              </select>
+            </div>
+
+            <button 
+              type="button" 
+              onclick={handleAddDictionaryRule}
+              style="padding: 10px 18px; background: #0f172a; color: #ffffff; border: none; border-radius: 8px; font-weight: 700; font-size: 0.86rem; cursor: pointer; white-space: nowrap; height: 40px; display: inline-flex; align-items: center; gap: 6px;"
+            >
+              <i class="fa-solid fa-plus"></i> Ajouter
+            </button>
+          </div>
+        </div>
+
+        <!-- En-tête de liste & barre de recherche -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;">
+            <div style="font-weight: 800; font-size: 0.92rem; color: #0f172a;">
+              Mots-clés enregistrés ({filteredRules.length})
+            </div>
+
+            <div style="position: relative; width: 260px;">
+              <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.8rem;"></i>
+              <input 
+                type="text" 
+                bind:value={dictionarySearch}
+                placeholder="Rechercher un mot-clé..."
+                style="width: 100%; padding: 7px 10px 7px 30px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.82rem; box-sizing: border-box;"
+              />
+            </div>
+          </div>
+
+          <!-- Tableau des règles -->
+          {#if filteredRules.length === 0}
+            <div style="text-align: center; padding: 36px 20px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; color: #64748b;">
+              <i class="fa-solid fa-book-open" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 10px; display: block;"></i>
+              <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">
+                {dictionarySearch ? 'Aucun mot-clé ne correspond à votre recherche.' : 'Aucun mot-clé enregistré pour cette structure.'}
+              </div>
+              <p style="font-size: 0.82rem; margin: 4px 0 0 0;">
+                {dictionarySearch ? 'Essayez un autre terme de recherche.' : 'Ajoutez vos fournisseurs ou clients habituels ci-dessus, ou classez simplement vos écritures : elles s\'enregistrent automatiquement ici !'}
+              </p>
+            </div>
+          {:else}
+            <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                  <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: left; color: #475569; font-weight: 700; font-size: 0.78rem; text-transform: uppercase;">
+                    <th style="padding: 10px 14px;">Mot-clé détecté</th>
+                    <th style="padding: 10px 14px;">Sens</th>
+                    <th style="padding: 10px 14px;">Catégorie attribuée</th>
+                    <th style="padding: 10px 14px; text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each filteredRules as r}
+                    {@const accountNum = r.debit || r.credit}
+                    {@const isDebit = Boolean(r.debit)}
+                    {@const isEditing = editingRuleOriginalMotCle === r.motCle}
+                    
+                    {#if isEditing}
+                      <!-- LIGNE EN COURS DE MODIFICATION -->
+                      <tr style="border-bottom: 2px solid #6366f1; background: #f8fafc;">
+                        <td style="padding: 10px 14px;">
+                          <input 
+                            type="text" 
+                            bind:value={editingKeyword}
+                            onkeydown={(e) => { if (e.key === 'Enter') saveEditRule(); if (e.key === 'Escape') cancelEditRule(); }}
+                            placeholder="Mot-clé..."
+                            style="padding: 7px 10px; border: 1.5px solid #6366f1; border-radius: 6px; font-size: 0.85rem; font-weight: 700; width: 100%; box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, monospace; color: #0f172a; background: #ffffff;"
+                          />
+                        </td>
+                        <td style="padding: 10px 14px;">
+                          <select 
+                            bind:value={editingType}
+                            style="padding: 7px 8px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem; font-weight: 600; background: #ffffff; color: #0f172a; width: 100%; box-sizing: border-box;"
+                          >
+                            <option value="debit">Dépense (-)</option>
+                            <option value="credit">Recette (+)</option>
+                          </select>
+                        </td>
+                        <td style="padding: 10px 14px;">
+                          <select 
+                            bind:value={editingAccount}
+                            style="padding: 7px 8px; border: 1.5px solid #6366f1; border-radius: 6px; font-size: 0.82rem; font-weight: 600; background: #ffffff; color: #0f172a; width: 100%; box-sizing: border-box;"
+                          >
+                            {#each $planComptable.filter(p => p.compte !== '699') as p}
+                              <option value={p.compte}>{p.compte} - {p.libelle}</option>
+                            {/each}
+                          </select>
+                        </td>
+                        <td style="padding: 10px 14px; text-align: right; white-space: nowrap;">
+                          <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                            <button 
+                              type="button" 
+                              onclick={saveEditRule}
+                              title="Enregistrer les modifications"
+                              style="background: #16a34a; border: none; color: #ffffff; cursor: pointer; padding: 6px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(22, 163, 74, 0.25);"
+                            >
+                              <i class="fa-solid fa-check"></i> Enregistrer
+                            </button>
+                            <button 
+                              type="button" 
+                              onclick={cancelEditRule}
+                              title="Annuler"
+                              aria-label="Annuler la modification"
+                              style="background: #ffffff; border: 1px solid #cbd5e1; color: #64748b; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem;"
+                            >
+                              <i class="fa-solid fa-xmark"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    {:else}
+                      <!-- LIGNE NORMALE -->
+                      <tr style="border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+                        <td style="padding: 10px 14px; font-weight: 800; color: #0f172a; font-family: ui-monospace, SFMono-Regular, monospace;">
+                          <span style="background: #f1f5f9; padding: 3px 8px; border-radius: 6px; border: 1px solid #e2e8f0; display: inline-block;">
+                            {r.motCle}
+                          </span>
+                        </td>
+                        <td style="padding: 10px 14px;">
+                          <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.74rem; background: {isDebit ? '#fee2e2' : '#dcfce7'}; color: {isDebit ? '#991b1b' : '#166534'};">
+                            {isDebit ? 'Dépense (-)' : 'Recette (+)'}
+                          </span>
+                        </td>
+                        <td style="padding: 10px 14px; color: #334155; font-weight: 600;">
+                          {formatAccountLabel(accountNum)} <span style="color: #64748b; font-size: 0.78rem;">({accountNum})</span>
+                        </td>
+                        <td style="padding: 10px 14px; text-align: right; white-space: nowrap;">
+                          <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                            <button 
+                              type="button" 
+                              onclick={() => startEditRule(r)}
+                              title="Corriger l'intitulé ou la catégorie"
+                              style="background: #ffffff; border: 1px solid #cbd5e1; color: #475569; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+                              onmouseenter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }}
+                              onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#475569'; }}
+                            >
+                              <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i> Modifier
+                            </button>
+                            <button 
+                              type="button" 
+                              onclick={() => handleDeleteDictionaryRule(r.motCle)}
+                              title="Supprimer ce mot-clé du dictionnaire"
+                              aria-label="Supprimer ce mot-clé du dictionnaire"
+                              style="background: transparent; border: 1px solid transparent; color: #dc2626; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem;"
+                              onmouseenter={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.borderColor = '#fca5a5'; }}
+                              onmouseleave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
+                            >
+                              <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    {/if}
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        </div>
+
+      </div>
+
+      <!-- Pied de page -->
+      <div style="padding: 14px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; background: #f8fafc;">
+        <button 
+          type="button" 
+          onclick={() => showDictionaryModal = false}
+          style="padding: 8px 20px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 700; font-size: 0.86rem; color: #334155; cursor: pointer;"
+        >
+          Fermer
         </button>
       </div>
 

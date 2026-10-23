@@ -1,5 +1,6 @@
 <script>
   import LivreRecettes from './LivreRecettes.svelte';
+  import KpiCard from './KpiCard.svelte';
   import { transactions, activeEntityId, entities, showToast } from '../lib/store.js';
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { name: 'Ma Structure' });
@@ -51,6 +52,9 @@
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   );
   let totalAchats = $derived(achatsList.reduce((sum, a) => sum + a.debit, 0));
+
+  // Solde de trésorerie bancaire net (CA Encaissé - Achats réels)
+  let soldeTresorerie = $derived(totalCA - totalAchats);
 
   // Estimations fiscales et sociales
   let urssafEstimee = $derived(totalCA * selectedRegime.rate);
@@ -161,54 +165,55 @@
       </div>
     </div>
 
-    <!-- 4 CARTES KPI SÉRÉNITÉ -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px;">
-      <!-- CA Total -->
-      <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 12px; padding: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #2563eb;">Chiffre d'Affaires Encaissé</span>
-          <i class="fa-solid fa-arrow-down-left" style="color: #2563eb; font-size: 1rem;"></i>
-        </div>
-        <div style="font-size: 1.6rem; font-weight: 800; color: #1e3a8a; font-family: var(--font-title); margin-bottom: 4px;">
-          {totalCA.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-        </div>
-        <div style="font-size: 0.8rem; color: #2563eb; font-weight: 600;">Base réelle de déclaration</div>
-      </div>
+    <!-- 5 CARTES KPI SÉRÉNITÉ : DU BRUT AU NET EN POCHE -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+      <KpiCard 
+        label="CA Encaissé Net" 
+        value={totalCA.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
+        subtext="Facturé aux clients (ce que je vends)"
+      />
 
-      <!-- Cotisations Urssaf -->
-      <div style="background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 12px; padding: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #d97706;">Urssaf Estimée ({(selectedRegime.rate * 100).toFixed(1)}%)</span>
-          <i class="fa-solid fa-building-columns" style="color: #d97706; font-size: 1rem;"></i>
-        </div>
-        <div style="font-size: 1.6rem; font-weight: 800; color: #78350f; font-family: var(--font-title); margin-bottom: 4px;">
-          {urssafEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-        </div>
-        <div style="font-size: 0.8rem; color: #b45309; font-weight: 600;">Provision sociale à régler</div>
-      </div>
+      <KpiCard 
+        label="Dépenses d'activité" 
+        value={`-${totalAchats.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`} 
+        subtext="Achats et frais pro décaissés"
+      />
 
-      <!-- Dépenses d'exploitation -->
-      <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #64748b;">Achats & Dépenses</span>
-          <i class="fa-solid fa-cart-shopping" style="color: #64748b; font-size: 1rem;"></i>
-        </div>
-        <div style="font-size: 1.6rem; font-weight: 800; color: #0f172a; font-family: var(--font-title); margin-bottom: 4px;">
-          {totalAchats.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-        </div>
-        <div style="font-size: 0.8rem; color: #64748b; font-weight: 600;">Non déductibles fiscalement</div>
-      </div>
+      <KpiCard 
+        label="CA moins les dépenses" 
+        value={soldeTresorerie.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
+        subtext="Reste sur mes ventes avant Urssaf"
+      />
 
-      <!-- Reste Net en Poche -->
-      <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #16a34a;">Reste Net Réel</span>
-          <span style="background: #dcfce7; color: #15803d; font-size: 0.72rem; font-weight: 800; padding: 2px 7px; border-radius: 4px;">{margeNettePct}% marge</span>
-        </div>
-        <div style="font-size: 1.6rem; font-weight: 800; color: #15803d; font-family: var(--font-title); margin-bottom: 4px;">
-          {resteNetReel.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-        </div>
-        <div style="font-size: 0.8rem; color: #16a34a; font-weight: 600;">Revenu net disponible</div>
+      <KpiCard 
+        label={`Charges Urssaf (${(selectedRegime.rate * 100).toFixed(1)}%)`} 
+        value={`-${urssafEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`} 
+        subtext="Cotisations sociales à régler"
+      />
+
+      <KpiCard 
+        label="Reste Net Final" 
+        value={resteNetReel.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
+        subtext={`En poche après charges (${margeNettePct}% marge)`}
+      />
+    </div>
+
+    <!-- BANDEAU FIL CONDUCTEUR : FORMULE DE TRÉSORERIE ÉTAPE PAR ÉTAPE -->
+    <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 0.88rem;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-calculator" style="color: #64748b;"></i>
+        <span style="color: #475569; font-weight: 700;">Votre trésorerie étape par étape :</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-family: var(--font-title); flex-wrap: wrap;">
+        <span style="color: #0f172a;" title="Facturé aux clients">{totalCA.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(CA encaissé net)</span></span>
+        <span style="color: #94a3b8;">−</span>
+        <span style="color: #b91c1c;" title="Achats & frais d'activité">{totalAchats.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Dépenses)</span></span>
+        <span style="color: #94a3b8;">=</span>
+        <span style="color: #2563eb; background: #eff6ff; padding: 3px 8px; border-radius: 6px; border: 1px solid #bfdbfe;" title="Reste sur mes ventes avant Urssaf">{soldeTresorerie.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #1e40af; font-weight: 600;">(CA moins dépenses)</span></span>
+        <span style="color: #94a3b8;">−</span>
+        <span style="color: #ea580c;" title="Cotisations Urssaf à régler">{urssafEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Charges Urssaf)</span></span>
+        <span style="color: #94a3b8;">=</span>
+        <span style="color: #15803d; background: #f0fdf4; padding: 3px 8px; border-radius: 6px; border: 1px solid #bbf7d0;" title="Revenu net disponible en poche">{resteNetReel.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #166534; font-weight: 600;">(Reste net en poche)</span></span>
       </div>
     </div>
 

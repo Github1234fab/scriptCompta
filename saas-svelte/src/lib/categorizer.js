@@ -4,7 +4,9 @@ import {
   planComptable, 
   members,
   activeEntityId,
-  updateRules 
+  updateRules,
+  transactions,
+  updateTransactions
 } from './store.js';
 
 export const Categorizer = {
@@ -194,7 +196,7 @@ export const Categorizer = {
       // 5. Opération non reconnue automatiquement
       return {
         ...tx,
-        compteAttribué: tx.compteAttribué || '699',
+        compteAttribué: '699',
         regleAppliquee: null,
         statut: 'non_attribue',
         autoRecognized: false,
@@ -248,11 +250,18 @@ export const Categorizer = {
       // Énergie & Abonnements Locaux (613)
       { mot: 'EDF', debit: '613', credit: '', note: 'Électricité / Énergie' },
       { mot: 'ENGIE', debit: '613', credit: '', note: 'Électricité / Énergie' },
-      { mot: 'TOTALENERGIES', debit: '613', credit: '', note: 'Électricité / Énergie' },
       { mot: 'SUEZ', debit: '613', credit: '', note: 'Eau courante' },
       { mot: 'VEOLIA', debit: '613', credit: '', note: 'Eau courante' },
 
-      // Logiciels & SaaS Web (6132)
+      // Logiciels, Abonnements & Web / Streaming SaaS (6132)
+      { mot: 'SPOTIFY', debit: '6132', credit: '', note: 'Abonnement Musique / Streaming' },
+      { mot: 'DEEZER', debit: '6132', credit: '', note: 'Abonnement Musique / Streaming' },
+      { mot: 'NETFLIX', debit: '6132', credit: '', note: 'Abonnement Vidéo / Streaming' },
+      { mot: 'YOUTUBE', debit: '6132', credit: '', note: 'Abonnement Vidéo / Web' },
+      { mot: 'OPENAI', debit: '6132', credit: '', note: 'Abonnement IA (ChatGPT)' },
+      { mot: 'CHATGPT', debit: '6132', credit: '', note: 'Abonnement IA' },
+      { mot: 'MIDJOURNEY', debit: '6132', credit: '', note: 'Abonnement IA' },
+      { mot: 'ANTHROPIC', debit: '6132', credit: '', note: 'Abonnement IA (Claude)' },
       { mot: 'ADOBE', debit: '6132', credit: '', note: 'Abonnement Logiciel' },
       { mot: 'CANVA', debit: '6132', credit: '', note: 'Abonnement Design' },
       { mot: 'SLACK', debit: '6132', credit: '', note: 'Abonnement Communication' },
@@ -265,25 +274,51 @@ export const Categorizer = {
       { mot: 'GOOGLE', debit: '6132', credit: '', note: 'Google Workspace / Cloud' },
       { mot: 'OVH', debit: '6132', credit: '', note: 'Hébergement Web' },
       { mot: 'SCALEWAY', debit: '6132', credit: '', note: 'Hébergement Cloud' },
+      { mot: 'AWS', debit: '6132', credit: '', note: 'Hébergement Cloud AWS' },
+      { mot: 'DROPBOX', debit: '6132', credit: '', note: 'Stockage Cloud' },
+      { mot: 'FIGMA', debit: '6132', credit: '', note: 'Abonnement Design' },
+      { mot: 'LINKEDIN', debit: '6132', credit: '', note: 'Réseau Professionnel' },
+      { mot: 'SHOPIFY', debit: '6132', credit: '', note: 'Plateforme E-commerce' },
+      { mot: 'BREVO', debit: '6132', credit: '', note: 'Emailing & Marketing' },
+      { mot: 'SENDINBLUE', debit: '6132', credit: '', note: 'Emailing & Marketing' },
+      { mot: 'MAILCHIMP', debit: '6132', credit: '', note: 'Emailing & Marketing' },
 
       // Frais bancaires & Commissions (627)
+      { mot: 'FRAIS PRLVT SEPA', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'FRAIS PRLVT', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'FRAIS PRELEVEMENT', debit: '627', credit: '', note: 'Frais bancaires' },
       { mot: 'FRAIS PLVT SEPA', debit: '627', credit: '', note: 'Frais bancaires' },
       { mot: 'FRAIS PLVT', debit: '627', credit: '', note: 'Frais bancaires' },
       { mot: 'FRAIS SEPA', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'FRAIS IMPAYE', debit: '627', credit: '', note: 'Frais bancaires / Impayé' },
+      { mot: 'FRAIS REJET', debit: '627', credit: '', note: 'Frais de rejet bancaire' },
+      { mot: 'REJET SEPA', debit: '627', credit: '', note: 'Frais de rejet bancaire' },
+      { mot: 'IMPAYE', debit: '627', credit: '', note: 'Frais d\'impayé bancaire' },
       { mot: 'FRAIS BANCAIRE', debit: '627', credit: '', note: 'Frais bancaires' },
       { mot: 'FRAIS BANCAIRES', debit: '627', credit: '', note: 'Frais bancaires' },
-      { mot: 'FRAIS TENUE DE COMPTE', debit: '627', credit: '', note: 'Frais bancaires' },
-      { mot: 'COTISATION BANQUE', debit: '627', credit: '', note: 'Frais bancaires' },
-      { mot: 'COTISATION CARTE', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'FRAIS TENUE DE COMPTE', debit: '627', credit: '', note: 'Frais de tenue de compte' },
+      { mot: 'TENUE DE COMPTE', debit: '627', credit: '', note: 'Frais de tenue de compte' },
+      { mot: 'COTISATION BANQUE', debit: '627', credit: '', note: 'Cotisation bancaire' },
+      { mot: 'COTISATION CARTE', debit: '627', credit: '', note: 'Cotisation bancaire' },
       { mot: 'FRAIS CB', debit: '627', credit: '', note: 'Frais bancaires' },
       { mot: 'MAGNETIQ', debit: '627', credit: '', note: 'Frais bancaires' },
-      { mot: 'COMMISSION BANCAIRE', debit: '627', credit: '', note: 'Frais bancaires' },
+      { mot: 'COMMISSION BANCAIRE', debit: '627', credit: '', note: 'Commissions bancaires' },
+      { mot: 'COMMISSIONS', debit: '627', credit: '', note: 'Commissions bancaires' },
+      { mot: 'AGIOS', debit: '627', credit: '', note: 'Agios bancaires' },
 
       // Déplacements & Repas (625)
-      { mot: 'TOTAL', debit: '625', credit: '', note: 'Carburant' },
+      { mot: 'TOTALENERGIES', debit: '625', credit: '', note: 'Carburant / Station' },
+      { mot: 'TOTAL', debit: '625', credit: '', note: 'Carburant / Station' },
+      { mot: 'STATION ESSENCE', debit: '625', credit: '', note: 'Carburant' },
+      { mot: 'STATION SERVICE', debit: '625', credit: '', note: 'Carburant' },
+      { mot: 'CARBURANT', debit: '625', credit: '', note: 'Carburant' },
+      { mot: 'ESSENCE', debit: '625', credit: '', note: 'Carburant' },
+      { mot: 'GASOIL', debit: '625', credit: '', note: 'Carburant' },
+      { mot: 'DIESEL', debit: '625', credit: '', note: 'Carburant' },
       { mot: 'SHELL', debit: '625', credit: '', note: 'Carburant' },
       { mot: 'BP', debit: '625', credit: '', note: 'Carburant' },
       { mot: 'ESSO', debit: '625', credit: '', note: 'Carburant' },
+      { mot: 'AVIA', debit: '625', credit: '', note: 'Carburant' },
       { mot: 'SNCF', debit: '625', credit: '', note: 'Billets de train' },
       { mot: 'UBER', debit: '625', credit: '', note: 'Frais VTC' },
       { mot: 'RATP', debit: '625', credit: '', note: 'Transports' },
@@ -320,7 +355,126 @@ export const Categorizer = {
       }
     }
 
+    // Détection combinée intelligente pour les frais et rejets bancaires
+    if (tx.debit > 0) {
+      const hasFrais = textComplet.includes('FRAIS') || textComplet.includes('COMMISSION');
+      const isBancaire = ['PRLVT', 'PLVT', 'PRELEVEMENT', 'SEPA', 'IMPAYE', 'REJET', 'BANQUE', 'BANCAIRE', 'TENUE', 'DOSSIER', 'COMPTE'].some(k => textComplet.includes(k));
+      if (hasFrais && isBancaire) {
+        return { compte: '627', motCle: 'FRAIS BANCAIRES', note: 'Frais bancaires' };
+      }
+    }
+
     return null;
+  },
+
+  /**
+   * Retourne la meilleure suggestion d'attribution pour une écriture bancaire
+   * en suivant la hiérarchie stricte :
+   * 1. Règles du dictionnaire d'attribution personnalisées ($rules)
+   * 2. Rapprochement d'entité Membre / Adhérent / Élève ($members)
+   * 3. Dictionnaire d'heuristiques universelles (Cold Start)
+   * 4. Compte déjà présent sur tx si valide
+   */
+  obtenirMeilleureSuggestion(tx) {
+    if (!tx) return null;
+
+    const reglesActuelles = get(rules);
+    const membersList = get(members);
+    const currentPlan = get(planComptable);
+
+    const textComplet = this.normaliserTexte(
+      `${tx.libelle || ''} ${tx.rawLibelle || ''} ${tx.info || ''} ${tx.reference || ''}`
+    );
+
+    // 1. RÈGLES DU DICTIONNAIRE D'ATTRIBUTION (Priorité absolue de l'utilisateur)
+    for (const regle of reglesActuelles) {
+      const motCleClean = this.normaliserTexte(regle.motCle);
+      if (motCleClean && textComplet.includes(motCleClean)) {
+        if (tx.debit > 0 && regle.debit) {
+          const cpt = currentPlan.find(p => p.compte === regle.debit);
+          return {
+            compte: regle.debit,
+            label: cpt ? cpt.libelle : `Compte ${regle.debit}`,
+            source: 'regle',
+            motCle: regle.motCle
+          };
+        }
+        if (tx.credit > 0 && regle.credit) {
+          const cpt = currentPlan.find(p => p.compte === regle.credit);
+          return {
+            compte: regle.credit,
+            label: cpt ? cpt.libelle : `Compte ${regle.credit}`,
+            source: 'regle',
+            motCle: regle.motCle
+          };
+        }
+      }
+    }
+
+    // 2. Rapprochement d'entité Élève / Membre
+    const entiteDetectee = this.détecterEntité(tx, membersList);
+    if (entiteDetectee && tx.credit > 0) {
+      const cpt = currentPlan.find(p => p.compte === '756');
+      return {
+        compte: '756',
+        label: cpt ? cpt.libelle : 'Cotisations adhérents',
+        source: 'membre',
+        member: entiteDetectee.member
+      };
+    }
+
+    // 3. Dictionnaire d'heuristiques universelles
+    const suggestionDic = this.obtenirSuggestionDictionnaire(tx);
+    if (suggestionDic) {
+      const cpt = currentPlan.find(p => p.compte === suggestionDic.compte);
+      return {
+        compte: suggestionDic.compte,
+        label: cpt ? cpt.libelle : suggestionDic.note || `Compte ${suggestionDic.compte}`,
+        source: 'heuristique',
+        motCle: suggestionDic.motCle
+      };
+    }
+
+    // 4. Compte déjà présent sur tx si valide et différent de 699
+    if (tx.compteAttribué && tx.compteAttribué !== '699') {
+      const cpt = currentPlan.find(p => p.compte === tx.compteAttribué);
+      return {
+        compte: tx.compteAttribué,
+        label: cpt ? cpt.libelle : `Compte ${tx.compteAttribué}`,
+        source: 'existant',
+        motCle: null
+      };
+    }
+
+    return null;
+  },
+
+  /**
+   * Réapplique l'ensemble des règles (Dictionnaire d'attribution & Heuristiques)
+   * à toutes les écritures en attente (statut !== 'attribue').
+   * Les écritures déjà validées manuellement (statut === 'attribue') restent strictement intactes.
+   */
+  reappliquerReglesAuxTransactionsEnAttente() {
+    const currentTx = get(transactions);
+    if (!Array.isArray(currentTx) || currentTx.length === 0) return;
+
+    const updated = this.categoriserTransactions(currentTx);
+
+    let hasChanges = false;
+    for (let i = 0; i < currentTx.length; i++) {
+      if (
+        currentTx[i].compteAttribué !== updated[i].compteAttribué ||
+        currentTx[i].statut !== updated[i].statut ||
+        currentTx[i].regleAppliquee !== updated[i].regleAppliquee
+      ) {
+        hasChanges = true;
+        break;
+      }
+    }
+
+    if (hasChanges) {
+      updateTransactions(updated);
+    }
   },
 
   /**
@@ -353,10 +507,23 @@ export const Categorizer = {
     }
 
     updateRules(currentRules);
+    this.reappliquerReglesAuxTransactionsEnAttente();
     return true;
   },
 
-    /**
+  /**
+   * Supprime une règle du dictionnaire d'attribution
+   * @param {string} motCle
+   */
+  supprimerRegle(motCle) {
+    const cleanMotCle = this.normaliserTexte(motCle);
+    const currentRules = get(rules).filter(r => this.normaliserTexte(r.motCle) !== cleanMotCle);
+    updateRules(currentRules);
+    this.reappliquerReglesAuxTransactionsEnAttente();
+    return true;
+  },
+
+  /**
    * Retourne le nom du compte au format : "Nom de la catégorie (Code)"
    */
   obtenirLibelleCompte(numCompte) {

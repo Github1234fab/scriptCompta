@@ -162,9 +162,9 @@
         
         const d = findBestColumn(['date', 'datecomptable', 'dateoperation', 'datedevaleur'], ['dat']);
         const l = findBestColumn(['libelle', 'libellesimplifie', 'description', 'texte'], ['lib', 'tex', 'des']);
-        const deb = findBestColumn(['debit', 'depense', 'sortie'], ['deb', 'dep', 'sor']);
-        const cre = findBestColumn(['credit', 'recette', 'entree'], ['cre', 'rec', 'ent']);
-        const mon = findBestColumn(['montant', 'valeur', 'somme', 'amount'], ['mon', 'val', 'som', 'amo']);
+        const deb = findBestColumn(['debit', 'depense', 'sortie'], ['deb', 'dep', 'sort']);
+        const cre = findBestColumn(['credit', 'recette', 'entree'], ['cred', 'recett', 'entr']);
+        const mon = findBestColumn(['montant', 'valeur', 'somme', 'amount'], ['mont', 'val', 'somm', 'amou']);
         const inf = findBestColumn(['informationscomplementaires', 'details', 'notes', 'commentaires'], ['inf', 'det', 'com']);
         const typ = findBestColumn(['typeoperation', 'type', 'mode', 'paiement'], ['typ', 'mod', 'pai']);
         const ref = findBestColumn(['reference', 'ref', 'numero', 'id', 'transactionid'], ['ref', 'num', 'ide']);
@@ -217,6 +217,11 @@
         const rawCredit = mappingConfig.indexCredit !== -1 ? cellules[mappingConfig.indexCredit] || '' : '';
         debit = Math.abs(CSVParser.parseMontant(rawDebit));
         credit = Math.abs(CSVParser.parseMontant(rawCredit));
+        if (debit > 0 && credit > 0) {
+          if (CSVParser.parseMontant(rawDebit) > 0 && CSVParser.parseMontant(rawCredit) === 0) credit = 0;
+          else if (CSVParser.parseMontant(rawCredit) > 0 && CSVParser.parseMontant(rawDebit) === 0) debit = 0;
+          else credit = 0;
+        }
       } else if (mappingConfig.modeMontant === 'single' && mappingConfig.indexMontant !== -1) {
         const rawMontant = cellules[mappingConfig.indexMontant] || '';
         const montant = CSVParser.parseMontant(rawMontant);

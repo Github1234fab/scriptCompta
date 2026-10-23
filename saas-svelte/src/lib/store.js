@@ -41,6 +41,52 @@ export function safeGetJson(key, fallback) {
   }
 }
 
+/**
+ * Nettoie et sécurise les transactions pour éliminer toute corruption d'importation
+ * (ex: date de carte bancaire '040926' ou '110926' parsée en crédit, ou débits/crédits simultanés).
+ */
+export function sanitizeTransactions(txList) {
+  if (!Array.isArray(txList)) return [];
+  return txList.map(t => {
+    let debit = typeof t.debit === 'number' ? t.debit : (parseFloat(t.debit) || 0);
+    let credit = typeof t.credit === 'number' ? t.credit : (parseFloat(t.credit) || 0);
+
+    // Règle 1 : En comptabilité bancaire, une ligne est soit un débit soit un crédit, JAMAIS les deux.
+    if (debit > 0 && credit > 0) {
+      // Si le crédit correspond à une date de carte (ex: 40926, 90926, 110926), l'annuler
+      if (credit >= 10000) {
+        credit = 0;
+      } else {
+        // En cas de conflit, annuler le crédit pour préserver le débit réel du paiement
+        credit = 0;
+      }
+    }
+
+    // Règle 2 : Détection des fausses recettes astronomiques provenant d'informations complémentaires CB (ex: Spotify, Amazon, Thomann, Super U...)
+    if (credit >= 10000) {
+      const fullTxt = `${t.libelle || ''} ${t.rawLibelle || ''} ${t.info || ''} ${t.reference || ''}`.toUpperCase();
+      const isCardOrExpense = fullTxt.includes('CB') || fullTxt.includes('SPOTIFY') || fullTxt.includes('AMAZON') ||
+                              fullTxt.includes('THOMANN') || fullTxt.includes('SUPER U') || fullTxt.includes('PRLV') ||
+                              fullTxt.includes('FRAIS') || fullTxt.includes('ORANGE') || fullTxt.includes('RETRAIT');
+      if (isCardOrExpense) {
+        // Si aucun débit n'était renseigné, tenter de récupérer le montant depuis l'info "9049-98,00EUR"
+        if (debit === 0) {
+          const matchAmount = fullTxt.match(/[-](\d+[,\.]\d{2})EUR/);
+          if (matchAmount) {
+            debit = parseFloat(matchAmount[1].replace(',', '.'));
+          }
+        }
+        credit = 0;
+      }
+    }
+
+    if (debit !== t.debit || credit !== t.credit) {
+      return { ...t, debit, credit };
+    }
+    return t;
+  });
+}
+
 // Entities (Multi-structure)
 const DEFAULT_ENTITIES = [];
 
@@ -209,9 +255,19 @@ export function loadEntityData(entityId) {
   bills.set(b !== null ? b : (entityId === 'entity-lyon' ? [...INITIAL_BILLS_LYON] : []));
 
   const rawTx = safeGetJson(`saas_compta_transactions_${entityId}`, []);
-  // Taguer explicitement avec l'entityId actuel
-  const cleanTx = (Array.isArray(rawTx) ? rawTx : []).map(t => ({ ...t, entityId }));
+  // Assainir immédiatement les écritures locales pour éliminer toute anomalie
+  const sanitizedLocalTx = sanitizeTransactions(Array.isArray(rawTx) ? rawTx : []);
+  const cleanTx = sanitizedLocalTx.map(t => ({ ...t, entityId }));
   transactions.set(cleanTx);
+
+  // Si le nettoyage a corrigé des anomalies, réécrire immédiatement le cache local et Firestore
+  if (JSON.stringify(cleanTx) !== JSON.stringify(rawTx)) {
+    localStorage.setItem(`saas_compta_transactions_${entityId}`, JSON.stringify(cleanTx));
+    const currentUid = auth.currentUser?.uid;
+    if (currentUid) {
+      saveTransactions(currentUid, entityId, cleanTx);
+    }
+  }
 
   // 2. Hydratation Firestore si connecté
   const uid = auth.currentUser?.uid;
@@ -229,9 +285,13 @@ export function loadEntityData(entityId) {
         }
 
         if (Array.isArray(remoteData.transactions)) {
-          const cleanRemoteTx = remoteData.transactions.map(t => ({ ...t, entityId }));
+          const sanitizedRemoteTx = sanitizeTransactions(remoteData.transactions);
+          const cleanRemoteTx = sanitizedRemoteTx.map(t => ({ ...t, entityId }));
           transactions.set(cleanRemoteTx);
           localStorage.setItem(`saas_compta_transactions_${entityId}`, JSON.stringify(cleanRemoteTx));
+          if (JSON.stringify(sanitizedRemoteTx) !== JSON.stringify(remoteData.transactions)) {
+            saveTransactions(uid, entityId, cleanRemoteTx);
+          }
         }
         if (Array.isArray(remoteData.rules)) {
           rules.set(remoteData.rules);
@@ -315,8 +375,9 @@ export function updateTransactions(val) {
   const entId = get(activeEntityId);
   if (!entId) return;
 
-  // Garantir que chaque écriture porte obligatoirement l'identifiant strict de sa structure
-  const taggedVal = (Array.isArray(val) ? val : []).map(t => ({
+  // Assainir les écritures avant persistance pour garantir l'intégrité comptable
+  const sanitized = sanitizeTransactions(val);
+  const taggedVal = sanitized.map(t => ({
     ...t,
     entityId: entId
   }));
@@ -407,4 +468,29 @@ export function showToast(message) {
   toastTimer = setTimeout(() => {
     toastMessage.set('');
   }, 3500);
+}
+
+// Assainissement proactif au démarrage de toutes les structures stockées dans le cache
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('saas_compta_transactions_')) {
+        const raw = safeGetJson(k, []);
+        if (Array.isArray(raw) && raw.length > 0) {
+          const sanitized = sanitizeTransactions(raw);
+          if (JSON.stringify(sanitized) !== JSON.stringify(raw)) {
+            localStorage.setItem(k, JSON.stringify(sanitized));
+            const entId = k.replace('saas_compta_transactions_', '');
+            const uid = auth.currentUser?.uid;
+            if (uid && entId) {
+              saveTransactions(uid, entId, sanitized);
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Erreur auto-nettoyage initial des écritures:", err);
+  }
 }

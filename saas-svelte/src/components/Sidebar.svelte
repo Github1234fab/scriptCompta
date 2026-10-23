@@ -214,30 +214,32 @@
         </span>
       </li>
 
-      <!-- 2. BANQUE & PIÈCES -->
+      <!-- 2. LIBELLÉS & ATTRIBUTION -->
       <li style="margin-bottom: 6px;">
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <span 
            id="menu-categorize" 
            class="menu-item {$activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces' ? 'active' : ''}" 
            onclick={() => switchView('categorize')}>
-          <i class="fa-solid fa-wallet"></i> Banque & Pièces
+          <i class="fa-solid fa-list-check"></i> Libellés & Attribution
           {#if pendingTxBadgeCount > 0}
             <span class="badge" id="pending-tx-badge" style="margin-left: auto; background: #f59e0b; color: #ffffff; font-size: 0.72rem; padding: 2px 7px; border-radius: 10px; font-weight: 800; min-width: 18px; text-align: center;">{pendingTxBadgeCount}</span>
           {/if}
         </span>
       </li>
 
-      <!-- 3. MON ACTIVITÉ (Intitulé dynamique) -->
-      <li style="margin-bottom: 6px;">
-        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-        <span 
-           id="menu-activity" 
-           class="menu-item {$activeView === 'activity' || $activeView === 'workspace_asso' || $activeView === 'workspace_micro' || $activeView === 'workspace_tpe' || $activeView === 'members' || $activeView === 'sales' || $activeView === 'donations' ? 'active' : ''}" 
-           onclick={() => switchView('activity')}>
-          <i class="fa-solid {activityIcon}"></i> {activityLabel}
-        </span>
-      </li>
+      <!-- 3. MON ACTIVITÉ (Masqué en micro-entreprise car tous les outils sont réunis sur le Tableau de bord) -->
+      {#if accountingModel !== 'micro'}
+        <li style="margin-bottom: 6px;">
+          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+          <span 
+             id="menu-activity" 
+             class="menu-item {$activeView === 'activity' || $activeView === 'workspace_asso' || $activeView === 'workspace_micro' || $activeView === 'workspace_tpe' || $activeView === 'members' || $activeView === 'sales' || $activeView === 'donations' ? 'active' : ''}" 
+             onclick={() => switchView('activity')}>
+            <i class="fa-solid {activityIcon}"></i> {activityLabel}
+          </span>
+        </li>
+      {/if}
 
       <!-- 4. DOCUMENTS & CLÔTURE (DYNAMIQUE) -->
       <li style="margin-bottom: 6px;">

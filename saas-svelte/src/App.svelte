@@ -319,7 +319,7 @@
         {#if accountingModel === 'asso'}
           <EspaceAsso />
         {:else if accountingModel === 'micro'}
-          <EspaceMicro />
+          <DashboardMicro />
         {:else}
           <EspaceTPE />
         {/if}

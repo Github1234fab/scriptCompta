@@ -639,30 +639,65 @@
       </div>
     </div>
 
-    <!-- 3 KPI Cards -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <!-- 5 KPI Cards : Du Net Ventes au Net en Poche -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px;">
       <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px;">
-        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #64748b; display: block; margin-bottom: 6px;">Chiffre d'Affaires Encaissé</span>
-        <strong style="font-size: 1.45rem; color: #0f172a; font-family: var(--font-title); display: block;">
+        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #64748b; display: block; margin-bottom: 6px;">CA Encaissé Net</span>
+        <strong style="font-size: 1.4rem; color: #0f172a; font-family: var(--font-title); display: block;">
           {totalRecettesMicro.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
         </strong>
-        <span style="font-size: 0.78rem; color: #16a34a; font-weight: 700;">Base de calcul Urssaf</span>
+        <span style="font-size: 0.78rem; color: #16a34a; font-weight: 700;">Facturé aux clients (ce que je vends)</span>
       </div>
 
       <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px;">
-        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #64748b; display: block; margin-bottom: 6px;">Achats & Dépenses Métier</span>
-        <strong style="font-size: 1.45rem; color: #0f172a; font-family: var(--font-title); display: block;">
-          {totalAchatsMicro.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #64748b; display: block; margin-bottom: 6px;">Dépenses d'activité</span>
+        <strong style="font-size: 1.4rem; color: #b91c1c; font-family: var(--font-title); display: block;">
+          -{totalAchatsMicro.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
         </strong>
-        <span style="font-size: 0.78rem; color: #64748b;">Non déductibles en micro</span>
+        <span style="font-size: 0.78rem; color: #64748b;">Achats et frais pro décaissés</span>
+      </div>
+
+      <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 12px; padding: 18px;">
+        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #1e40af; display: block; margin-bottom: 6px;">CA moins les dépenses</span>
+        <strong style="font-size: 1.4rem; color: #1e3a8a; font-family: var(--font-title); display: block;">
+          {(totalRecettesMicro - totalAchatsMicro).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+        </strong>
+        <span style="font-size: 0.78rem; color: #2563eb; font-weight: 700;">Reste sur mes ventes avant Urssaf</span>
+      </div>
+
+      <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px;">
+        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #64748b; display: block; margin-bottom: 6px;">Charges Urssaf (21,2%)</span>
+        <strong style="font-size: 1.4rem; color: #ea580c; font-family: var(--font-title); display: block;">
+          -{(totalRecettesMicro * 0.212).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+        </strong>
+        <span style="font-size: 0.78rem; color: #c2410c; font-weight: 600;">Cotisations sociales à régler</span>
       </div>
 
       <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 18px;">
-        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #16a34a; display: block; margin-bottom: 6px;">Cotisations Urssaf Estimées (~21,2%)</span>
-        <strong style="font-size: 1.45rem; color: #15803d; font-family: var(--font-title); display: block;">
-          {(totalRecettesMicro * 0.212).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #16a34a; display: block; margin-bottom: 6px;">Reste Net Final</span>
+        <strong style="font-size: 1.4rem; color: #15803d; font-family: var(--font-title); display: block;">
+          {(totalRecettesMicro - (totalRecettesMicro * 0.212) - totalAchatsMicro).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
         </strong>
-        <span style="font-size: 0.78rem; color: #15803d; font-weight: 600;">Taux BNC / Prestations</span>
+        <span style="font-size: 0.78rem; color: #15803d; font-weight: 700;">En poche après charges</span>
+      </div>
+    </div>
+
+    <!-- BANDEAU FIL CONDUCTEUR : FORMULE DE TRÉSORERIE ÉTAPE PAR ÉTAPE -->
+    <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 0.88rem; margin-bottom: 24px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-calculator" style="color: #64748b;"></i>
+        <span style="color: #475569; font-weight: 700;">Votre trésorerie étape par étape :</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-family: var(--font-title); flex-wrap: wrap;">
+        <span style="color: #0f172a;" title="Facturé aux clients">{totalRecettesMicro.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(CA encaissé net)</span></span>
+        <span style="color: #94a3b8;">−</span>
+        <span style="color: #b91c1c;" title="Achats & dépenses">{totalAchatsMicro.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Dépenses)</span></span>
+        <span style="color: #94a3b8;">=</span>
+        <span style="color: #2563eb; background: #eff6ff; padding: 3px 8px; border-radius: 6px; border: 1px solid #bfdbfe;" title="Reste sur mes ventes avant Urssaf">{(totalRecettesMicro - totalAchatsMicro).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #1e40af; font-weight: 600;">(CA moins dépenses)</span></span>
+        <span style="color: #94a3b8;">−</span>
+        <span style="color: #ea580c;" title="Cotisations Urssaf à régler">{(totalRecettesMicro * 0.212).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Charges Urssaf)</span></span>
+        <span style="color: #94a3b8;">=</span>
+        <span style="color: #15803d; background: #f0fdf4; padding: 3px 8px; border-radius: 6px; border: 1px solid #bbf7d0;" title="Revenu net disponible en poche">{(totalRecettesMicro - (totalRecettesMicro * 0.212) - totalAchatsMicro).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #166534; font-weight: 600;">(Reste net en poche)</span></span>
       </div>
     </div>
 
@@ -768,9 +803,9 @@
                 </td>
                 <td>
                   {#if tx.credit > 0}
-                    <span class="badge badge-success">🟢 Recette</span>
+                    <span class="badge badge-success">Recette</span>
                   {:else}
-                    <span class="badge badge-danger">🔴 Dépense</span>
+                    <span class="badge badge-danger">Dépense</span>
                   {/if}
                 </td>
                 <td style="text-align: right; font-weight: 800; font-size: 0.95rem; color: {tx.credit > 0 ? '#15803d' : '#b91c1c'};">
