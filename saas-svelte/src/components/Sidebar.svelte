@@ -228,13 +228,13 @@
         </span>
       </li>
 
-      <!-- 3. MON ACTIVITÉ (Masqué en micro-entreprise car tous les outils sont réunis sur le Tableau de bord) -->
-      {#if accountingModel !== 'micro'}
+      <!-- 3. GESTION DES ADHÉRENTS & DONS (Uniquement pour le modèle Association car il s'agit d'un registre d'adhérents et de reçus fiscaux CERFA ; masqué pour les structures professionnelles où tout est piloté depuis le Tableau de bord) -->
+      {#if accountingModel === 'asso'}
         <li style="margin-bottom: 6px;">
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
           <span 
              id="menu-activity" 
-             class="menu-item {$activeView === 'activity' || $activeView === 'workspace_asso' || $activeView === 'workspace_micro' || $activeView === 'workspace_tpe' || $activeView === 'members' || $activeView === 'sales' || $activeView === 'donations' ? 'active' : ''}" 
+             class="menu-item {$activeView === 'activity' || $activeView === 'workspace_asso' || $activeView === 'members' || $activeView === 'sales' || $activeView === 'donations' ? 'active' : ''}" 
              onclick={() => switchView('activity')}>
             <i class="fa-solid {activityIcon}"></i> {activityLabel}
           </span>
@@ -313,7 +313,7 @@
             ondblclick={async () => {
               if ($currentUser?.uid) {
                 await updateUserPlan($currentUser.uid, 'premium', 'active');
-                showToast('👑 Félicitations ! Votre compte est désormais en Formule Illimitée.');
+                showToast('Félicitations ! Votre compte est désormais en Formule Illimitée.');
               }
             }}
             style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; cursor: pointer; user-select: none;"

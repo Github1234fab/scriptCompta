@@ -10,6 +10,7 @@ export const INITIAL_PLAN_COMPTABLE = [
   { compte: "411", libelle: "Règlement membre / élève", type: "Transfert", group: "transferts", desc: "Sommes dues par vos membres ou à rembourser." },
   { compte: "401", libelle: "Paiement fournisseur en attente", type: "Transfert", group: "transferts", desc: "Dettes envers vos fournisseurs réguliers." },
   { compte: "467", libelle: "Autre transfert ou avance", type: "Transfert", group: "transferts", desc: "Personnes ou structures tierces en compte." },
+  { compte: "455", libelle: "Compte courant d'associé (Apport / Avance CCA)", type: "Transfert", group: "transferts", desc: "Avances de trésorerie ou apports des associés (SCI / SASU / SARL)." },
   
   { compte: "606", libelle: "Achats & Fournitures", type: "Charge", group: "depenses_courantes", desc: "Matériel, papeterie, petits équipements, alimentation." },
   { compte: "613", libelle: "Loyers & Locations de salles", type: "Charge", group: "depenses_courantes", desc: "Locations de salles et locaux." },
@@ -19,6 +20,8 @@ export const INITIAL_PLAN_COMPTABLE = [
   { compte: "625", libelle: "Déplacements & Repas", type: "Charge", group: "depenses_courantes", desc: "Péages, carburant, billets de train, repas de mission." },
   { compte: "626", libelle: "Téléphonie & Courrier", type: "Charge", group: "depenses_courantes", desc: "Abonnement internet, téléphone, timbres." },
   { compte: "627", libelle: "Frais bancaires", type: "Charge", group: "depenses_courantes", desc: "Commissions de cartes, tenue de compte, rejets." },
+  { compte: "635", libelle: "Impôts & Taxes (Taxe foncière, CFE)", type: "Charge", group: "depenses_courantes", desc: "Taxe foncière, CFE et taxes déductibles." },
+  { compte: "661", libelle: "Intérêts d'emprunt & Charges financières", type: "Charge", group: "depenses_courantes", desc: "Intérêts des crédits bancaires et emprunts immobiliers." },
 
   { compte: "611", libelle: "Intervenants extérieurs & Sous-traitance", type: "Charge", group: "equipe", desc: "Services facturés par des auto-entrepreneurs ou externes." },
   { compte: "641", libelle: "Salaires nets", type: "Charge", group: "equipe", desc: "Salaires nets versés à vos enseignants ou employés." },
@@ -28,14 +31,20 @@ export const INITIAL_PLAN_COMPTABLE = [
 
   { compte: "699", libelle: "Non catégorisé", type: "Charge", group: "depenses_courantes", desc: "Compte temporaire pour ranger ce que vous devez trier." },
   
+  { compte: "706", libelle: "Honoraires généraux / Forfaits", type: "Produit", group: "entrees", desc: "Honoraires forfaitaires, dossiers et missions principales." },
+  { compte: "7061", libelle: "Honoraires au temps passé (Taux horaire)", type: "Produit", group: "entrees", desc: "Facturation au temps passé selon le taux horaire." },
+  { compte: "7062", libelle: "Honoraires de résultat", type: "Produit", group: "entrees", desc: "Honoraires complémentaires de résultat (success fees)." },
+  { compte: "7063", libelle: "Consultations & Conseils", type: "Produit", group: "entrees", desc: "Consultations juridiques et rendez-vous conseils." },
+  { compte: "7064", libelle: "Plaidoiries & Actes juridiques", type: "Produit", group: "entrees", desc: "Rédaction d'actes, assignations, plaidoiries et conclusions." },
+  { compte: "708", libelle: "Frais & Débours refacturés", type: "Produit", group: "entrees", desc: "Frais de greffe, huissier ou déplacements refacturés aux clients." },
+  { compte: "707", libelle: "Ventes de marchandises", type: "Produit", group: "entrees", desc: "Ventes de biens et marchandises destinées à la revente." },
   { compte: "756", libelle: "Cotisations & Adhésions", type: "Produit", group: "entrees", desc: "Adhésion annuelle simple versée par les membres." },
-  { compte: "706", libelle: "Ventes, Cours & Services", type: "Produit", group: "entrees", desc: "Inscriptions aux cours, stages, prestations de service." },
   { compte: "740", libelle: "Subventions reçues", type: "Produit", group: "entrees", desc: "Subventions de la mairie, du département, de la région." },
   { compte: "758", libelle: "Dons & Mécénat", type: "Produit", group: "entrees", desc: "Dons de particuliers ou d'entreprises." }
 ];
 
 export const INITIAL_RULES_LYON = [
-  { motCle: "STRIPE", debit: "", credit: "706", note: "Ventes, Cours & Services" },
+  { motCle: "STRIPE", debit: "", credit: "706", note: "Honoraires & Prestations de services" },
   { motCle: "COTIS", debit: "", credit: "756", note: "Cotisations & Adhésions" },
   { motCle: "DON", debit: "", credit: "758", note: "Dons & Mécénat" },
   { motCle: "EDF", debit: "613", credit: "", note: "Loyers & Locations de salles" },
@@ -72,8 +81,9 @@ export const DEMO_CSV_DATA = `Date;Libelle;Montant
 02/09/2026;ABONNEMENT INTERNET ORANGE;-34,99`;
 
 export const GLOSSARY_DATA = [
+  { term: 'Compte 706', def: 'Honoraires et prestations de services' },
+  { term: 'Compte 707', def: 'Ventes de marchandises physiques' },
   { term: 'Compte 756', def: 'Cotisations des adhérents' },
-  { term: 'Compte 706', def: 'Ventes de services et cours' },
   { term: 'Compte 606', def: 'Achats de fournitures et petits équipements' },
   { term: 'Compte 613', def: 'Loyers et locations de salles' }
 ];

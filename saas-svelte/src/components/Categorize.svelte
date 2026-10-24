@@ -50,16 +50,25 @@
     })
   );
 
+  // Synchroniser le compte par défaut lorsque le sens change (Recette -> 706, Dépense -> 606)
+  $effect(() => {
+    if (newRuleType === 'credit' && (newRuleAccount.startsWith('6') || !newRuleAccount)) {
+      newRuleAccount = '706';
+    } else if (newRuleType === 'debit' && (newRuleAccount.startsWith('7') || !newRuleAccount)) {
+      newRuleAccount = '606';
+    }
+  });
+
   function handleAddDictionaryRule() {
     if (!newRuleKeyword.trim()) {
-      showToast('⚠️ Veuillez renseigner un mot-clé ou un nom.');
+      showToast('Veuillez renseigner un mot-clé ou un nom.');
       return;
     }
     const clean = Categorizer.normaliserTexte(newRuleKeyword);
     const ok = Categorizer.ajouterRegle(clean, newRuleAccount, newRuleType);
     if (ok) {
       selectedCategoryMap = {};
-      showToast(`✅ "${clean}" ajouté au dictionnaire d'attribution !`);
+      showToast(`"${clean}" ajouté au dictionnaire d'attribution.`);
       newRuleKeyword = '';
     }
   }
@@ -351,7 +360,7 @@
     if (lastStateTransactions) {
       updateTransactions(lastStateTransactions);
       lastStateTransactions = null;
-      showToast("↩️ Attribution annulée avec succès !");
+      showToast("Attribution annulée.");
     }
   }
 
@@ -374,9 +383,7 @@
   /** @param {string|number} [numCompte] */
   function formatAccountLabel(numCompte) {
     if (!numCompte || String(numCompte) === '699') return '« Choisir une catégorie... »';
-    const cpt = $planComptable.find(p => p.compte === String(numCompte));
-    if (!cpt) return `Compte (${numCompte})`;
-    return cpt.libelle.replace(/\s*\(\d+\)\s*/g, '').trim();
+    return Categorizer.obtenirLibelleCompte(numCompte);
   }
 
   // Helper to clean banking transaction labels & extract readable name
@@ -811,7 +818,7 @@
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                       <span style="font-weight: 700; font-size: 0.88rem; color: #166534; background: #f0fdf4; border: 1.5px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
                         <i class="fa-solid fa-wand-magic-sparkles" style="color: #16a34a;"></i>
-                        ✨ {sug.label} ({sug.compte})
+                        {sug.label} ({sug.compte})
                       </span>
                       <button
                         type="button"
@@ -827,7 +834,7 @@
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                       <span style="font-weight: 700; font-size: 0.88rem; color: #1e40af; background: #eff6ff; border: 1.5px solid #bfdbfe; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
                         <i class="fa-solid fa-check" style="color: #2563eb;"></i>
-                        ✔️ {formatAccountLabel(manualCat)} ({manualCat})
+                        {formatAccountLabel(manualCat)} ({manualCat})
                       </span>
                       <button
                         type="button"
@@ -917,7 +924,7 @@
       
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 14px;">
         <h3 style="margin: 0; font-size: 1.25rem; font-family: var(--font-title); color: white; display: flex; align-items: center; gap: 10px; font-weight: 800;">
-          🏷️ Comment trier vos opérations ?
+          <i class="fa-solid fa-tags" style="color: #818cf8;"></i> Comment trier vos opérations ?
         </h3>
         <button onclick={closePedagogicalModal} style="background: none; border: none; color: rgba(255, 255, 255, 0.5); font-size: 1.3rem; cursor: pointer;">✕</button>
       </div>
@@ -1115,7 +1122,7 @@
                 >
                   <div style="flex: 1;">
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a !important;">{c.libelle}</span>
+                      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a !important;">{formatAccountLabel(c.compte)}</span>
                       <span style="font-size: 0.78rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: {isSelected ? '#10b981' : '#d1fae5'}; color: {isSelected ? '#ffffff' : '#065f46'}; border: 1px solid #a7f3d0;">
                         Compte {c.compte}
                       </span>
@@ -1375,9 +1382,34 @@
                 bind:value={newRuleAccount}
                 style="width: 100%; padding: 9px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem; font-weight: 600; background: #ffffff; color: #0f172a; box-sizing: border-box;"
               >
-                {#each $planComptable.filter(p => p.compte !== '699') as p}
-                  <option value={p.compte}>{p.compte} - {p.libelle}</option>
-                {/each}
+                {#if newRuleType === 'credit'}
+                  <optgroup label="Entrées & Recettes">
+                    {#each $planComptable.filter(p => p.compte !== '699' && (p.compte.startsWith('7') || p.type === 'Produit' || p.group === 'entrees')) as p}
+                      <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                    {/each}
+                  </optgroup>
+                  <optgroup label="Comptes & Transferts">
+                    {#each $planComptable.filter(p => p.compte !== '699' && (p.compte.startsWith('4') || p.compte.startsWith('5'))) as p}
+                      <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                    {/each}
+                  </optgroup>
+                {:else}
+                  <optgroup label="Dépenses & Frais professionnels">
+                    {#each $planComptable.filter(p => p.compte !== '699' && p.compte.startsWith('6') && p.group !== 'equipe') as p}
+                      <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                    {/each}
+                  </optgroup>
+                  <optgroup label="Équipe, Salaires & Social">
+                    {#each $planComptable.filter(p => p.compte !== '699' && (p.group === 'equipe' || ['611', '641', '645', '6453', '658'].includes(p.compte))) as p}
+                      <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                    {/each}
+                  </optgroup>
+                  <optgroup label="Comptes & Transferts">
+                    {#each $planComptable.filter(p => p.compte !== '699' && (p.compte.startsWith('4') || p.compte.startsWith('5'))) as p}
+                      <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                    {/each}
+                  </optgroup>
+                {/if}
               </select>
             </div>
 
@@ -1463,9 +1495,34 @@
                             bind:value={editingAccount}
                             style="padding: 7px 8px; border: 1.5px solid #6366f1; border-radius: 6px; font-size: 0.82rem; font-weight: 600; background: #ffffff; color: #0f172a; width: 100%; box-sizing: border-box;"
                           >
-                            {#each $planComptable.filter(p => p.compte !== '699') as p}
-                              <option value={p.compte}>{p.compte} - {p.libelle}</option>
-                            {/each}
+                            {#if editingType === 'credit'}
+                              <optgroup label="Entrées & Recettes">
+                                {#each $planComptable.filter(p => p.compte !== '699' && (p.compte.startsWith('7') || p.type === 'Produit' || p.group === 'entrees')) as p}
+                                  <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                                {/each}
+                              </optgroup>
+                              <optgroup label="Comptes & Transferts">
+                                {#each $planComptable.filter(p => p.compte !== '699' && (p.compte.startsWith('4') || p.compte.startsWith('5'))) as p}
+                                  <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                                {/each}
+                              </optgroup>
+                            {:else}
+                              <optgroup label="Dépenses & Frais professionnels">
+                                {#each $planComptable.filter(p => p.compte !== '699' && p.compte.startsWith('6') && p.group !== 'equipe') as p}
+                                  <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                                {/each}
+                              </optgroup>
+                              <optgroup label="Équipe, Salaires & Social">
+                                {#each $planComptable.filter(p => p.compte !== '699' && (p.group === 'equipe' || ['611', '641', '645', '6453', '658'].includes(p.compte))) as p}
+                                  <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                                {/each}
+                              </optgroup>
+                              <optgroup label="Comptes & Transferts">
+                                {#each $planComptable.filter(p => p.compte !== '699' && (p.compte.startsWith('4') || p.compte.startsWith('5'))) as p}
+                                  <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                                {/each}
+                              </optgroup>
+                            {/if}
                           </select>
                         </td>
                         <td style="padding: 10px 14px; text-align: right; white-space: nowrap;">

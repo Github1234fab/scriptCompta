@@ -132,15 +132,22 @@
     t => t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere'
   ).length);
 
+  // Redirect to dashboard if trying to access activity view on a structure without separate members module
+  $effect(() => {
+    if ($activeView === 'activity' && accountingModel !== 'asso') {
+      $activeView = 'dashboard';
+    }
+  });
+
   /** @param {string} view */
   function switchView(view) {
     $activeView = view;
   }
 
   function handleResetDb() {
-    if (confirm("⚠️ Voulez-vous vraiment réinitialiser toutes les données de l'application ? Cela effacera tout votre historique de tri, vos élèves, vos boutique et vos dons.")) {
+    if (confirm("Voulez-vous vraiment réinitialiser toutes les données de l'application ? Cela effacera tout votre historique de tri, vos élèves, vos boutique et vos dons.")) {
       resetAllStores();
-      showToast("✨ Application réinitialisée ! Veuillez configurer votre premier espace.");
+      showToast("Application réinitialisée. Veuillez configurer votre premier espace.");
     }
   }
 
@@ -321,7 +328,7 @@
         {:else if accountingModel === 'micro'}
           <DashboardMicro />
         {:else}
-          <EspaceTPE />
+          <DashboardTPE />
         {/if}
       {:else if $activeView === 'books' || $activeView === 'recettes'}
         <Books />

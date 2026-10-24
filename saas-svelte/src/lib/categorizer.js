@@ -3,6 +3,7 @@ import {
   rules, 
   planComptable, 
   members,
+  entities,
   activeEntityId,
   updateRules,
   transactions,
@@ -335,13 +336,28 @@ export const Categorizer = {
       { mot: 'LAPOSTE', debit: '626', credit: '', note: 'Courrier & Timbres' },
       { mot: 'LA POSTE', debit: '626', credit: '', note: 'Courrier & Timbres' },
 
-      // Recettes (706, 756, 758)
+      // Recettes (706, 707, 756, 758)
       { mot: 'COTIS', debit: '', credit: '756', note: 'Cotisation adhérent' },
       { mot: 'ADHESION', debit: '', credit: '756', note: 'Adhésion' },
       { mot: 'DONATION', debit: '', credit: '758', note: 'Don particulier' },
       { mot: 'MECENAT', debit: '', credit: '758', note: 'Mécénat d\'entreprise' },
-      { mot: 'STRIPE', debit: '', credit: '706', note: 'Recettes Ventes / Services' },
-      { mot: 'SUMUP', debit: '', credit: '706', note: 'Recettes Ventes / Services' }
+      { mot: 'HONORAIRE', debit: '', credit: '706', note: 'Honoraires' },
+      { mot: 'HONORAIRES', debit: '', credit: '706', note: 'Honoraires' },
+      { mot: 'MISSION', debit: '', credit: '706', note: 'Honoraires / Prestations' },
+      { mot: 'CONSULTATION', debit: '', credit: '706', note: 'Honoraires' },
+      { mot: 'STRIPE', debit: '', credit: '706', note: 'Prestations de services' },
+      { mot: 'SUMUP', debit: '', credit: '706', note: 'Prestations de services' },
+
+      // SCI / Immobilier & Fiscalité (706, 635, 661, 455)
+      { mot: 'LOYER', debit: '', credit: '706', note: 'Loyers encaissés' },
+      { mot: 'LOYERS', debit: '', credit: '706', note: 'Loyers encaissés' },
+      { mot: 'QUITTANCE', debit: '', credit: '706', note: 'Loyers encaissés' },
+      { mot: 'LOCATAIRE', debit: '', credit: '706', note: 'Loyers encaissés' },
+      { mot: 'TAXE FONCIERE', debit: '635', credit: '', note: 'Taxe foncière' },
+      { mot: 'CFE', debit: '635', credit: '', note: 'CFE' },
+      { mot: 'INTERETS', debit: '661', credit: '', note: 'Intérêts emprunt' },
+      { mot: 'ECHEANCE PRET', debit: '661', credit: '', note: 'Échéance emprunt' },
+      { mot: 'APPORT CCA', debit: '', credit: '455', note: 'Apport associé (CCA)' }
     ];
 
     for (const sug of suggestionsHeuristiques) {
@@ -530,6 +546,52 @@ export const Categorizer = {
     if (!numCompte || numCompte === '699') return '« Choisir une catégorie... »';
     const cpt = get(planComptable).find(p => p.compte === String(numCompte));
     if (!cpt) return `Compte (${numCompte})`;
+
+    const entId = get(activeEntityId);
+    const currentEntities = get(entities);
+    const activeEnt = currentEntities.find(e => e.id === entId);
+    const model = activeEnt?.model || 'micro';
+
+    if (String(numCompte) === '706') {
+      if (model === 'bnc') return 'Honoraires généraux / Forfaits';
+      if (model === 'sci') return 'Loyers & Revenus locatifs';
+      if (model === 'copro') return 'Appels de fonds & Provisions';
+      if (model === 'micro' || model === 'tpe') return 'Prestations de services';
+      if (model === 'asso') return 'Cours & Prestations';
+    }
+
+    if (String(numCompte) === '7061') {
+      if (model === 'bnc') return 'Honoraires au temps passé (Taux horaire)';
+      return 'Prestations en régie (TJM)';
+    }
+
+    if (String(numCompte) === '7062') {
+      if (model === 'bnc') return 'Honoraires de résultat';
+      return 'Prestations au forfait';
+    }
+
+    if (String(numCompte) === '7063') {
+      return 'Consultations & Conseils';
+    }
+
+    if (String(numCompte) === '7064') {
+      return 'Plaidoiries & Actes juridiques';
+    }
+
+    if (String(numCompte) === '708') {
+      return 'Frais & Débours refacturés';
+    }
+
+    if (String(numCompte) === '455') {
+      if (model === 'sci') return 'Compte courant d’associé (Apport CCA)';
+      return 'Compte courant d’associé';
+    }
+
+    if (String(numCompte) === '658') {
+      if (model === 'bnc') return 'Cotisations ordinales (Ordre / CARPA)';
+      if (model === 'asso') return 'Affiliations & Fédérations';
+    }
+
     return cpt.libelle.replace(/\s*\(\d+\)\s*/g, '').trim();
   }
 };

@@ -111,7 +111,7 @@ export const MANAGEMENT_MODELS = {
     accentBg: 'rgba(16, 185, 129, 0.12)',
     desc: 'Livre des recettes, registre des achats, jauge franchise TVA (293B) & Urssaf.',
     activityMenu: { label: 'Facturation & Recettes', icon: 'fa-file-invoice-dollar' },
-    booksMenu: { label: 'Registres Légaux Micro', icon: 'fa-book-journal-whills' },
+    booksMenu: { label: 'Registres & Déclaration Urssaf', icon: 'fa-book-journal-whills' },
     dashboardTitle: 'Tableau de bord Micro-entreprise',
     legalBadge: 'Régime Micro-fiscal (Comptabilité allégée)',
     onboardingTitle: "Nom de l'exploitant / Nom commercial",
@@ -128,7 +128,7 @@ export const MANAGEMENT_MODELS = {
     accentBg: 'rgba(56, 189, 248, 0.12)',
     desc: 'Comptabilité d’engagement, Livre-journal, Grand-livre, TVA CA3/CA12 & export FEC.',
     activityMenu: { label: 'Facturation & Pilotage', icon: 'fa-briefcase' },
-    booksMenu: { label: 'Documents & Clôture FEC', icon: 'fa-file-invoice' },
+    booksMenu: { label: 'Livres Comptables & Export FEC', icon: 'fa-file-invoice' },
     dashboardTitle: 'Tableau de bord Société / TPE',
     legalBadge: "Comptabilité d'engagement",
     onboardingTitle: "Raison sociale de la société",
@@ -145,7 +145,7 @@ export const MANAGEMENT_MODELS = {
     accentBg: 'rgba(192, 132, 252, 0.12)',
     desc: 'Cotisations adhérents, subventions CERFA 15059, reçus fiscaux dons CERFA 11580.',
     activityMenu: { label: 'Adhérents, Dons & Ventes', icon: 'fa-users-heart' },
-    booksMenu: { label: 'Registres & Bilan Asso', icon: 'fa-file-contract' },
+    booksMenu: { label: 'Livres de Trésorerie & Bilan', icon: 'fa-file-contract' },
     dashboardTitle: 'Tableau de bord Association',
     legalBadge: 'Association Loi 1901',
     onboardingTitle: "Nom de l'association",
@@ -162,7 +162,7 @@ export const MANAGEMENT_MODELS = {
     accentBg: 'rgba(245, 158, 11, 0.12)',
     desc: 'Livre-journal BNC, barème kilométrique, amortissements & préparation liasse 2035.',
     activityMenu: { label: 'Activité BNC & Frais', icon: 'fa-scale-balanced' },
-    booksMenu: { label: 'Registres & Déclaration 2035', icon: 'fa-file-lines' },
+    booksMenu: { label: 'Comptabilité & Déclaration 2035', icon: 'fa-file-lines' },
     dashboardTitle: 'Tableau de bord Profession Libérale',
     legalBadge: 'Régime BNC (Déclaration 2035)',
     onboardingTitle: "Nom du cabinet et du praticien",
@@ -179,7 +179,7 @@ export const MANAGEMENT_MODELS = {
     accentBg: 'rgba(236, 72, 153, 0.12)',
     desc: 'Gestion des loyers, quittances 1-clic, apports CCA & préparation déclaration 2072.',
     activityMenu: { label: 'Gestion Locative SCI', icon: 'fa-house' },
-    booksMenu: { label: 'Registre SCI & 2072', icon: 'fa-building' },
+    booksMenu: { label: 'Comptabilité & Déclaration 2072', icon: 'fa-building' },
     dashboardTitle: 'Tableau de bord SCI Familiale',
     legalBadge: 'Régime des Sociétés de Personnes (2072)',
     onboardingTitle: "Dénomination de la SCI",
@@ -208,7 +208,9 @@ export const MANAGEMENT_MODELS = {
 
 // Entity-specific states
 export const transactions = writable([]);
-export const closingMonth = writable(9);
+export const closingMonth = writable(12);
+export const fiscalStartDate = writable('');
+export const fiscalEndDate = writable('');
 export const planComptable = writable([]);
 export const rules = writable([]);
 export const members = writable([]);
@@ -235,9 +237,46 @@ export function loadEntityData(entityId) {
 
   // 1. Chargement instantané depuis LocalStorage (cache local strictement cloisonné par entityId)
   const m = localStorage.getItem(`saas_compta_closing_month_${entityId}`);
-  closingMonth.set(m && !isNaN(parseInt(m)) ? parseInt(m) : 9);
+  closingMonth.set(m && !isNaN(parseInt(m)) ? parseInt(m) : 12);
 
-  planComptable.set(safeGetJson(`saas_compta_plan_${entityId}`, [...INITIAL_PLAN_COMPTABLE]));
+  const fStart = localStorage.getItem(`saas_compta_fiscal_start_${entityId}`);
+  const fEnd = localStorage.getItem(`saas_compta_fiscal_end_${entityId}`);
+  fiscalStartDate.set(fStart || '');
+  fiscalEndDate.set(fEnd || '');
+
+  const savedPlan = safeGetJson(`saas_compta_plan_${entityId}`, null);
+  const resolvedPlan = savedPlan ? [...savedPlan] : [...INITIAL_PLAN_COMPTABLE];
+  if (!resolvedPlan.some(p => p.compte === '707')) {
+    resolvedPlan.push({ compte: "707", libelle: "Ventes de marchandises", type: "Produit", group: "entrees", desc: "Ventes de biens et marchandises destinées à la revente." });
+  }
+  if (!resolvedPlan.some(p => p.compte === '455')) {
+    resolvedPlan.push({ compte: "455", libelle: "Compte courant d'associé (Apport / Avance CCA)", type: "Transfert", group: "transferts", desc: "Avances de trésorerie ou apports des associés (SCI / SASU / SARL)." });
+  }
+  if (!resolvedPlan.some(p => p.compte === '635')) {
+    resolvedPlan.push({ compte: "635", libelle: "Impôts & Taxes (Taxe foncière, CFE)", type: "Charge", group: "depenses_courantes", desc: "Taxe foncière, CFE et taxes déductibles." });
+  }
+  if (!resolvedPlan.some(p => p.compte === '661')) {
+    resolvedPlan.push({ compte: "661", libelle: "Intérêts d'emprunt & Charges financières", type: "Charge", group: "depenses_courantes", desc: "Intérêts des crédits bancaires et emprunts immobiliers." });
+  }
+  const extraSubAccounts = [
+    { compte: "7061", libelle: "Honoraires au temps passé (Taux horaire)", type: "Produit", group: "entrees", desc: "Facturation au temps passé selon le taux horaire." },
+    { compte: "7062", libelle: "Honoraires de résultat", type: "Produit", group: "entrees", desc: "Honoraires complémentaires de résultat (success fees)." },
+    { compte: "7063", libelle: "Consultations & Conseils", type: "Produit", group: "entrees", desc: "Consultations juridiques et rendez-vous conseils." },
+    { compte: "7064", libelle: "Plaidoiries & Actes juridiques", type: "Produit", group: "entrees", desc: "Rédaction d'actes, assignations, plaidoiries et conclusions." },
+    { compte: "708", libelle: "Frais & Débours refacturés", type: "Produit", group: "entrees", desc: "Frais de greffe, huissier ou déplacements refacturés aux clients." }
+  ];
+  extraSubAccounts.forEach(sub => {
+    if (!resolvedPlan.some(p => p.compte === sub.compte)) {
+      resolvedPlan.push(sub);
+    }
+  });
+  const cpt706 = resolvedPlan.find(p => p.compte === '706');
+  if (cpt706 && (cpt706.libelle === 'Ventes, Cours & Services' || cpt706.libelle.includes('Cours'))) {
+    cpt706.libelle = 'Honoraires généraux / Forfaits';
+    cpt706.desc = 'Honoraires forfaitaires, dossiers et missions principales.';
+  }
+  planComptable.set(resolvedPlan);
+  localStorage.setItem(`saas_compta_plan_${entityId}`, JSON.stringify(resolvedPlan));
 
   const r = safeGetJson(`saas_compta_rules_${entityId}`, null);
   rules.set(r !== null ? r : (entityId === 'entity-lyon' ? [...INITIAL_RULES_LYON] : []));
@@ -305,6 +344,14 @@ export function loadEntityData(entityId) {
           closingMonth.set(remoteData.closingMonth);
           localStorage.setItem(`saas_compta_closing_month_${entityId}`, String(remoteData.closingMonth));
         }
+        if (remoteData.fiscalStartDate !== undefined) {
+          fiscalStartDate.set(remoteData.fiscalStartDate || '');
+          localStorage.setItem(`saas_compta_fiscal_start_${entityId}`, remoteData.fiscalStartDate || '');
+        }
+        if (remoteData.fiscalEndDate !== undefined) {
+          fiscalEndDate.set(remoteData.fiscalEndDate || '');
+          localStorage.setItem(`saas_compta_fiscal_end_${entityId}`, remoteData.fiscalEndDate || '');
+        }
       });
     });
   }
@@ -347,6 +394,8 @@ export function resetAllStores() {
   donors.set([]);
   bills.set([]);
   closingMonth.set(9);
+  fiscalStartDate.set('');
+  fiscalEndDate.set('');
   userProfile.set({
     plan: 'free',
     subscriptionStatus: 'inactive',
@@ -397,6 +446,21 @@ export function updateClosingMonth(val) {
   const uid = auth.currentUser?.uid;
   if (uid && entId) {
     saveStructureKey(uid, entId, 'closingMonth', val);
+  }
+}
+
+export function updateFiscalPeriod(startVal, endVal) {
+  fiscalStartDate.set(startVal || '');
+  fiscalEndDate.set(endVal || '');
+  const entId = get(activeEntityId);
+  if (entId) {
+    localStorage.setItem(`saas_compta_fiscal_start_${entId}`, startVal || '');
+    localStorage.setItem(`saas_compta_fiscal_end_${entId}`, endVal || '');
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      saveStructureKey(uid, entId, 'fiscalStartDate', startVal || '');
+      saveStructureKey(uid, entId, 'fiscalEndDate', endVal || '');
+    }
   }
 }
 
