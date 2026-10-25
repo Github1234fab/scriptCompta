@@ -588,177 +588,216 @@
   </div>
 </div>
 
-<!-- Zone d'Import CSV sous le titre -->
-<div style="background: {dragover ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-card)'}; border: 2px dashed {dragover ? '#6366f1' : 'var(--border-color)'}; border-radius: var(--radius-md); padding: 16px 24px; margin-bottom: 20px; transition: all 0.2s; box-shadow: var(--shadow-sm);">
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div 
-    class="dropzone {dragover ? 'dragover' : ''}" 
-    onclick={() => fileInput && fileInput.click()}
-    ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
-    ondragover={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
-    ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); dragover = false; }}
-    ondrop={handleCSVDrop}
-    style="cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 6px 0;"
-  >
-    <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(99, 102, 241, 0.12); color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; pointer-events: none;">
-      <i class="fa-solid fa-cloud-arrow-up"></i>
-    </div>
-    <div style="text-align: left; pointer-events: none;">
-      <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">
-        Faites glisser votre fichier bancaire CSV ici <span style="font-weight: 400; color: var(--text-muted); font-size: 0.85rem;">ou cliquez pour parcourir vos fichiers</span>
+<!-- ========================================== -->
+<!-- 1. IMPORT DE RELEVÉ BANCAIRE (CSV) -->
+<!-- ========================================== -->
+<div style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+    <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+      <i class="fa-solid fa-cloud-arrow-up" style="color: #2563eb; font-size: 0.95rem;"></i> Import de relevé bancaire
+    </h3>
+    <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
+      Déposez votre fichier CSV pour synchroniser vos écritures
+    </span>
+  </div>
+
+  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div 
+      class="dropzone {dragover ? 'dragover' : ''}" 
+      onclick={() => fileInput && fileInput.click()}
+      ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
+      ondragover={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
+      ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); dragover = false; }}
+      ondrop={handleCSVDrop}
+      style="cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 16px 20px; background: {dragover ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-card, #ffffff)'}; border: 2px dashed {dragover ? '#6366f1' : 'var(--border-container)'}; border-radius: 12px; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.02);"
+    >
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(99, 102, 241, 0.12); color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; pointer-events: none;">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
       </div>
-      <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">
-        Supporte les formats CSV bancaires standard (Crédit Agricole, BNP, BoursoBank, Qonto, Shine, Revolut, etc.)
+      <div style="text-align: left; pointer-events: none;">
+        <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">
+          Faites glisser votre fichier bancaire CSV ici <span style="font-weight: 400; color: var(--text-muted); font-size: 0.85rem;">ou cliquez pour parcourir vos fichiers</span>
+        </div>
+        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">
+          Supporte les formats CSV bancaires standard (Crédit Agricole, BNP, BoursoBank, Qonto, Shine, Revolut, etc.)
+        </div>
       </div>
+      <input 
+        type="file" 
+        bind:this={fileInput} 
+        onchange={handleCSVFileSelect} 
+        style="display: none;" 
+        accept=".csv"
+      />
     </div>
-    <input 
-      type="file" 
-      bind:this={fileInput} 
-      onchange={handleCSVFileSelect} 
-      style="display: none;" 
-      accept=".csv"
-    />
   </div>
 </div>
 
-<!-- Barre d'actions & Outils -->
-<div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;">
-  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-      <!-- Bouton pour ouvrir le Dictionnaire d'attribution -->
-      <button 
-        type="button" 
-        class="btn btn-secondary btn-sm"
-        onclick={() => showDictionaryModal = true}
-        style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.84rem; padding: 7px 14px; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); border-radius: 8px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
-      >
-        <i class="fa-solid fa-book-bookmark" style="color: #6366f1;"></i>
-        Dictionnaire d'attribution ({$rules.length})
-      </button>
-
-      <!-- Bouton pour déplier l'historique -->
-      <button 
-        type="button" 
-        class="btn btn-secondary btn-sm"
-        onclick={() => showHistoryDrawer = !showHistoryDrawer}
-        style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.82rem; padding: 7px 14px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; cursor: pointer;"
-      >
-        <i class="fa-solid fa-clock-rotate-left" style="color: #64748b;"></i>
-        Historique des imports ({importsHistory.length})
-        <i class="fa-solid {showHistoryDrawer ? 'fa-chevron-up' : 'fa-chevron-down'}" style="font-size: 0.72rem; color: var(--text-muted);"></i>
-      </button>
-    </div>
-
-    <!-- Bouton pour tout effacer si des opérations sont présentes -->
-    {#if currentStructureTx.length > 0}
-      <button 
-        type="button" 
-        class="btn btn-sm"
-        onclick={effacerToutesOperations}
-        style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.8rem; padding: 6px 12px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 8px; cursor: pointer;"
-        title="Effacer toutes les écritures de cette structure"
-      >
-        <i class="fa-solid fa-trash-can"></i>
-        Effacer tout le relevé ({currentStructureTx.length} écritures)
-      </button>
-    {/if}
+<!-- ========================================== -->
+<!-- 2. RÈGLES D'ATTRIBUTION & HISTORIQUE -->
+<!-- ========================================== -->
+<div style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+    <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+      <i class="fa-solid fa-book-bookmark" style="color: #2563eb; font-size: 0.95rem;"></i> Règles d'attribution & Historique
+    </h3>
+    <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
+      Automatisez le classement grâce à votre dictionnaire de règles
+    </span>
   </div>
 
-  <!-- Volet déroulant : Historique des fichiers importés -->
-  {#if showHistoryDrawer}
-    <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-sm); animation: fadeIn 0.2s ease-out;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-        <span style="font-weight: 800; font-size: 0.88rem; color: var(--text-main);">
-          Fichiers CSV importés dans cet espace
-        </span>
-        <span style="font-size: 0.78rem; color: var(--text-muted);">
-          Vous pouvez annuler n'importe quel import pour retirer ses opérations
-        </span>
+  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <!-- Bouton pour ouvrir le Dictionnaire d'attribution -->
+        <button 
+          type="button" 
+          class="btn btn-secondary btn-sm"
+          onclick={() => showDictionaryModal = true}
+          style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.84rem; padding: 8px 16px; background: var(--bg-card, #ffffff); border: 1.5px solid var(--border-container); color: var(--text-main); border-radius: 8px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+        >
+          <i class="fa-solid fa-book-bookmark" style="color: #6366f1;"></i>
+          Dictionnaire d'attribution ({$rules.length})
+        </button>
+
+        <!-- Bouton pour déplier l'historique -->
+        <button 
+          type="button" 
+          class="btn btn-secondary btn-sm"
+          onclick={() => showHistoryDrawer = !showHistoryDrawer}
+          style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.82rem; padding: 8px 16px; background: var(--bg-card, #ffffff); border: 1px solid var(--border-container); color: var(--text-main); border-radius: 8px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+        >
+          <i class="fa-solid fa-clock-rotate-left" style="color: #64748b;"></i>
+          Historique des imports ({importsHistory.length})
+          <i class="fa-solid {showHistoryDrawer ? 'fa-chevron-up' : 'fa-chevron-down'}" style="font-size: 0.72rem; color: var(--text-muted);"></i>
+        </button>
       </div>
 
-      {#if importsHistory.length === 0}
-        <div style="text-align: center; padding: 14px; color: var(--text-muted); font-size: 0.85rem;">
-          Aucun fichier importé récemment enregistré dans l'historique.
-        </div>
-      {:else}
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          {#each importsHistory as item}
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; gap: 12px;">
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 32px; height: 32px; border-radius: 6px; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0;">
-                  <i class="fa-solid fa-file-csv"></i>
-                </div>
-                <div>
-                  <div style="font-weight: 700; color: #0f172a; font-size: 0.88rem;">{item.fileName}</div>
-                  <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">
-                    {new Date(item.date).toLocaleString('fr-FR')} &bull; {item.size} &bull; <strong style="color: #0f172a;">{item.linesCount} écritures</strong>
-                  </div>
-                </div>
-              </div>
-
-              <button 
-                type="button" 
-                class="btn btn-sm"
-                onclick={() => supprimerImport(item.id, item.fileName, item.linesCount)}
-                style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.78rem; padding: 6px 12px; background: #ffffff; border: 1.5px solid #fca5a5; color: #dc2626; border-radius: 6px; cursor: pointer; transition: all 0.15s;"
-                onmouseenter={(e) => { e.currentTarget.style.background = '#fee2e2'; }}
-                onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
-              >
-                <i class="fa-solid fa-trash-can"></i>
-                Annuler cet import
-              </button>
-            </div>
-          {/each}
-        </div>
+      <!-- Bouton pour tout effacer si des opérations sont présentes -->
+      {#if currentStructureTx.length > 0}
+        <button 
+          type="button" 
+          class="btn btn-sm"
+          onclick={effacerToutesOperations}
+          style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.8rem; padding: 7px 14px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 8px; cursor: pointer;"
+          title="Effacer toutes les écritures de cette structure"
+        >
+          <i class="fa-solid fa-trash-can"></i>
+          Effacer tout le relevé ({currentStructureTx.length} écritures)
+        </button>
       {/if}
     </div>
-  {/if}
+
+    <!-- Volet déroulant : Historique des fichiers importés -->
+    {#if showHistoryDrawer}
+      <div style="background: var(--bg-card, #ffffff); border: 1px solid var(--border-container); border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); animation: fadeIn 0.2s ease-out; margin-top: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-container); padding-bottom: 8px;">
+          <span style="font-weight: 800; font-size: 0.88rem; color: var(--text-main);">
+            Fichiers CSV importés dans cet espace
+          </span>
+          <span style="font-size: 0.78rem; color: var(--text-muted);">
+            Vous pouvez annuler n'importe quel import pour retirer ses opérations
+          </span>
+        </div>
+
+        {#if importsHistory.length === 0}
+          <div style="text-align: center; padding: 14px; color: var(--text-muted); font-size: 0.85rem;">
+            Aucun fichier importé récemment enregistré dans l'historique.
+          </div>
+        {:else}
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            {#each importsHistory as item}
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-container); border: 1px solid var(--border-container); border-radius: 8px; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div style="width: 32px; height: 32px; border-radius: 6px; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0;">
+                    <i class="fa-solid fa-file-csv"></i>
+                  </div>
+                  <div>
+                    <div style="font-weight: 700; color: #0f172a; font-size: 0.88rem;">{item.fileName}</div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">
+                      {new Date(item.date).toLocaleString('fr-FR')} &bull; {item.size} &bull; <strong style="color: #0f172a;">{item.linesCount} écritures</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  type="button" 
+                  class="btn btn-sm"
+                  onclick={() => supprimerImport(item.id, item.fileName, item.linesCount)}
+                  style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.78rem; padding: 6px 12px; background: var(--bg-card, #ffffff); border: 1.5px solid #fca5a5; color: #dc2626; border-radius: 6px; cursor: pointer; transition: all 0.15s;"
+                  onmouseenter={(e) => { e.currentTarget.style.background = '#fee2e2'; }}
+                  onmouseleave={(e) => { e.currentTarget.style.background = 'var(--bg-card, #ffffff)'; }}
+                >
+                  <i class="fa-solid fa-trash-can"></i>
+                  Annuler cet import
+                </button>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
+  </div>
 </div>
 
-<div style="display: block; width: 100%; margin-top: 10px;">
-  <div class="card" style="padding: 24px; width: 100%;">
-    
-    <!-- Filter Tabs + Compact Batch Validation Button & Help ? Button -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px; width: 100%;">
-      <div style="display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-        <button
-          style="border: none; background: {activeTab === 'pending' ? '#0f172a' : 'transparent'}; color: {activeTab === 'pending' ? '#ffffff' : '#475569'}; font-size: 0.88rem; padding: 8px 20px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 700; transition: all 0.2s;"
-          onclick={() => (activeTab = "pending")}
-        >
-          À attribuer ({nonTriees.length})
-        </button>
-        <button
-          style="border: none; background: {activeTab === 'categorized' ? '#0f172a' : 'transparent'}; color: {activeTab === 'categorized' ? '#ffffff' : '#475569'}; font-size: 0.88rem; padding: 8px 20px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 700; transition: all 0.2s;"
-          onclick={() => (activeTab = "categorized")}
-        >
-          Attribuées ({triees.length})
-        </button>
-      </div>
+<!-- ========================================== -->
+<!-- 3. TRAITEMENT ET AFFECTATION DES OPÉRATIONS -->
+<!-- ========================================== -->
+<div style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+    <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+      <i class="fa-solid fa-arrows-split-up-and-left" style="color: #2563eb; font-size: 0.95rem;"></i> Traitement et affectation des opérations
+    </h3>
+    <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
+      Affectez chaque dépense ou recette à son compte officiel
+    </span>
+  </div>
 
-      <!-- Action par lot réduite & bouton d'aide ? -->
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <button 
-          class="btn btn-primary"
-          onclick={validerToutEnUnClic}
-          disabled={recognizedList.length === 0}
-          style="padding: 9px 18px; font-size: 0.88rem; font-weight: 700; background: #16a34a; color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; gap: 8px; opacity: {recognizedList.length === 0 ? 0.6 : 1}; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);"
-        >
-          <i class="fa-solid fa-bolt"></i>
-          Tout valider ({recognizedList.length} suggestions IA)
-        </button>
+  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+    <div style="padding: 20px; background: var(--bg-card, #ffffff); border: 1px solid var(--border-container); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); width: 100%; box-sizing: border-box;">
+      
+      <!-- Filter Tabs + Compact Batch Validation Button & Help ? Button -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; width: 100%;">
+        <div style="display: flex; gap: 6px; background: var(--bg-container); padding: 4px; border-radius: 10px; border: 1px solid var(--border-container);">
+          <button
+            style="border: none; background: {activeTab === 'pending' ? '#0f172a' : 'transparent'}; color: {activeTab === 'pending' ? '#ffffff' : '#475569'}; font-size: 0.88rem; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: all 0.2s;"
+            onclick={() => (activeTab = "pending")}
+          >
+            À attribuer ({nonTriees.length})
+          </button>
+          <button
+            style="border: none; background: {activeTab === 'categorized' ? '#0f172a' : 'transparent'}; color: {activeTab === 'categorized' ? '#ffffff' : '#475569'}; font-size: 0.88rem; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: all 0.2s;"
+            onclick={() => (activeTab = "categorized")}
+          >
+            Attribuées ({triees.length})
+          </button>
+        </div>
 
-        <button 
-          type="button"
-          class="btn btn-icon"
-          onclick={() => (showPedagogicalModal = true)}
-          title="Aide & explications"
-          aria-label="Aide et explications"
-          style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08);"
-        >
-          ?
-        </button>
+        <!-- Action par lot réduite & bouton d'aide ? -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button 
+            class="btn btn-primary"
+            onclick={validerToutEnUnClic}
+            disabled={recognizedList.length === 0}
+            style="padding: 9px 18px; font-size: 0.88rem; font-weight: 700; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; opacity: {recognizedList.length === 0 ? 0.6 : 1}; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);"
+          >
+            <i class="fa-solid fa-bolt"></i>
+            Tout valider ({recognizedList.length} suggestions IA)
+          </button>
+
+          <button 
+            type="button" 
+            class="btn btn-icon"
+            onclick={() => (showPedagogicalModal = true)}
+            title="Aide & explications"
+            aria-label="Aide et explications"
+            style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-container); background: var(--bg-card, #ffffff); color: var(--text-main); font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08);"
+          >
+            ?
+          </button>
+        </div>
       </div>
-    </div>
 
     <!-- Batch Table -->
     <div class="table-container" style="width: 100%;">
@@ -913,8 +952,8 @@
         </tbody>
       </table>
     </div>
-
   </div>
+</div>
 </div>
 
 <!-- Pedagogical Onboarding Modal -->

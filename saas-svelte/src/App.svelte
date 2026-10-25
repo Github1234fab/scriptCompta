@@ -108,18 +108,18 @@
     },
     {
       targetId: 'menu-categorize',
-      title: 'Étape 2 : Trier et Catégoriser',
-      text: "Une fois importées, le système classe automatiquement la majorité des opérations. S'il reste des transactions inconnues, vous les rangez manuellement ici. En 20 minutes maximum, votre machine a tout appris !"
+      title: 'Étape 2 : Attribution',
+      text: "Une fois importées, le système classe automatiquement la majorité des opérations. S'il reste des transactions inconnues, vous les attribuez manuellement ici. En quelques clics, tout est en ordre !"
     },
     {
       targetId: 'menu-members',
       title: 'Étape 3 : Vos modules de gestion',
-      text: "Ces onglets s'adaptent à votre activité. Suivez par exemple qui sont vos élèves, combien ils vous doivent pour l'année, et relancez les retards de paiements en 1 clic."
+      text: "Ces onglets s'adaptent à votre activité. Suivez par exemple qui sont vos élèves ou adhérents, combien ils vous doivent pour l'année, et relancez les retards de paiements en 1 clic."
     },
     {
       targetId: 'menu-books',
-      title: 'Étape 4 : Registres & Clôture',
-      text: "Le travail est terminé ! Tous vos documents de synthèse (Bilan, Grand Livre, Journal) se génèrent d'eux-mêmes, prêts à être exportés en format officiel (FEC) pour votre expert-comptable."
+      title: 'Étape 4 : Vos Obligations',
+      text: "Tous vos registres légaux, livres obligatoires et déclarations se génèrent d'eux-mêmes, prêts pour l'administration fiscale ou votre expert-comptable."
     }
   ];
 

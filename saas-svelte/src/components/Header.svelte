@@ -21,8 +21,8 @@
 
   let activityLabel = $derived(modelObj?.activityMenu?.label || 'Mon Activité');
   let activityIcon = $derived(modelObj?.activityMenu?.icon || 'fa-briefcase');
-  let booksLabel = $derived(modelObj?.booksMenu?.label || 'Documents & Clôture');
-  let booksIcon = $derived(modelObj?.booksMenu?.icon || 'fa-file-contract');
+  let booksLabel = $derived(modelObj?.booksMenu?.label || 'Documents, Déclarations & Pièces à fournir');
+  let booksIcon = $derived(modelObj?.booksMenu?.icon || 'fa-file-invoice');
 
   let showLogoutModal = $state(false);
   let isLoggingOut = $state(false);
@@ -54,19 +54,19 @@
   <div>
     <h2 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
       {#if $activeView === 'dashboard'}
-        <i class="fa-solid fa-chart-simple" style="color: var(--color-accent);"></i> {modelObj?.dashboardTitle || 'Tableau de bord'}
+        <i class="fa-solid fa-house" style="color: var(--color-accent);"></i> {modelObj?.dashboardTitle || 'Accueil'}
       {:else if $activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces'}
-        <i class="fa-solid fa-list-check" style="color: var(--color-accent);"></i> Libellés & Attribution
+        <i class="fa-solid fa-arrows-split-up-and-left" style="color: var(--color-accent);"></i> Attribution
       {:else if $activeView === 'activity' || $activeView.startsWith('workspace_')}
         <i class="fa-solid {activityIcon}" style="color: var(--color-accent);"></i> {activityLabel}
       {:else if $activeView === 'books' || $activeView === 'recettes'}
-        <i class="fa-solid {booksIcon}" style="color: var(--color-accent);"></i> {booksLabel}
+        <i class="fa-solid fa-scale-balanced" style="color: var(--color-accent);"></i> {booksLabel || 'Obligation'}
       {:else}
         <i class="fa-solid fa-cube" style="color: var(--color-accent);"></i> scriptCompta
       {/if}
     </h2>
     <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
-      <span>Structure : <strong style="color: #0f172a;">{activeEntity ? activeEntity.name : ''}</strong></span>
+      <span>Structure : <strong style="color: #2563eb; background: rgba(37, 99, 235, 0.09); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2);">{activeEntity ? activeEntity.name : ''}</strong></span>
       <span style="background: {modelObj?.accentBg || '#f1f5f9'}; color: {modelObj?.accentColor || '#2563eb'}; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 4px;">
         {modelObj ? modelObj.title : 'Entité'}
       </span>

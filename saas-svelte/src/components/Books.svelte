@@ -46,7 +46,9 @@
     }
     if (accountingModel === 'asso') {
       return [
-        { id: 'recettes_depenses', label: 'Livre de Trésorerie', icon: 'fa-book' },
+        { id: 'journal', label: 'Livre-journal Associatif', icon: 'fa-table-list' },
+        { id: 'grandlivre', label: 'Le Grand-livre Associatif', icon: 'fa-book-bookmark' },
+        { id: 'balance', label: 'La Balance générale', icon: 'fa-scale-balanced' },
         { id: 'bilan', label: 'Bilan & Excédent Associatif', icon: 'fa-chart-pie' }
       ];
     }
@@ -562,7 +564,7 @@
 
 </script>
 
-<div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 22px;">
+<div class="page-title-section" style="margin-bottom: 24px;">
   <div>
     <h1 class="page-title" style="margin: 0 0 6px 0; font-family: var(--font-title); font-weight: 800; font-size: 1.6rem; color: #0f172a;">
       {#if accountingModel === 'micro'}
@@ -573,6 +575,8 @@
         Comptabilité Immobilière & Déclaration 2072
       {:else if accountingModel === 'copro'}
         Comptabilité du Syndicat & Arrêté des Comptes
+      {:else if accountingModel === 'asso'}
+        Comptabilité Associative & Bilan d'AG
       {:else if accountingModel === 'tpe'}
         Livres Comptables & Export FEC
       {:else}
@@ -588,6 +592,8 @@
         Suivez vos encaissements de loyers et charges d'immeuble pour déterminer le résultat net foncier de la déclaration 2072.
       {:else if accountingModel === 'copro'}
         Tenez les journaux légaux de la copropriété (Décret 2005), contrôlez la balance et préparez l'arrêté des comptes pour l'Assemblée Générale.
+      {:else if accountingModel === 'asso'}
+        Tenez le journal et le grand-livre de l'association (Règlement ANC 2018-06), contrôlez la balance et préparez les comptes annuels pour l'Assemblée Générale.
       {:else if accountingModel === 'tpe'}
         Consultez vos livres obligatoires (Journal, Grand-livre, Balance, Bilan) et téléchargez le fichier FEC conforme pour votre expert-comptable.
       {:else}
@@ -595,156 +601,225 @@
       {/if}
     </p>
   </div>
-
-  <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-    {#if accountingModel === 'micro'}
-      <button 
-        type="button" 
-        class="btn btn-success" 
-        onclick={exportLivreRecettesMicro} 
-        style="background: #15803d; color: #ffffff; border: none; padding: 10px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; box-shadow: 0 2px 6px rgba(21, 128, 61, 0.15);"
-      >
-        <i class="fa-solid fa-file-export"></i> Exporter le Livre des Recettes (Format Urssaf)
-      </button>
-      <span style="font-size: 0.74rem; color: #166534; font-weight: 600;">Format officiel exigé par l'Urssaf et la DGFiP</span>
-    {:else}
-      <button 
-        type="button" 
-        class="btn btn-success" 
-        onclick={exportFEC} 
-        style="background: #15803d; color: #ffffff; border: none; padding: 10px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; box-shadow: 0 2px 6px rgba(21, 128, 61, 0.15);"
-        title="Fichier des Écritures Comptables conforme aux normes DGFiP pour l'expert-comptable ou le contrôle fiscal"
-      >
-        <i class="fa-solid fa-file-export"></i> Exporter le fichier FEC (Expert-comptable)
-      </button>
-      <span style="font-size: 0.74rem; color: #166534; font-weight: 600;">Format légal DGFiP pour la clôture fiscale annuelle</span>
-    {/if}
-  </div>
 </div>
 
 <!-- ========================================== -->
-<!-- BARRE DE PÉRIODE COMPTABLE (CALENDRIER SIMPLE & UNIVERSEL) -->
+<!-- 1. BARRE DE PÉRIODE COMPTABLE (CALENDRIER) -->
 <!-- ========================================== -->
-<div class="card" style="margin-bottom: 22px; padding: 14px 20px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.03);">
-  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
-    
-    <!-- SÉLECTION DATES DU / AU AVEC CALENDRIER -->
-    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-      <span style="font-weight: 700; font-size: 0.84rem; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
-        <i class="fa-solid fa-calendar-days" style="color: #2563eb;"></i> Période affichée :
-      </span>
+<div style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+    <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+      <i class="fa-solid fa-calendar-days" style="color: #2563eb; font-size: 0.95rem;"></i> Période affichée & Filtres
+    </h3>
+    <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
+      Sélectionnez l'exercice ou la plage de dates à examiner
+    </span>
+  </div>
+
+  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+    <div style="padding: 14px 20px; background: var(--bg-card, #ffffff); border: 1px solid var(--border-container); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
       
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <label for="fiscal-start" style="font-size: 0.8rem; font-weight: 600; color: #64748b; cursor: pointer;">Du</label>
-        <input 
-          id="fiscal-start" 
-          type="date" 
-          bind:value={localStartDate}
-          onchange={handleSaveFiscalPeriod}
-          style="padding: 6px 10px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.84rem; font-weight: 600; color: #0f172a; background: #f8fafc;"
-        />
+      <!-- SÉLECTION DATES DU / AU AVEC CALENDRIER -->
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <span style="font-weight: 700; font-size: 0.84rem; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
+          <i class="fa-solid fa-calendar-days" style="color: #2563eb;"></i> Période affichée :
+        </span>
+        
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <label for="fiscal-start" style="font-size: 0.8rem; font-weight: 600; color: #64748b; cursor: pointer;">Du</label>
+          <input 
+            id="fiscal-start" 
+            type="date" 
+            bind:value={localStartDate}
+            onchange={handleSaveFiscalPeriod}
+            style="padding: 6px 10px; border: 1.5px solid var(--border-subtle, #cbd5e1); border-radius: 6px; font-size: 0.84rem; font-weight: 600; color: #0f172a; background: var(--bg-container);"
+          />
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <label for="fiscal-end" style="font-size: 0.8rem; font-weight: 600; color: #64748b; cursor: pointer;">au</label>
+          <input 
+            id="fiscal-end" 
+            type="date" 
+            bind:value={localEndDate}
+            onchange={handleSaveFiscalPeriod}
+            style="padding: 6px 10px; border: 1.5px solid var(--border-subtle, #cbd5e1); border-radius: 6px; font-size: 0.84rem; font-weight: 600; color: #0f172a; background: var(--bg-container);"
+          />
+        </div>
+
+        <button 
+          type="button" 
+          onclick={handleSaveFiscalPeriod}
+          style="background: #0f172a; color: #ffffff; border: none; padding: 6px 12px; font-weight: 700; border-radius: 6px; cursor: pointer; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 5px;"
+        >
+          <i class="fa-solid fa-filter"></i> Filtrer
+        </button>
+
+        {#if localStartDate || localEndDate}
+          <button 
+            type="button" 
+            onclick={() => applyPreset('all')}
+            style="background: transparent; color: #dc2626; border: 1px solid #fecaca; padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+            title="Afficher toutes les opérations sans restriction de date"
+          >
+            <i class="fa-solid fa-xmark"></i> Réinitialiser
+          </button>
+        {/if}
       </div>
 
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <label for="fiscal-end" style="font-size: 0.8rem; font-weight: 600; color: #64748b; cursor: pointer;">au</label>
-        <input 
-          id="fiscal-end" 
-          type="date" 
-          bind:value={localEndDate}
-          onchange={handleSaveFiscalPeriod}
-          style="padding: 6px 10px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.84rem; font-weight: 600; color: #0f172a; background: #f8fafc;"
-        />
-      </div>
-
-      <button 
-        type="button" 
-        onclick={handleSaveFiscalPeriod}
-        style="background: #0f172a; color: #ffffff; border: none; padding: 6px 12px; font-weight: 700; border-radius: 6px; cursor: pointer; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 5px;"
-      >
-        <i class="fa-solid fa-filter"></i> Filtrer
-      </button>
-
-      {#if localStartDate || localEndDate}
+      <!-- RACCOURCIS DE PÉRIODE -->
+      <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+        <span style="font-size: 0.76rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Année :</span>
+        <button 
+          type="button" 
+          onclick={() => applyPreset('2026')}
+          style="background: {localStartDate === '2026-01-01' && localEndDate === '2026-12-31' ? '#0f172a' : 'var(--bg-card, #ffffff)'}; color: {localStartDate === '2026-01-01' && localEndDate === '2026-12-31' ? '#ffffff' : '#475569'}; border: 1px solid var(--border-container); padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;"
+        >
+          Année 2026
+        </button>
+        <button 
+          type="button" 
+          onclick={() => applyPreset('2025')}
+          style="background: {localStartDate === '2025-01-01' && localEndDate === '2025-12-31' ? '#0f172a' : 'var(--bg-card, #ffffff)'}; color: {localStartDate === '2025-01-01' && localEndDate === '2025-12-31' ? '#ffffff' : '#475569'}; border: 1px solid var(--border-container); padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;"
+        >
+          Année 2025
+        </button>
         <button 
           type="button" 
           onclick={() => applyPreset('all')}
-          style="background: transparent; color: #dc2626; border: 1px solid #fecaca; padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
-          title="Afficher toutes les opérations sans restriction de date"
+          style="background: {!localStartDate && !localEndDate ? '#0f172a' : 'var(--bg-card, #ffffff)'}; color: {!localStartDate && !localEndDate ? '#ffffff' : '#475569'}; border: 1px solid var(--border-container); padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;"
         >
-          <i class="fa-solid fa-xmark"></i> Réinitialiser
+          Tout l'historique
         </button>
-      {/if}
-    </div>
+      </div>
 
-    <!-- RACCOURCIS DE PÉRIODE -->
-    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-      <span style="font-size: 0.76rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Année :</span>
-      <button 
-        type="button" 
-        onclick={() => applyPreset('2026')}
-        style="background: {localStartDate === '2026-01-01' && localEndDate === '2026-12-31' ? '#0f172a' : '#ffffff'}; color: {localStartDate === '2026-01-01' && localEndDate === '2026-12-31' ? '#ffffff' : '#475569'}; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;"
-      >
-        Année 2026
-      </button>
-      <button 
-        type="button" 
-        onclick={() => applyPreset('2025')}
-        style="background: {localStartDate === '2025-01-01' && localEndDate === '2025-12-31' ? '#0f172a' : '#ffffff'}; color: {localStartDate === '2025-01-01' && localEndDate === '2025-12-31' ? '#ffffff' : '#475569'}; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;"
-      >
-        Année 2025
-      </button>
-      <button 
-        type="button" 
-        onclick={() => applyPreset('all')}
-        style="background: {!localStartDate && !localEndDate ? '#0f172a' : '#ffffff'}; color: {!localStartDate && !localEndDate ? '#ffffff' : '#475569'}; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;"
-      >
-        Tout l'historique
-      </button>
-    </div>
-
-    <!-- COMPTEUR DES ÉCRITURES -->
-    <div>
-      {#if localStartDate || localEndDate}
-        <span class="badge badge-success" style="font-size: 0.75rem; padding: 4px 10px;">
-          {sortedTxList.length} sur {rawTxList.length} opérations
-        </span>
-      {:else}
-        <span class="badge badge-muted" style="font-size: 0.75rem; padding: 4px 10px;">
-          {rawTxList.length} opérations au total
-        </span>
-      {/if}
-    </div>
-
-  </div>
-</div>
-
-<!-- Sub Tabs Bar (Segmented Control Haute Visibilité) -->
-<div style="display: flex; justify-content: center; margin-bottom: 24px; width: 100%;">
-  <div class="tabs-segmented-container">
-    {#each subTabs as tab}
-      <button 
-        type="button" 
-        id="sub-btn-{tab.id}"
-        class="tab-segmented-btn"
-        class:active={activeSubTab === tab.id}
-        onclick={() => activeSubTab = tab.id}
-      >
-        <i class="fa-solid {tab.icon}"></i>
-        <span>{tab.label}</span>
-        {#if activeSubTab === tab.id}
-          <span class="active-dot" title="Rubrique active"></span>
+      <!-- COMPTEUR DES ÉCRITURES -->
+      <div>
+        {#if localStartDate || localEndDate}
+          <span class="badge badge-success" style="font-size: 0.75rem; padding: 4px 10px;">
+            {sortedTxList.length} sur {rawTxList.length} opérations
+          </span>
+        {:else}
+          <span class="badge badge-muted" style="font-size: 0.75rem; padding: 4px 10px; background: var(--bg-container); border: 1px solid var(--border-container);">
+            {rawTxList.length} opérations au total
+          </span>
         {/if}
-      </button>
-    {/each}
+      </div>
+
+    </div>
   </div>
 </div>
+
+<!-- ========================================== -->
+<!-- 2. BLOC EXPORT OFFICIEL & CLÔTURE (SOUS LE CALENDRIER) -->
+<!-- ========================================== -->
+<div style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+    <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+      <i class="fa-solid fa-file-export" style="color: #15803d; font-size: 0.95rem;"></i> Export officiel & Clôture
+    </h3>
+    <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
+      Documents certifiés pour l'Urssaf, la DGFiP ou votre expert-comptable
+    </span>
+  </div>
+
+  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+    <div style="padding: 16px 20px; background: var(--bg-card, #ffffff); border: 1px solid var(--border-container); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+      
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="width: 44px; height: 44px; border-radius: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;">
+          <i class="fa-solid fa-file-lines"></i>
+        </div>
+        <div>
+          <div style="font-weight: 700; font-size: 0.95rem; color: #0f172a;">
+            {#if accountingModel === 'micro'}
+              Livre des recettes officiel (Format Urssaf & DGFiP)
+            {:else}
+              Fichier des Écritures Comptables (FEC officiel)
+            {/if}
+          </div>
+          <div style="font-size: 0.82rem; color: #64748b; margin-top: 2px;">
+            {#if accountingModel === 'micro'}
+              Téléchargez le registre complet des recettes avec dates, tiers, factures et modes de règlement.
+            {:else}
+              Exportez l'ensemble du journal comptable normalisé conforme à l'article L.47 A-I du LPF.
+            {/if}
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+        {#if accountingModel === 'micro'}
+          <button 
+            type="button" 
+            class="btn btn-success" 
+            onclick={exportLivreRecettesMicro} 
+            style="background: #15803d; color: #ffffff; border: none; padding: 10px 20px; font-weight: 700; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; box-shadow: 0 2px 6px rgba(21, 128, 61, 0.15);"
+          >
+            <i class="fa-solid fa-file-export"></i> Exporter le Livre des Recettes (Format Urssaf)
+          </button>
+          <span style="font-size: 0.74rem; color: #166534; font-weight: 600;">Format officiel exigé par l'Urssaf et la DGFiP</span>
+        {:else}
+          <button 
+            type="button" 
+            class="btn btn-success" 
+            onclick={exportFEC} 
+            style="background: #15803d; color: #ffffff; border: none; padding: 10px 20px; font-weight: 700; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; box-shadow: 0 2px 6px rgba(21, 128, 61, 0.15);"
+            title="Fichier des Écritures Comptables conforme aux normes DGFiP pour l'expert-comptable ou le contrôle fiscal"
+          >
+            <i class="fa-solid fa-file-export"></i> Exporter le fichier FEC (Expert-comptable)
+          </button>
+          <span style="font-size: 0.74rem; color: #166534; font-weight: 600;">Format légal DGFiP pour la clôture fiscale annuelle</span>
+        {/if}
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- 3. REGISTRES & DOCUMENTS LÉGAUX -->
+<!-- ========================================== -->
+<div style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+    <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+      <i class="fa-solid fa-book-open" style="color: #2563eb; font-size: 0.95rem;"></i> Registres et documents légaux
+    </h3>
+    <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
+      Consultation détaillée et export des écritures
+    </span>
+  </div>
+
+  <!-- Sub Tabs Bar (Segmented Control Haute Visibilité) -->
+  <div style="display: flex; justify-content: center; margin-bottom: 20px; width: 100%;">
+    <div class="tabs-segmented-container">
+      {#each subTabs as tab}
+        <button 
+          type="button" 
+          id="sub-btn-{tab.id}"
+          class="tab-segmented-btn"
+          class:active={activeSubTab === tab.id}
+          onclick={() => activeSubTab = tab.id}
+        >
+          <i class="fa-solid {tab.icon}"></i>
+          <span>{tab.label}</span>
+          {#if activeSubTab === tab.id}
+            <span class="active-dot" title="Rubrique active"></span>
+          {/if}
+        </button>
+      {/each}
+    </div>
+  </div>
+
+  <!-- GRAND BLOC GÉNÉRAL QUI ACCUEILLE LE CONTENU DU LIVRE ACTIF -->
+  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
 
 <!-- ========================================== -->
 <!-- SOUS-ONGLETS POUR MICRO-ENTREPRISE -->
 <!-- ========================================== -->
 {#if accountingModel === 'micro'}
   {#if activeSubTab === 'recettes'}
-  <div class="card" style="padding: 20px 24px; margin-bottom: 22px; border-left: 4px solid #16a34a; background: #ffffff;">
+  <div class="card" style="padding: 20px 24px; border: 1px solid var(--border-container); border-left: 4px solid #16a34a; background: var(--bg-card, #ffffff); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 12px;">
       <div>
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
@@ -819,7 +894,7 @@
 {/if}
 
 {#if activeSubTab === 'achats'}
-  <div class="card" style="padding: 20px 24px; margin-bottom: 22px; border-left: 4px solid #dc2626; background: #ffffff;">
+  <div class="card" style="padding: 20px 24px; border: 1px solid var(--border-container); border-left: 4px solid #dc2626; background: var(--bg-card, #ffffff); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 12px;">
       <div>
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
@@ -892,7 +967,7 @@
 {/if}
 
 {#if activeSubTab === 'recap_ca'}
-  <div class="card" style="padding: 20px 24px; margin-bottom: 22px; border-left: 4px solid #2563eb; background: #ffffff;">
+  <div class="card" style="padding: 20px 24px; border: 1px solid var(--border-container); border-left: 4px solid #2563eb; background: var(--bg-card, #ffffff); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 12px;">
       <div>
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
@@ -1171,6 +1246,8 @@
           <h3 style="font-family: var(--font-title); color: #0f172a; margin: 0; font-weight: 800; font-size: 1.15rem;">
             {#if accountingModel === 'copro'}
               Livre-journal de la Copropriété (Décret 2005)
+            {:else if accountingModel === 'asso'}
+              Livre-journal de l'Association (Règlement ANC 2018-06)
             {:else}
               Livre-journal des Écritures (Partie double)
             {/if}
@@ -1178,6 +1255,8 @@
           <span class="badge badge-primary" style="font-size: 0.72rem; text-transform: uppercase;">
             {#if accountingModel === 'copro'}
               Décret n°2005-240
+            {:else if accountingModel === 'asso'}
+              Plan Comptable Associatif
             {:else}
               Livre obligatoire L123-12
             {/if}
@@ -1189,6 +1268,8 @@
             <span style="color: #475569;">
               {#if accountingModel === 'copro'}
                 Enregistre chronologiquement chaque appel de fonds, facture fournisseur et encaissement avec imputation débit/crédit et numéro de pièce séquentiel.
+              {:else if accountingModel === 'asso'}
+                Enregistre chronologiquement chaque cotisation, don, subvention reçue et dépense associative au débit/crédit avec numéro de pièce unique.
               {:else}
                 Enregistre chaque opération au débit (emploi de fonds) et au crédit (ressource), avec numéro de pièce séquentiel unique.
               {/if}
@@ -1199,6 +1280,8 @@
             <span style="color: #475569;">
               {#if accountingModel === 'copro'}
                 Garantir une traçabilité comptable totale de l'immeuble pour le Conseil Syndical et le vote de l'Assemblée Générale.
+              {:else if accountingModel === 'asso'}
+                Présenter une comptabilité certifiée et transparente lors de l'Assemblée Générale et justifier de l'emploi des fonds auprès des financeurs publics (subventions).
               {:else}
                 Prouver la légalité de vos comptes et transmettre le journal comptable complet à votre expert-comptable.
               {/if}
@@ -1263,7 +1346,13 @@
               </td>
               <td colspan="2" style="text-align: right; padding-top: 6px; padding-bottom: 6px;">
                 <span class="badge badge-success" style="font-size: 0.74rem;">
-                  {accountingModel === 'copro' ? 'Conforme Décret Copropriété 2005' : 'Conforme FEC & Normes DGFiP'}
+                  {#if accountingModel === 'copro'}
+                    Conforme Décret Copropriété 2005
+                  {:else if accountingModel === 'asso'}
+                    Conforme Normes Associatives ANC
+                  {:else}
+                    Conforme FEC & Normes DGFiP
+                  {/if}
                 </span>
               </td>
             </tr>
@@ -1282,10 +1371,22 @@
         <div>
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
             <h3 style="font-family: var(--font-title); color: #0f172a; margin: 0; font-weight: 800; font-size: 1.15rem;">
-              {accountingModel === 'copro' ? 'Le Grand-livre de la Copropriété' : 'Le Grand-livre Général des Comptes'}
+              {#if accountingModel === 'copro'}
+                Le Grand-livre de la Copropriété
+              {:else if accountingModel === 'asso'}
+                Le Grand-livre de l'Association
+              {:else}
+                Le Grand-livre Général des Comptes
+              {/if}
             </h3>
             <span class="badge badge-primary" style="font-size: 0.72rem; text-transform: uppercase;">
-              {accountingModel === 'copro' ? 'Décret n°2005-240' : 'Livre obligatoire L123-12'}
+              {#if accountingModel === 'copro'}
+                Décret n°2005-240
+              {:else if accountingModel === 'asso'}
+                Plan Comptable Associatif
+              {:else}
+                Livre obligatoire L123-12
+              {/if}
             </span>
           </div>
           <div style="display: flex; flex-direction: column; gap: 3px; font-size: 0.85rem;">
@@ -1294,6 +1395,8 @@
               <span style="color: #475569;">
                 {#if accountingModel === 'copro'}
                   Regroupe toutes les opérations compte par compte (Banque 512, Fournisseurs 401, Copropriétaires 450, Charges 6xx, Provisions ALUR 102) avec calcul du solde progressif en continu.
+                {:else if accountingModel === 'asso'}
+                  Regroupe toutes les opérations par compte associatif (Banque 512, Cotisations 756, Dons 754, Subventions 74, Dépenses 6xx) avec calcul du solde progressif en continu.
                 {:else}
                   Regroupe toutes les opérations compte par compte (Banque 512, Fournisseurs 401, Ventes 706, Achats 606...) avec calcul du solde progressif en continu.
                 {/if}
@@ -1304,6 +1407,8 @@
               <span style="color: #475569;">
                 {#if accountingModel === 'copro'}
                   Vérifier la situation individuelle de chaque copropriétaire, contrôler les factures par fournisseur et justifier chaque dépense d'immeuble.
+                {:else if accountingModel === 'asso'}
+                  Suivre avec précision le solde de chaque activité, ventiler les subventions affectées et justifier les comptes auprès du trésorier et des vérificateurs aux comptes.
                 {:else}
                   Auditer l'historique détaillé de chaque compte et contrôler les cumuls annuels par poste de dépenses ou de recettes.
                 {/if}
@@ -1368,7 +1473,13 @@
       <div>
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
           <h3 style="font-family: var(--font-title); color: #0f172a; margin: 0; font-weight: 800; font-size: 1.15rem;">
-            {accountingModel === 'copro' ? 'La Balance Générale de la Copropriété' : 'La Balance Générale des Comptes'}
+            {#if accountingModel === 'copro'}
+              La Balance Générale de la Copropriété
+            {:else if accountingModel === 'asso'}
+              La Balance Générale de l'Association
+            {:else}
+              La Balance Générale des Comptes
+            {/if}
           </h3>
           <span class="badge badge-primary" style="font-size: 0.72rem; text-transform: uppercase;">Outil de contrôle & équilibre</span>
         </div>
@@ -1378,6 +1489,8 @@
             <span style="color: #475569;">
               {#if accountingModel === 'copro'}
                 Synthétise les débits, crédits et soldes de tous les comptes du syndicat (charges, appels de fonds, copropriétaires, trésorerie).
+              {:else if accountingModel === 'asso'}
+                Synthétise l'ensemble des comptes ouverts de l'association (charges, cotisations, dons, subventions, trésorerie) avec débits, crédits et soldes nets.
               {:else}
                 Récapitule le total des débits et des crédits pour l'ensemble des comptes ouverts, ainsi que leur solde net débiteur ou créditeur.
               {/if}
@@ -1388,6 +1501,8 @@
             <span style="color: #475569;">
               {#if accountingModel === 'copro'}
                 Valider l'équilibre comptable rigoureux avant l'établissement des annexes d'Assemblée Générale.
+              {:else if accountingModel === 'asso'}
+                S'assurer de l'équilibre parfait de la comptabilité associative avant la clôture annuelle et le vote du quitus de gestion en AG.
               {:else}
                 Vérifier l'égalité arithmétique stricte Débit = Crédit (aucun centime d'écart) indispensable avant la clôture annuelle.
               {/if}
@@ -1539,6 +1654,8 @@
       <h3 style="font-family: var(--font-title); margin: 0 0 15px 0; border-bottom: 1.5px solid var(--border-color); padding-bottom: 10px; color: #0f172a; font-weight: 800; font-size: 1.05rem;">
         {#if accountingModel === 'copro'}
           ACTIF DU SYNDICAT (Disponibilités bancaires & Créances)
+        {:else if accountingModel === 'asso'}
+          ACTIF ASSOCIATIF (Trésorerie & Valeurs de l'association)
         {:else}
           ACTIF (Ce que la structure possède)
         {/if}
@@ -1559,7 +1676,13 @@
           {/each}
           <tr style="background-color: #f8fafc;">
             <td style="color: #0f172a; font-weight: 800;">
-              {accountingModel === 'copro' ? 'TOTAL DE L’ACTIF (Trésorerie & Créances)' : "TOTAL DE L'ACTIF"}
+              {#if accountingModel === 'copro'}
+                TOTAL DE L’ACTIF (Trésorerie & Créances)
+              {:else if accountingModel === 'asso'}
+                TOTAL DE L’ACTIF ASSOCIATIF
+              {:else}
+                TOTAL DE L'ACTIF
+              {/if}
             </td>
             <td class="amount" style="text-align: right; color: #2563eb; font-weight: 800; font-size: 1.1rem;">
               {bilanData.totalActif.toFixed(2)} €
@@ -1574,6 +1697,8 @@
       <h3 style="font-family: var(--font-title); margin: 0 0 15px 0; border-bottom: 1.5px solid var(--border-color); padding-bottom: 10px; color: #0f172a; font-weight: 800; font-size: 1.05rem;">
         {#if accountingModel === 'copro'}
           PASSIF DU SYNDICAT (Avances, Provisions ALUR & Dettes)
+        {:else if accountingModel === 'asso'}
+          PASSIF & FONDS ASSOCIATIFS (Fonds propres & Dettes)
         {:else}
           PASSIF (Ce que la structure doit)
         {/if}
@@ -1609,7 +1734,13 @@
           </tr>
           <tr style="background-color: #f8fafc;">
             <td style="color: #0f172a; font-weight: 800;">
-              {accountingModel === 'copro' ? 'TOTAL DU PASSIF (Provisions & Dettes)' : 'TOTAL DU PASSIF'}
+              {#if accountingModel === 'copro'}
+                TOTAL DU PASSIF (Provisions & Dettes)
+              {:else if accountingModel === 'asso'}
+                TOTAL DU PASSIF & FONDS PROPRES
+              {:else}
+                TOTAL DU PASSIF
+              {/if}
             </td>
             <td class="amount" style="text-align: right; color: var(--color-success); font-weight: 800; font-size: 1.1rem;">
               {bilanData.totalPassif.toFixed(2)} €
@@ -1622,16 +1753,18 @@
   </div>
 {/if}
 {/if}
+  </div>
+</div>
 
 <style>
   .tabs-segmented-container {
     display: inline-flex;
     gap: 6px;
-    background: #e2e8f0;
+    background: var(--bg-container, #f8fafc);
     padding: 6px;
     border-radius: 14px;
-    border: 1.5px solid #cbd5e1;
-    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+    border: 1.5px solid var(--border-container, #e2e8f0);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
     flex-wrap: wrap;
     justify-content: center;
   }

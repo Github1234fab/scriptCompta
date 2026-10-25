@@ -7,24 +7,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* 🎨 SCRIPTCOMPTA DESIGN SYSTEM - LIGHT SLATE MINIMALISTE */
+  /* SCRIPTCOMPTA DESIGN SYSTEM - LIGHT SLATE MINIMALISTE */
   
   /* 1. Fond Global de l'application */
-  --bg-app: #f1f3f6;
+  --bg-app: #ffffff;
   
   /* 2. Barre Latérale Gauche (Sidebar) */
   --bg-sidebar: #0f172a;
   
   /* 3. Header Supérieur (Bandeau d'en-tête) */
-  --bg-header: #e2e5ec;
+  --bg-header: #ffffff;
   
   /* 4. Fond du Screen Principal (Zone de travail) */
-  --bg-screen: #f1f3f6;
+  --bg-screen: #ffffff;
   
   /* 5. Cartes, KPIs & Conteneurs de Tableaux */
+  --bg-container: #fbfbfb; /* Conteneur général (gris ardoise très clair) */
+  --border-container: #e2e8f0; /* Bordure des conteneurs */
+  --bg-subtle: #f1f5f9; /* Pastilles et éléments discrets */
+  --border-subtle: #e2e8f0;
   --bg-card: #ffffff;
   --bg-kpi: #ffffff; /* Cartes KPI blanches épurées avec bordures */
-  --bg-card-hover: #f8fafc;
+  --bg-card-hover: #f1f5f9;
   
   /* 6. Modales & Popups */
   --bg-modal: #ffffff;
@@ -206,21 +210,24 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 16px;
+  padding: 10px 14px;
   border-radius: var(--radius-md);
-  color: #94a3b8 !important;
+  color: #f8fafc !important;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
   border: 1px solid transparent;
+  position: relative;
 }
 
 .menu-item i {
-  color: #94a3b8;
+  color: #e2e8f0;
   width: 20px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   text-align: center;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
 }
 
 .menu-item:hover {
@@ -235,13 +242,60 @@ body {
 .menu-item.active {
   background-color: #1e293b !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
   font-weight: 700;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .menu-item.active i {
   color: #60a5fa !important;
+}
+
+.menu-label-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+/* Tooltip flottant au hover pour les libellés tronqués */
+.menu-item[data-tooltip] {
+  position: relative;
+}
+
+.menu-item[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #111827;
+  color: #ffffff;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 999999;
+  pointer-events: none;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.menu-item[data-tooltip]:hover::before {
+  content: '';
+  position: absolute;
+  left: calc(100% + 5px);
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent #111827 transparent transparent;
+  z-index: 999999;
+  pointer-events: none;
 }
 
 /* Main Content Area */
@@ -369,37 +423,6 @@ body {
   margin: 20px 0 10px 10px;
 }
 
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 16px;
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-weight: 500;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  border: 1px solid transparent;
-}
-
-.menu-item i {
-  font-size: 1.2rem;
-  width: 20px;
-  text-align: center;
-}
-
-.menu-item:hover, .menu-item.active {
-  color: var(--text-primary);
-  background-color: var(--bg-card);
-  border-color: var(--border-color);
-}
-
-.menu-item.active {
-  background: linear-gradient(to right, rgba(99, 102, 241, 0.15), transparent);
-  border-left: 3px solid var(--color-primary);
-  border-color: var(--border-color) var(--border-color) var(--border-color) var(--color-primary);
-}
 
 .sidebar-footer {
   margin-top: auto;

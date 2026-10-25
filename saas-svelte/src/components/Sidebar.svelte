@@ -28,8 +28,8 @@
 
   let activityLabel = $derived(currentModelConfig?.activityMenu?.label || 'Mon Activité');
   let activityIcon = $derived(currentModelConfig?.activityMenu?.icon || 'fa-briefcase');
-  let booksLabel = $derived(currentModelConfig?.booksMenu?.label || 'Documents & Clôture');
-  let booksIcon = $derived(currentModelConfig?.booksMenu?.icon || 'fa-file-contract');
+  let booksLabel = $derived(currentModelConfig?.booksMenu?.label || 'Documents, Déclarations & Pièces à fournir');
+  let booksIcon = $derived(currentModelConfig?.booksMenu?.icon || 'fa-file-invoice');
 
   let pendingTxBadgeCount = $derived($transactions.filter(
     (/** @type {any} */ t) => (!t.entityId || t.entityId === $activeEntityId) && (t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere')
@@ -203,52 +203,64 @@
   <nav style="flex: 1; padding: 14px 12px; overflow-y: auto;">
     <ul class="sidebar-menu" style="list-style: none; padding: 0; margin: 0;">
       
-      <!-- 1. TABLEAU DE BORD -->
+      <!-- 1. ACCUEIL -->
       <li style="margin-bottom: 6px;">
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <span 
            id="menu-dashboard" 
            class="menu-item {$activeView === 'dashboard' ? 'active' : ''}" 
+           data-tooltip="Accueil"
+           title="Accueil"
            onclick={() => switchView('dashboard')}>
-          <i class="fa-solid fa-chart-simple"></i> Tableau de bord
+          <i class="fa-solid fa-house"></i>
+          <span class="menu-label-text">Accueil</span>
         </span>
       </li>
 
-      <!-- 2. LIBELLÉS & ATTRIBUTION -->
+      <!-- 2. ATTRIBUTION -->
       <li style="margin-bottom: 6px;">
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <span 
            id="menu-categorize" 
            class="menu-item {$activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces' ? 'active' : ''}" 
+           data-tooltip="Attribution"
+           title="Attribution"
            onclick={() => switchView('categorize')}>
-          <i class="fa-solid fa-list-check"></i> Libellés & Attribution
+          <i class="fa-solid fa-arrows-split-up-and-left"></i>
+          <span class="menu-label-text">Attribution</span>
           {#if pendingTxBadgeCount > 0}
-            <span class="badge" id="pending-tx-badge" style="margin-left: auto; background: #f59e0b; color: #ffffff; font-size: 0.72rem; padding: 2px 7px; border-radius: 10px; font-weight: 800; min-width: 18px; text-align: center;">{pendingTxBadgeCount}</span>
+            <span class="badge" id="pending-tx-badge" style="margin-left: auto; background: #f59e0b; color: #ffffff; font-size: 0.72rem; padding: 2px 7px; border-radius: 10px; font-weight: 800; min-width: 18px; text-align: center; flex-shrink: 0;">{pendingTxBadgeCount}</span>
           {/if}
         </span>
       </li>
 
-      <!-- 3. GESTION DES ADHÉRENTS & DONS (Uniquement pour le modèle Association car il s'agit d'un registre d'adhérents et de reçus fiscaux CERFA ; masqué pour les structures professionnelles où tout est piloté depuis le Tableau de bord) -->
+      <!-- 3. GESTION DES ADHÉRENTS & DONS (Uniquement pour le modèle Association car il s'agit d'un registre d'adhérents et de reçus fiscaux CERFA ; masqué pour les structures professionnelles où tout est piloté depuis l'Accueil) -->
       {#if accountingModel === 'asso'}
         <li style="margin-bottom: 6px;">
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
           <span 
              id="menu-activity" 
              class="menu-item {$activeView === 'activity' || $activeView === 'workspace_asso' || $activeView === 'members' || $activeView === 'sales' || $activeView === 'donations' ? 'active' : ''}" 
+             data-tooltip={activityLabel}
+             title={activityLabel}
              onclick={() => switchView('activity')}>
-            <i class="fa-solid {activityIcon}"></i> {activityLabel}
+            <i class="fa-solid {activityIcon}"></i>
+            <span class="menu-label-text">{activityLabel}</span>
           </span>
         </li>
       {/if}
 
-      <!-- 4. DOCUMENTS & CLÔTURE (DYNAMIQUE) -->
+      <!-- 4. OBLIGATION (REGISTRES, DÉCLARATIONS & JUSTIFICATIFS) -->
       <li style="margin-bottom: 6px;">
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <span 
            id="menu-books" 
            class="menu-item {$activeView === 'books' || $activeView === 'livre_recettes' ? 'active' : ''}" 
+           data-tooltip={booksLabel || 'Obligation'}
+           title={booksLabel || 'Obligation'}
            onclick={() => switchView('books')}>
-          <i class="fa-solid {booksIcon}"></i> {booksLabel}
+          <i class="fa-solid fa-scale-balanced"></i>
+          <span class="menu-label-text">{booksLabel || 'Obligation'}</span>
         </span>
       </li>
 
@@ -258,9 +270,11 @@
         <span 
            id="start-tour-btn" 
            class="menu-item" 
-           style="color: #60a5fa;" 
+           style="color: #60a5fa !important;" 
+           title="Guide d'utilisation"
            onclick={() => startTour && startTour()}>
-          <i class="fa-solid fa-circle-play" style="color: #60a5fa;"></i> Guide d'utilisation
+          <i class="fa-solid fa-circle-play" style="color: #60a5fa !important;"></i>
+          <span class="menu-label-text" style="color: #60a5fa;">Guide d'utilisation</span>
         </span>
       </li>
 
@@ -340,7 +354,7 @@
           onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#2563eb'}
           title="Passer en illimité à 9,90€/mois"
         >
-          <span>Passer en illimité (9,90 €)</span> ➔
+          <span>Passer en illimité (9,90 €)</span> <i class="fa-solid fa-arrow-right" style="font-size: 0.78rem;"></i>
         </button>
       </div>
     {/if}
