@@ -57,6 +57,7 @@
   function switchMode(newMode) {
     mode = newMode;
     showPassword = false;
+    password = '';
     clearErrors();
   }
 
@@ -157,6 +158,7 @@
           bind:value={email}
           oninput={clearErrors}
           required
+          autocomplete="email"
           placeholder="nom@exemple.fr"
           class="auth-input"
         />
@@ -172,6 +174,7 @@
             oninput={clearErrors}
             required
             minlength={mode === 'register' ? '8' : '6'}
+            autocomplete={mode === 'register' ? 'new-password' : 'current-password'}
             placeholder="••••••••"
             class="auth-input password-input"
           />
