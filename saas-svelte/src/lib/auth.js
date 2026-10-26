@@ -60,6 +60,30 @@ onAuthStateChanged(
 );
 
 /**
+ * Validation robuste du mot de passe
+ * @param {string} password
+ * @returns {string | null}
+ */
+export function validatePassword(password) {
+  if (!password || password.length < 8) {
+    return 'Le mot de passe doit comporter au moins 8 caractères.';
+  }
+  if (!/[A-Z]/.test(password)) {
+    return 'Le mot de passe doit comporter au moins une lettre majuscule.';
+  }
+  if (!/[a-z]/.test(password)) {
+    return 'Le mot de passe doit comporter au moins une lettre minuscule.';
+  }
+  if (!/[0-9]/.test(password)) {
+    return 'Le mot de passe doit comporter au moins un chiffre.';
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return 'Le mot de passe doit comporter au moins un caractère spécial (@, #, $, !, %, etc.).';
+  }
+  return null;
+}
+
+/**
  * Inscription Email/Mot de passe
  * @param {string} email
  * @param {string} password
@@ -68,6 +92,14 @@ onAuthStateChanged(
 export async function registerWithEmail(email, password, displayName = '') {
   authLoading.set(true);
   authError.set(null);
+
+  const pwdError = validatePassword(password);
+  if (pwdError) {
+    authLoading.set(false);
+    authError.set(pwdError);
+    throw new Error(pwdError);
+  }
+
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     if (displayName && cred.user) {

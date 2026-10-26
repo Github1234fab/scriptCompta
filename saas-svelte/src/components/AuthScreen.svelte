@@ -15,6 +15,35 @@
   let localError = $state('');
   let showPassword = $state(false);
 
+  // Sécurité et robustesse du mot de passe
+  let hasMinLength = $derived(password.length >= 8);
+  let hasUpper = $derived(/[A-Z]/.test(password));
+  let hasLower = $derived(/[a-z]/.test(password));
+  let hasNumber = $derived(/[0-9]/.test(password));
+  let hasSpecial = $derived(/[^A-Za-z0-9]/.test(password));
+
+  let passwordStrengthScore = $derived(
+    [hasMinLength, hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length
+  );
+
+  let isPasswordValid = $derived(
+    hasMinLength && hasUpper && hasLower && hasNumber && hasSpecial
+  );
+
+  let strengthLabel = $derived.by(() => {
+    if (!password) return '';
+    if (passwordStrengthScore <= 2) return 'Faible';
+    if (passwordStrengthScore <= 4) return 'Moyen';
+    return 'Robuste';
+  });
+
+  let strengthClass = $derived.by(() => {
+    if (!password) return '';
+    if (passwordStrengthScore <= 2) return 'weak';
+    if (passwordStrengthScore <= 4) return 'medium';
+    return 'strong';
+  });
+
   onMount(() => {
     clearErrors();
   });
@@ -38,6 +67,11 @@
 
     if (!email || !password) {
       localError = 'Veuillez remplir tous les champs.';
+      return;
+    }
+
+    if (mode === 'register' && !isPasswordValid) {
+      localError = 'Le mot de passe ne respecte pas les critères de sécurité exigés.';
       return;
     }
 
@@ -137,7 +171,7 @@
             bind:value={password}
             oninput={clearErrors}
             required
-            minlength="6"
+            minlength={mode === 'register' ? '8' : '6'}
             placeholder="••••••••"
             class="auth-input password-input"
           />
@@ -151,15 +185,38 @@
             <i class="fa-regular {showPassword ? 'fa-eye-slash' : 'fa-eye'}"></i>
           </button>
         </div>
+
         {#if mode === 'register'}
-          <div class="password-requirements">
-            <div class="requirement-item" class:valid={password.length >= 6}>
-              <i class="fa-solid {password.length >= 6 ? 'fa-circle-check' : 'fa-circle-dot'}"></i>
-              <span>6 caractères minimum</span>
-            </div>
-            <div class="requirement-item valid">
-              <i class="fa-solid fa-circle-check"></i>
-              <span>Caractères autorisés : lettres, chiffres et symboles (@, #, $, !, %, etc.)</span>
+          <div class="password-security-panel">
+            {#if password.length > 0}
+              <div class="strength-meter-row">
+                <div class="strength-bar-track">
+                  <div 
+                    class="strength-bar-fill {strengthClass}" 
+                    style="width: {(passwordStrengthScore / 5) * 100}%;"
+                  ></div>
+                </div>
+                <span class="strength-badge {strengthClass}">Sécurité : {strengthLabel}</span>
+              </div>
+            {/if}
+
+            <div class="password-requirements">
+              <div class="requirement-item" class:valid={hasMinLength}>
+                <i class="fa-solid {hasMinLength ? 'fa-circle-check' : 'fa-circle-dot'}"></i>
+                <span>Au moins 8 caractères</span>
+              </div>
+              <div class="requirement-item" class:valid={hasUpper && hasLower}>
+                <i class="fa-solid {(hasUpper && hasLower) ? 'fa-circle-check' : 'fa-circle-dot'}"></i>
+                <span>Majuscules et minuscules</span>
+              </div>
+              <div class="requirement-item" class:valid={hasNumber}>
+                <i class="fa-solid {hasNumber ? 'fa-circle-check' : 'fa-circle-dot'}"></i>
+                <span>Au moins un chiffre (0-9)</span>
+              </div>
+              <div class="requirement-item" class:valid={hasSpecial}>
+                <i class="fa-solid {hasSpecial ? 'fa-circle-check' : 'fa-circle-dot'}"></i>
+                <span>Au moins un symbole (@, #, $, !, %, etc.)</span>
+              </div>
             </div>
           </div>
         {/if}
@@ -168,14 +225,14 @@
       <button 
         type="submit" 
         class="submit-btn" 
-        disabled={$authLoading}
+        disabled={$authLoading || (mode === 'register' && !isPasswordValid)}
       >
         {#if $authLoading}
           <i class="fa-solid fa-spinner fa-spin"></i> Chargement...
         {:else if mode === 'login'}
           Accéder à mon espace ➔
         {:else}
-          Créer mon compte gratuit ➔
+          Créer mon compte sécurisé ➔
         {/if}
       </button>
     </form>
@@ -361,15 +418,75 @@
     background: #f1f5f9;
   }
 
-  .password-requirements {
+  .password-security-panel {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 8px;
     margin-top: 4px;
     padding: 10px 12px;
     background: #f8fafc;
     border-radius: 8px;
     border: 1px solid #e2e8f0;
+  }
+
+  .strength-meter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #edf2f7;
+  }
+
+  .strength-bar-track {
+    flex: 1;
+    height: 5px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .strength-bar-fill {
+    height: 100%;
+    transition: width 0.25s ease, background-color 0.25s ease;
+    border-radius: 999px;
+  }
+
+  .strength-bar-fill.weak {
+    background-color: #ef4444;
+  }
+
+  .strength-bar-fill.medium {
+    background-color: #f59e0b;
+  }
+
+  .strength-bar-fill.strong {
+    background-color: #10b981;
+  }
+
+  .strength-badge {
+    font-size: 0.73rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .strength-badge.weak {
+    color: #b91c1c;
+  }
+
+  .strength-badge.medium {
+    color: #d97706;
+  }
+
+  .strength-badge.strong {
+    color: #047857;
+  }
+
+  .password-requirements {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
   }
 
   .requirement-item {
@@ -379,15 +496,22 @@
     align-items: center;
     gap: 7px;
     line-height: 1.35;
+    transition: color 0.15s ease;
   }
 
   .requirement-item.valid {
-    color: #166534;
+    color: #15803d;
+    font-weight: 600;
   }
 
   .requirement-item i {
     font-size: 0.72rem;
     flex-shrink: 0;
+    color: #cbd5e1;
+  }
+
+  .requirement-item.valid i {
+    color: #16a34a;
   }
 
   .submit-btn {
