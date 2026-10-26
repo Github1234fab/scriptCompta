@@ -507,6 +507,8 @@
   );
   let totalAchatsMicro = $derived(achatsMicro.reduce((acc, a) => acc + a.montant, 0));
 
+
+
   // CA trimestriel pour déclaration Urssaf
   let caTrimestriel = $derived((() => {
     const quarters = { T1: 0, T2: 0, T3: 0, T4: 0 };
@@ -1002,6 +1004,8 @@
           </span>
         </div>
       </div>
+
+
 
     {:else if accountingModel === 'bnc'}
       <!-- 1. Livre-Journal des Recettes et Dépenses BNC -->

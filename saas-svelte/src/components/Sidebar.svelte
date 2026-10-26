@@ -352,9 +352,9 @@
           style="margin-top: 4px; width: 100%; height: 36px; background: #2563eb; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);"
           onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1d4ed8'}
           onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#2563eb'}
-          title="Passer en illimité à 9,90€/mois"
+          title="Passer en illimité à 6,99€/mois"
         >
-          <span>Passer en illimité (9,90 €)</span> <i class="fa-solid fa-arrow-right" style="font-size: 0.78rem;"></i>
+          <span>Passer en illimité (6,99 €)</span> <i class="fa-solid fa-arrow-right" style="font-size: 0.78rem;"></i>
         </button>
       </div>
     {/if}

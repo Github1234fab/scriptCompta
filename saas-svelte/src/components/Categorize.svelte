@@ -592,15 +592,34 @@
 <!-- 1. IMPORT DE RELEVÉ BANCAIRE (CSV) -->
 <!-- ========================================== -->
 <div style="margin-bottom: 30px;">
-  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 18px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); max-width: 420px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 14px; box-sizing: border-box;">
-    <div style="width: 100%; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-      <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-cloud-arrow-up" style="color: #0f274a; font-size: 0.95rem;"></i> Import de relevé bancaire
-      </h3>
-      <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
-        Format CSV bancaire
-      </span>
+  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+    <!-- En-tête du bloc -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 8px;">
+      <div>
+        <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-cloud-arrow-up" style="color: #2563eb; font-size: 0.95rem;"></i> Import de relevé bancaire
+        </h3>
+        <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
+          Glissez-déposez le fichier CSV fourni par votre banque pour synchroniser vos écritures
+        </span>
+      </div>
+
+      {#if currentStructureTx.length > 0}
+        <button 
+          type="button" 
+          onclick={effacerToutesOperations}
+          style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.78rem; padding: 5px 12px; background: #ffffff; border: 1px solid #fecaca; color: #dc2626; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;"
+          onmouseenter={(e) => { e.currentTarget.style.background = '#fef2f2'; }}
+          onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
+          title="Effacer toutes les écritures de cette structure"
+        >
+          <i class="fa-solid fa-trash-can" style="font-size: 0.74rem;"></i>
+          Effacer le relevé ({currentStructureTx.length})
+        </button>
+      {/if}
     </div>
+
+    <!-- Zone de drop horizontale moderne pleine largeur -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div 
       class="dropzone {dragover ? 'dragover' : ''}" 
@@ -609,31 +628,31 @@
       ondragover={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
       ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); dragover = false; }}
       ondrop={handleCSVDrop}
-      style="cursor: pointer; width: 100%; aspect-ratio: 1 / 1; min-height: 310px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; padding: 24px 20px; background: {dragover ? 'rgba(15, 39, 74, 0.08)' : 'var(--bg-card, #ffffff)'}; border: 2.5px solid #0f274a; border-radius: 16px; transition: all 0.2s ease; box-shadow: 0 3px 10px rgba(15, 39, 74, 0.06); box-sizing: border-box;"
-      onmouseenter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(15, 39, 74, 0.12)'; }}
-      onmouseleave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 3px 10px rgba(15, 39, 74, 0.06)'; }}
+      style="cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; padding: 20px 24px; background: {dragover ? 'rgba(37, 99, 235, 0.05)' : 'var(--bg-card, #ffffff)'}; border: 1.5px dashed {dragover ? '#2563eb' : '#cbd5e1'}; border-radius: 12px; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); box-sizing: border-box;"
+      onmouseenter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.background = 'rgba(37, 99, 235, 0.02)'; }}
+      onmouseleave={(e) => { if (!dragover) { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = 'var(--bg-card, #ffffff)'; } }}
     >
-      <div style="width: 64px; height: 64px; border-radius: 50%; background: #0f274a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; flex-shrink: 0; pointer-events: none; box-shadow: 0 4px 10px rgba(15, 39, 74, 0.25);">
-        <i class="fa-solid fa-cloud-arrow-up"></i>
+      <div style="display: flex; align-items: center; gap: 16px; pointer-events: none;">
+        <div style="width: 46px; height: 46px; border-radius: 10px; background: #f1f5f9; border: 1px solid #e2e8f0; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0;">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+        </div>
+        <div>
+          <div style="font-weight: 800; font-size: 0.98rem; color: #0f172a; margin-bottom: 3px;">
+            Déposez votre fichier bancaire CSV ici
+          </div>
+          <div style="font-size: 0.8rem; color: #64748b; font-weight: 500;">
+            Compatible avec toutes les banques (BoursoBank, BNP, Crédit Agricole, Qonto, Shine, etc.)
+          </div>
+        </div>
       </div>
 
-      <div style="pointer-events: none;">
-        <div style="font-weight: 800; font-size: 1.12rem; color: #0f172a; font-family: var(--font-title); line-height: 1.3; margin-bottom: 4px;">
-          Importer un relevé bancaire
-        </div>
-        <div style="font-size: 0.86rem; color: #475569; font-weight: 500;">
-          Glissez-déposez votre fichier <strong>CSV</strong> ici
-        </div>
-      </div>
-
-      <div style="pointer-events: none; margin: 2px 0;">
-        <span style="display: inline-flex; align-items: center; gap: 8px; background: #0f274a; color: #ffffff; padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 0.84rem; box-shadow: 0 2px 6px rgba(15, 39, 74, 0.25);">
+      <div style="display: flex; align-items: center; gap: 12px; pointer-events: none;">
+        <span style="font-size: 0.82rem; color: #64748b; font-weight: 600;">
+          ou
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 8px; background: #0f172a; color: #ffffff; padding: 9px 20px; border-radius: 8px; font-weight: 700; font-size: 0.86rem; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);">
           <i class="fa-solid fa-folder-open"></i> Parcourir vos fichiers
         </span>
-      </div>
-
-      <div style="font-size: 0.74rem; color: #64748b; line-height: 1.35; pointer-events: none; max-width: 270px;">
-        Compatible avec toutes les banques (BoursoBank, BNP, Crédit Agricole, Qonto, Shine, etc.)
       </div>
 
       <input 
@@ -644,22 +663,6 @@
         accept=".csv"
       />
     </div>
-
-    <!-- BOUTON EFFACER TOUT LE RELEVÉ (SOUS LE CARRÉ D'IMPORT) -->
-    {#if currentStructureTx.length > 0}
-      <button 
-        type="button" 
-        class="btn btn-sm"
-        onclick={effacerToutesOperations}
-        style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 0.82rem; padding: 9px 16px; background: var(--bg-card, #ffffff); border: 1.5px solid #fca5a5; color: #dc2626; border-radius: 8px; cursor: pointer; width: 100%; box-shadow: 0 1px 2px rgba(220, 38, 38, 0.06); transition: all 0.15s;"
-        onmouseenter={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.borderColor = '#f87171'; }}
-        onmouseleave={(e) => { e.currentTarget.style.background = 'var(--bg-card, #ffffff)'; e.currentTarget.style.borderColor = '#fca5a5'; }}
-        title="Effacer toutes les écritures de cette structure"
-      >
-        <i class="fa-solid fa-trash-can"></i>
-        Effacer tout le relevé ({currentStructureTx.length} écritures)
-      </button>
-    {/if}
   </div>
 </div>
 
@@ -667,64 +670,101 @@
 <!-- 2. RÈGLES D'ATTRIBUTION & HISTORIQUE -->
 <!-- ========================================== -->
 <div style="margin-bottom: 30px;">
-  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 14px;">
-    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-      <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-book-bookmark" style="color: #2563eb; font-size: 0.95rem;"></i> Règles d'attribution & Historique
-      </h3>
-      <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
-        Automatisez le classement grâce à votre dictionnaire de règles
-      </span>
-    </div>
-    <div style="display: flex; justify-content: flex-start; align-items: center; flex-wrap: wrap; gap: 12px;">
-      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <!-- Bouton pour ouvrir le Dictionnaire d'attribution -->
-        <button 
-          type="button" 
-          class="btn btn-secondary btn-sm"
-          onclick={() => showDictionaryModal = true}
-          style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.84rem; padding: 8px 16px; background: var(--bg-card, #ffffff); border: 1.5px solid var(--border-container); color: var(--text-main); border-radius: 8px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
-        >
-          <i class="fa-solid fa-book-bookmark" style="color: #6366f1;"></i>
-          Dictionnaire d'attribution ({$rules.length})
-        </button>
-
-        <!-- Bouton pour déplier l'historique -->
-        <button 
-          type="button" 
-          class="btn btn-secondary btn-sm"
-          onclick={() => showHistoryDrawer = !showHistoryDrawer}
-          style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.82rem; padding: 8px 16px; background: var(--bg-card, #ffffff); border: 1px solid var(--border-container); color: var(--text-main); border-radius: 8px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
-        >
-          <i class="fa-solid fa-clock-rotate-left" style="color: #64748b;"></i>
-          Historique des imports ({importsHistory.length})
-          <i class="fa-solid {showHistoryDrawer ? 'fa-chevron-up' : 'fa-chevron-down'}" style="font-size: 0.72rem; color: var(--text-muted);"></i>
-        </button>
+  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+    <!-- En-tête du bloc -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 8px;">
+      <div>
+        <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-book-bookmark" style="color: #2563eb; font-size: 0.95rem;"></i> Règles d'attribution & Historique
+        </h3>
+        <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
+          Automatisez le classement grâce à votre dictionnaire de règles et suivez vos imports
+        </span>
       </div>
+    </div>
+
+    <!-- Catalogue des 2 modules sous forme de cartes blanches épurées -->
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      
+      <!-- 1. Dictionnaire d'attribution -->
+      <div style="padding: 16px 20px; background: var(--bg-card, #ffffff); border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 42px; height: 42px; border-radius: 9px; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0;">
+            <i class="fa-solid fa-book-bookmark"></i>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-weight: 800; font-size: 0.96rem; color: #0f172a;">Dictionnaire d'attribution automatique</span>
+              <span style="font-size: 0.72rem; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 700; letter-spacing: 0.02em;">{$rules.length} RÈGLE{$rules.length > 1 ? 'S' : ''}</span>
+            </div>
+            <div style="font-size: 0.82rem; color: #64748b; margin-top: 3px;">
+              Mémorise automatiquement les mots-clés et associe les libellés bancaires aux bons comptes officiels.
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button 
+            type="button" 
+            onclick={() => showDictionaryModal = true}
+            style="background: #0f172a; color: #ffffff; border: none; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);"
+          >
+            Gérer les règles
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. Historique des imports CSV -->
+      <div style="padding: 16px 20px; background: var(--bg-card, #ffffff); border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 42px; height: 42px; border-radius: 9px; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0;">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-weight: 800; font-size: 0.96rem; color: #0f172a;">Historique des imports de relevés</span>
+              <span style="font-size: 0.72rem; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 700; letter-spacing: 0.02em;">{importsHistory.length} FICHIER{importsHistory.length > 1 ? 'S' : ''}</span>
+            </div>
+            <div style="font-size: 0.82rem; color: #64748b; margin-top: 3px;">
+              Consultez les fichiers CSV précédemment intégrés et annulez un import si nécessaire.
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button 
+            type="button" 
+            onclick={() => showHistoryDrawer = !showHistoryDrawer}
+            style="background: {showHistoryDrawer ? '#0f172a' : '#ffffff'}; color: {showHistoryDrawer ? '#ffffff' : '#0f172a'}; border: 1.5px solid {showHistoryDrawer ? '#0f172a' : '#cbd5e1'}; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 6px;"
+          >
+            {showHistoryDrawer ? 'Masquer' : 'Consulter'}
+            <i class="fa-solid {showHistoryDrawer ? 'fa-chevron-up' : 'fa-chevron-down'}" style="font-size: 0.72rem;"></i>
+          </button>
+        </div>
+      </div>
+
     </div>
 
     <!-- Volet déroulant : Historique des fichiers importés -->
     {#if showHistoryDrawer}
-      <div style="background: var(--bg-card, #ffffff); border: none; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); animation: fadeIn 0.2s ease-out; margin-top: 6px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-container); padding-bottom: 8px;">
-          <span style="font-weight: 800; font-size: 0.88rem; color: var(--text-main);">
+      <div style="background: var(--bg-card, #ffffff); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); animation: fadeIn 0.2s ease-out; margin-top: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+          <span style="font-weight: 800; font-size: 0.88rem; color: #0f172a;">
             Fichiers CSV importés dans cet espace
           </span>
-          <span style="font-size: 0.78rem; color: var(--text-muted);">
+          <span style="font-size: 0.78rem; color: #64748b;">
             Vous pouvez annuler n'importe quel import pour retirer ses opérations
           </span>
         </div>
 
         {#if importsHistory.length === 0}
-          <div style="text-align: center; padding: 14px; color: var(--text-muted); font-size: 0.85rem;">
+          <div style="text-align: center; padding: 14px; color: #64748b; font-size: 0.85rem;">
             Aucun fichier importé récemment enregistré dans l'historique.
           </div>
         {:else}
           <div style="display: flex; flex-direction: column; gap: 8px;">
             {#each importsHistory as item}
-              <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-container); border: 1px solid var(--border-container); border-radius: 8px; gap: 12px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; gap: 12px;">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                  <div style="width: 32px; height: 32px; border-radius: 6px; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0;">
+                  <div style="width: 32px; height: 32px; border-radius: 6px; background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0;">
                     <i class="fa-solid fa-file-csv"></i>
                   </div>
                   <div>
@@ -739,11 +779,11 @@
                   type="button" 
                   class="btn btn-sm"
                   onclick={() => supprimerImport(item.id, item.fileName, item.linesCount)}
-                  style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.78rem; padding: 6px 12px; background: var(--bg-card, #ffffff); border: 1.5px solid #fca5a5; color: #dc2626; border-radius: 6px; cursor: pointer; transition: all 0.15s;"
-                  onmouseenter={(e) => { e.currentTarget.style.background = '#fee2e2'; }}
-                  onmouseleave={(e) => { e.currentTarget.style.background = 'var(--bg-card, #ffffff)'; }}
+                  style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.78rem; padding: 6px 12px; background: #ffffff; border: 1px solid #fecaca; color: #dc2626; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;"
+                  onmouseenter={(e) => { e.currentTarget.style.background = '#fef2f2'; }}
+                  onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
                 >
-                  <i class="fa-solid fa-trash-can"></i>
+                  <i class="fa-solid fa-trash-can" style="font-size: 0.74rem;"></i>
                   Annuler cet import
                 </button>
               </div>
@@ -760,213 +800,224 @@
 <!-- ========================================== -->
 <div style="margin-bottom: 30px;">
   <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-      <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-arrows-split-up-and-left" style="color: #2563eb; font-size: 0.95rem;"></i> Traitement et affectation des opérations
-      </h3>
-      <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
-        Affectez chaque dépense ou recette à son compte officiel
-      </span>
+    <!-- En-tête du bloc -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 8px;">
+      <div>
+        <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-arrows-split-up-and-left" style="color: #2563eb; font-size: 0.95rem;"></i> Traitement et affectation des opérations
+        </h3>
+        <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
+          Affectez chaque dépense ou recette à son compte officiel
+        </span>
+      </div>
+
+      <!-- Bouton d'aide et explications dans l'en-tête du bloc -->
+      <button 
+        type="button" 
+        onclick={() => (showPedagogicalModal = true)}
+        title="Consulter les explications et le guide d'attribution"
+        style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.78rem; padding: 5px 12px; background: #ffffff; border: 1px solid #cbd5e1; color: #475569; border-radius: 6px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.02);"
+        onmouseenter={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#0f172a'; }}
+        onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#475569'; }}
+      >
+        <i class="fa-regular fa-circle-question" style="color: #64748b; font-size: 0.85rem;"></i>
+        Guide d'attribution
+      </button>
     </div>
-    <div style="padding: 20px; background: var(--bg-card, #ffffff); border: none; border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); width: 100%; box-sizing: border-box;">
+
+    <!-- Carte blanche intérieure avec onglets & tableau -->
+    <div style="padding: 18px 20px; background: var(--bg-card, #ffffff); border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); width: 100%; box-sizing: border-box;">
       
-      <!-- Filter Tabs + Compact Batch Validation Button & Help ? Button -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; width: 100%;">
-        <div style="display: flex; gap: 6px; background: var(--bg-container); padding: 4px; border-radius: 10px; border: 1px solid var(--border-container);">
+      <!-- Filter Tabs & Action par lot -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; width: 100%;">
+        <div style="display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: 10px; border: 1px solid #e2e8f0;">
           <button
-            style="border: none; background: {activeTab === 'pending' ? '#0f172a' : 'transparent'}; color: {activeTab === 'pending' ? '#ffffff' : '#475569'}; font-size: 0.88rem; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: all 0.2s;"
+            style="border: none; background: {activeTab === 'pending' ? '#0f172a' : 'transparent'}; color: {activeTab === 'pending' ? '#ffffff' : '#475569'}; font-size: 0.86rem; padding: 7px 18px; border-radius: 7px; cursor: pointer; font-weight: 700; transition: all 0.15s ease;"
             onclick={() => (activeTab = "pending")}
           >
             À attribuer ({nonTriees.length})
           </button>
           <button
-            style="border: none; background: {activeTab === 'categorized' ? '#0f172a' : 'transparent'}; color: {activeTab === 'categorized' ? '#ffffff' : '#475569'}; font-size: 0.88rem; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: all 0.2s;"
+            style="border: none; background: {activeTab === 'categorized' ? '#0f172a' : 'transparent'}; color: {activeTab === 'categorized' ? '#ffffff' : '#475569'}; font-size: 0.86rem; padding: 7px 18px; border-radius: 7px; cursor: pointer; font-weight: 700; transition: all 0.15s ease;"
             onclick={() => (activeTab = "categorized")}
           >
             Attribuées ({triees.length})
           </button>
         </div>
 
-        <!-- Action par lot réduite & bouton d'aide ? -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <button 
-            class="btn btn-primary"
-            onclick={validerToutEnUnClic}
-            disabled={recognizedList.length === 0}
-            style="padding: 9px 18px; font-size: 0.88rem; font-weight: 700; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; opacity: {recognizedList.length === 0 ? 0.6 : 1}; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);"
-          >
-            <i class="fa-solid fa-bolt"></i>
-            Tout valider ({recognizedList.length} suggestions IA)
-          </button>
-
-          <button 
-            type="button" 
-            class="btn btn-icon"
-            onclick={() => (showPedagogicalModal = true)}
-            title="Aide & explications"
-            aria-label="Aide et explications"
-            style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-container); background: var(--bg-card, #ffffff); color: var(--text-main); font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08);"
-          >
-            ?
-          </button>
-        </div>
+        <!-- Action Tout valider au-dessus du tableau avec libellé direct et court -->
+        <button 
+          type="button"
+          onclick={validerToutEnUnClic}
+          disabled={recognizedList.length === 0}
+          style="padding: 7px 16px; font-size: 0.84rem; font-weight: 700; background: {recognizedList.length > 0 ? '#16a34a' : '#f1f5f9'}; color: {recognizedList.length > 0 ? '#ffffff' : '#94a3b8'}; border: 1px solid {recognizedList.length > 0 ? 'transparent' : '#e2e8f0'}; border-radius: 8px; cursor: {recognizedList.length === 0 ? 'not-allowed' : 'pointer'}; display: flex; align-items: center; gap: 7px; box-shadow: {recognizedList.length > 0 ? '0 1px 2px rgba(22, 163, 74, 0.2)' : 'none'}; transition: all 0.15s ease;"
+          onmouseenter={(e) => { if (recognizedList.length > 0) e.currentTarget.style.background = '#15803d'; }}
+          onmouseleave={(e) => { if (recognizedList.length > 0) e.currentTarget.style.background = '#16a34a'; }}
+          title={recognizedList.length === 0 ? "Aucune suggestion automatique en attente" : "Valider toutes les suggestions d'un clic"}
+        >
+          <i class="fa-solid fa-check-double" style="color: {recognizedList.length > 0 ? '#ffffff' : '#94a3b8'};"></i>
+          Tout valider ({recognizedList.length})
+        </button>
       </div>
 
-    <!-- Batch Table -->
-    <div class="table-container" style="width: 100%;">
-      <table class="custom-table" style="width: 100%;">
-        <thead>
-          <tr>
-            <th style="width: 10%;">Date</th>
-            <th style="width: 30%;">Libellé</th>
-            <th style="width: 14%; text-align: right;">Montant</th>
-            <th style="width: 36%;">Catégorie / Attribution</th>
-            <th style="width: 10%; text-align: right;">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#if displayedTxList.length === 0}
+      <!-- Batch Table -->
+      <div class="table-container" style="width: 100%; overflow-x: auto;">
+        <table class="custom-table" style="width: 100%; border-collapse: separate; border-spacing: 0;">
+          <thead>
             <tr>
-              <td colspan="5" style="text-align: center; color: var(--color-success); padding: 50px 10px;">
-                <i class="fa-solid fa-circle-check" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.8; display: block;"></i>
-                <strong>{activeTab === "pending" ? "Toutes les écritures sont attribuées !" : "Aucune écriture attribuée"}</strong>
-              </td>
+              <th style="width: 12%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Date</th>
+              <th style="width: 32%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Libellé</th>
+              <th style="width: 14%; padding: 12px 14px; text-align: right; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Montant</th>
+              <th style="width: 30%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Catégorie / Attribution</th>
+              <th style="width: 12%; padding: 12px 14px; text-align: right; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Action</th>
             </tr>
-          {:else if activeTab === "pending"}
-            {#each nonTriees as tx}
-              {@const sug = getSuggestionForTx(tx)}
-              {@const manualCat = selectedCategoryMap[tx.id]}
-              {@const isStateA = Boolean(sug) && !manualCat}
-              {@const isStateC = Boolean(manualCat)}
-              {@const isStateB = !isStateA && !isStateC}
-
-              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); transition: background 0.2s;">
-                
-                <!-- 1. Date (Format court DD/MM/YY) -->
-                <td style="padding: 14px 12px; vertical-align: middle; font-weight: 600; font-size: 0.88rem; color: var(--text-muted); white-space: nowrap;">
-                  {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
-                </td>
-
-                <!-- 2. Libellé épuré -->
-                <td style="padding: 14px 12px; vertical-align: middle;" title="{tx.libelle} {tx.info ? `• ${tx.info}` : ''} {tx.reference ? `• Ref: ${tx.reference}` : ''}">
-                  <div style="font-weight: 700; color: var(--text-main); font-size: 0.93rem;">
-                    {cleanTransactionLibelle(tx.libelle)}
+          </thead>
+          <tbody>
+            {#if displayedTxList.length === 0}
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 48px 10px;">
+                  <div style="width: 52px; height: 52px; border-radius: 50%; background: #f0fdf4; border: 1.5px solid #bbf7d0; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 12px auto;">
+                    <i class="fa-solid fa-check"></i>
                   </div>
-                  <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1px;">
-                    {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
-                  </div>
+                  <strong style="font-size: 1rem; color: #0f172a; display: block; margin-bottom: 4px;">{activeTab === "pending" ? "Toutes les écritures sont attribuées !" : "Aucune écriture attribuée"}</strong>
+                  <span style="font-size: 0.82rem; color: #64748b;">{activeTab === "pending" ? "Toutes vos opérations sont correctement rattachées aux comptes comptables." : "Importez un relevé bancaire ou classez vos écritures pour les retrouver ici."}</span>
                 </td>
+              </tr>
+            {:else if activeTab === "pending"}
+              {#each nonTriees as tx}
+                {@const sug = getSuggestionForTx(tx)}
+                {@const manualCat = selectedCategoryMap[tx.id]}
+                {@const isStateA = Boolean(sug) && !manualCat}
+                {@const isStateC = Boolean(manualCat)}
+                {@const isStateB = !isStateA && !isStateC}
 
-                <!-- 3. Montant (Directement après le Libellé) -->
-                <td style="padding: 14px 12px; vertical-align: middle; text-align: right; font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: {tx.debit > 0 ? '#b91c1c' : '#15803d'}; white-space: nowrap;">
-                  {tx.debit > 0 ? "- " : "+ "}
-                  {(Number(tx.debit || tx.credit || 0)).toFixed(2).replace('.', ',')} €
-                </td>
+                <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s ease;">
+                  
+                  <!-- 1. Date (Format court DD/MM/YY) -->
+                  <td style="padding: 14px 14px; vertical-align: middle; font-weight: 600; font-size: 0.88rem; color: #64748b; white-space: nowrap;">
+                    {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
+                  </td>
 
-                <!-- 4. Catégorie / Attribution -->
-                <td style="padding: 14px 12px; vertical-align: middle;">
-                  {#if isStateA && sug}
-                    <!-- ÉTAT A : Suggestion IA (Label suggestion + Bouton Modifier) -->
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <span style="font-weight: 700; font-size: 0.88rem; color: #166534; background: #f0fdf4; border: 1.5px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
-                        <i class="fa-solid fa-wand-magic-sparkles" style="color: #16a34a;"></i>
-                        {sug.label} ({sug.compte})
-                      </span>
+                  <!-- 2. Libellé épuré -->
+                  <td style="padding: 14px 14px; vertical-align: middle;" title="{tx.libelle} {tx.info ? `• ${tx.info}` : ''} {tx.reference ? `• Ref: ${tx.reference}` : ''}">
+                    <div style="font-weight: 700; color: #0f172a; font-size: 0.93rem;">
+                      {cleanTransactionLibelle(tx.libelle)}
+                    </div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">
+                      {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
+                    </div>
+                  </td>
+
+                  <!-- 3. Montant (Directement après le Libellé) -->
+                  <td style="padding: 14px 14px; vertical-align: middle; text-align: right; font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: {tx.debit > 0 ? '#b91c1c' : '#15803d'}; white-space: nowrap;">
+                    {tx.debit > 0 ? "- " : "+ "}
+                    {(Number(tx.debit || tx.credit || 0)).toFixed(2).replace('.', ',')} €
+                  </td>
+
+                  <!-- 4. Catégorie / Attribution -->
+                  <td style="padding: 14px 14px; vertical-align: middle;">
+                    {#if isStateA && sug}
+                      <!-- ÉTAT A : Suggestion IA (Label suggestion + Bouton Modifier) -->
+                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="font-weight: 700; font-size: 0.88rem; color: #166534; background: #f0fdf4; border: 1.5px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                          <i class="fa-solid fa-wand-magic-sparkles" style="color: #16a34a;"></i>
+                          {sug.label} ({sug.compte})
+                        </span>
+                        <button
+                          type="button"
+                          onclick={() => openCategorizeModal(tx)}
+                          title="Modifier l'attribution"
+                          style="background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+                        >
+                          <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i> Modifier
+                        </button>
+                      </div>
+                    {:else if isStateC}
+                      <!-- ÉTAT C : Choix manuel en cours (Label + Bouton Modifier) -->
+                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="font-weight: 700; font-size: 0.88rem; color: #1e40af; background: #eff6ff; border: 1.5px solid #bfdbfe; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                          <i class="fa-solid fa-check" style="color: #2563eb;"></i>
+                          {formatAccountLabel(manualCat)} ({manualCat})
+                        </span>
+                        <button
+                          type="button"
+                          onclick={() => openCategorizeModal(tx)}
+                          title="Modifier l'attribution"
+                          style="background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+                        >
+                          <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i> Modifier
+                        </button>
+                      </div>
+                    {:else}
+                      <!-- ÉTAT B : Pas de suggestion IA -> Bouton "Attribution manuelle" -->
                       <button
                         type="button"
                         onclick={() => openCategorizeModal(tx)}
-                        title="Modifier l'attribution"
-                        style="background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+                        title="Ouvrir le menu d'attribution manuelle"
+                        style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.04);"
                       >
-                        <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i> Modifier
+                        <i class="fa-solid fa-magnifying-glass" style="color: #6366f1;"></i>
+                        Attribution manuelle
                       </button>
-                    </div>
-                  {:else if isStateC}
-                    <!-- ÉTAT C : Choix manuel en cours (Label + Bouton Modifier) -->
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <span style="font-weight: 700; font-size: 0.88rem; color: #1e40af; background: #eff6ff; border: 1.5px solid #bfdbfe; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
-                        <i class="fa-solid fa-check" style="color: #2563eb;"></i>
-                        {formatAccountLabel(manualCat)} ({manualCat})
-                      </span>
-                      <button
+                    {/if}
+                  </td>
+
+                  <!-- 5. Action (Bouton "Valider" explicite avec texte si une suggestion/choix existe) -->
+                  <td style="padding: 14px 14px; vertical-align: middle; text-align: right;">
+                    {#if (isStateA && sug) || isStateC}
+                      <button 
                         type="button"
-                        onclick={() => openCategorizeModal(tx)}
-                        title="Modifier l'attribution"
-                        style="background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+                        onclick={() => {
+                          if (isStateA && sug) selectAccount(tx.id, sug.compte);
+                          validerLigneSeule(tx);
+                        }}
+                        title="Valider l'attribution"
+                        aria-label="Valider l'attribution"
+                        style="padding: 7px 16px; font-weight: 700; font-size: 0.85rem; background: #16a34a; color: #ffffff; border: none; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(22, 163, 74, 0.2);"
                       >
-                        <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i> Modifier
+                        <i class="fa-solid fa-check"></i> Valider
                       </button>
+                    {/if}
+                  </td>
+
+                </tr>
+              {/each}
+            {:else}
+              <!-- Categorized List -->
+              {#each triees as tx}
+                <tr style="border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+                  <td style="padding: 14px 14px; font-weight: 600; font-size: 0.88rem; color: #64748b; white-space: nowrap;">
+                    {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
+                  </td>
+                  <td style="padding: 14px 14px;">
+                    <div style="font-weight: 700; color: #0f172a;">{cleanTransactionLibelle(tx.libelle)}</div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">
+                      {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
                     </div>
-                  {:else}
-                    <!-- ÉTAT B : Pas de suggestion IA -> Bouton "Attribution manuelle" -->
-                    <button
-                      type="button"
-                      onclick={() => openCategorizeModal(tx)}
-                      title="Ouvrir le menu d'attribution manuelle"
-                      style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.04);"
-                    >
-                      <i class="fa-solid fa-magnifying-glass" style="color: #6366f1;"></i>
-                      Attribution manuelle
-                    </button>
-                  {/if}
-                </td>
-
-                <!-- 5. Action (Bouton "Valider" explicite avec texte si une suggestion/choix existe) -->
-                <td style="padding: 14px 12px; vertical-align: middle; text-align: right;">
-                  {#if (isStateA && sug) || isStateC}
-                    <button 
-                      type="button"
-                      onclick={() => {
-                        if (isStateA && sug) selectAccount(tx.id, sug.compte);
-                        validerLigneSeule(tx);
-                      }}
-                      title="Valider l'attribution"
-                      aria-label="Valider l'attribution"
-                      style="padding: 7px 16px; font-weight: 700; font-size: 0.85rem; background: #16a34a; color: #ffffff; border: none; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.25);"
-                    >
-                      <i class="fa-solid fa-check"></i> Valider
-                    </button>
-                  {/if}
-                </td>
-
-              </tr>
-            {/each}
-          {:else}
-            <!-- Categorized List -->
-            {#each triees as tx}
-              <tr style="border-bottom: 1px solid #f1f5f9; background: #ffffff;">
-                <td style="padding: 14px 12px; font-weight: 600; font-size: 0.88rem; color: var(--text-muted); white-space: nowrap;">
-                  {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
-                </td>
-                <td style="padding: 14px 12px;">
-                  <div style="font-weight: 700; color: #0f172a;">{cleanTransactionLibelle(tx.libelle)}</div>
-                  <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">
-                    {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
-                  </div>
-                </td>
-                <td style="padding: 14px 12px; text-align: right; font-weight: 700; font-size: 0.95rem; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: {tx.debit > 0 ? '#b91c1c' : '#15803d'}; white-space: nowrap;">
-                  {tx.debit > 0 ? "- " : "+ "}
-                  {(Number(tx.debit || tx.credit || 0)).toFixed(2).replace('.', ',')} €
-                </td>
-                <td style="padding: 14px 12px; color: #3730a3; font-weight: 700;">
-                  <span style="display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; font-size: 0.88rem;">
-                    <i class="fa-solid fa-circle-check" style="color: #16a34a;"></i>
-                    {formatAccountLabel(tx.compteAttribué)} ({tx.compteAttribué})
-                  </span>
-                </td>
-                <td style="padding: 14px 12px; text-align: right;">
-                  <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #15803d; background: #dcfce7; border: 1px solid #86efac; padding: 3px 8px; border-radius: 6px; font-weight: 700;">
-                    <i class="fa-solid fa-check"></i> Validé
-                  </span>
-                </td>
-              </tr>
-            {/each}
-          {/if}
-        </tbody>
-      </table>
+                  </td>
+                  <td style="padding: 14px 14px; text-align: right; font-weight: 700; font-size: 0.95rem; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: {tx.debit > 0 ? '#b91c1c' : '#15803d'}; white-space: nowrap;">
+                    {tx.debit > 0 ? "- " : "+ "}
+                    {(Number(tx.debit || tx.credit || 0)).toFixed(2).replace('.', ',')} €
+                  </td>
+                  <td style="padding: 14px 14px; color: #3730a3; font-weight: 700;">
+                    <span style="display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; font-size: 0.88rem;">
+                      <i class="fa-solid fa-circle-check" style="color: #16a34a;"></i>
+                      {formatAccountLabel(tx.compteAttribué)} ({tx.compteAttribué})
+                    </span>
+                  </td>
+                  <td style="padding: 14px 14px; text-align: right;">
+                    <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #15803d; background: #dcfce7; border: 1px solid #86efac; padding: 4px 10px; border-radius: 6px; font-weight: 700;">
+                      <i class="fa-solid fa-check"></i> Validé
+                    </span>
+                  </td>
+                </tr>
+              {/each}
+            {/if}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
-</div>
 </div>
 
 <!-- Pedagogical Onboarding Modal -->
@@ -987,8 +1038,8 @@
         </p>
 
         <div style="background: rgba(99, 102, 241, 0.12); border-left: 4px solid #6366f1; padding: 14px 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
-          <div style="font-weight: 700; color: #a5b4fc; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.04em;">
-            ⚡ Le système fait le reste :
+          <div style="font-weight: 700; color: #a5b4fc; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-bolt" style="color: #818cf8;"></i> Le système fait le reste :
           </div>
           <ul style="margin: 0; padding-left: 18px; font-size: 0.88rem; color: #e2e8f0; display: flex; flex-direction: column; gap: 6px;">
             <li>Attribution automatique des codes comptables officiels sans jargon.</li>

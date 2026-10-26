@@ -11,7 +11,7 @@ import {
 } from './data-sample.js';
 
 // Quota Freemium
-export const FREE_TIER_MAX_TRANSACTIONS = 50;
+export const FREE_TIER_MAX_TRANSACTIONS = 60;
 
 // User Profile (Plan, Subscription, etc.)
 export const userProfile = writable({

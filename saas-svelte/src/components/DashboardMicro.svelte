@@ -80,9 +80,17 @@
   let resteNetEnPoche = $derived(caEncaissé - urssafEstimee - depensesReelles);
   let margePct = $derived(caEncaissé > 0 ? Math.round((resteNetEnPoche / caEncaissé) * 100) : 0);
 
-  // Jauges de surveillance
+
+  // Seuils & Compteurs circulaires (Franchise TVA & Statut Micro)
   let tvaProgressionPct = $derived(Math.min(100, Math.round((caEncaissé / selectedRegime.franchiseTVA) * 100)));
   let plafondProgressionPct = $derived(Math.min(100, Math.round((caEncaissé / selectedRegime.plafondCA) * 100)));
+
+  let tvaColor = $derived(
+    tvaProgressionPct >= 100 ? '#ef4444' : (tvaProgressionPct >= 85 ? '#f59e0b' : '#10b981')
+  );
+  let plafondColor = $derived(
+    plafondProgressionPct >= 100 ? '#ef4444' : (plafondProgressionPct >= 85 ? '#f59e0b' : '#2563eb')
+  );
 
   // Découpage trimestriel du CA pour déclaration Urssaf
   let caTrimestriel = $derived((() => {
@@ -116,14 +124,82 @@
 </script>
 
 <div style="padding: 24px; display: flex; flex-direction: column; gap: 28px;">
-  <!-- PAGE HEADER -->
+  <!-- PAGE HEADER AVEC COMPTEURS CIRCULAIRES INTÉGRÉS -->
   <PageHeader 
     title="Accueil · Micro-Entreprise" 
     subtitle="Suivi du CA encaissé, cotisations Urssaf et seuils légaux." 
     buttonLabel="Consulter mes Obligations"
     buttonIcon="fa-scale-balanced"
     onButtonClick={() => activeView.set('books')}
-  />
+  >
+    <!-- Double compteur type tableau de bord (Franchise TVA & Statut Micro) -->
+    <div style="display: flex; align-items: center; gap: 14px; background: #ffffff; padding: 6px 14px; border-radius: 14px; border: 1.5px solid #e2e8f0; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
+      
+      <!-- Compteur 1 : Franchise de TVA -->
+      <div 
+        style="display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: default;" 
+        title="Franchise en base de TVA : {caEncaissé.toLocaleString('fr-FR')} € / {selectedRegime.franchiseTVA.toLocaleString('fr-FR')} € ({tvaProgressionPct}%)"
+      >
+        <div style="position: relative; width: 62px; height: 62px;">
+          <svg width="62" height="62" viewBox="0 0 62 62" style="display: block;">
+            <circle cx="31" cy="31" r="25" fill="none" stroke="#f1f5f9" stroke-width="4" />
+            <circle 
+              cx="31" cy="31" r="25" 
+              fill="none" 
+              stroke={tvaColor} 
+              stroke-width="4" 
+              stroke-linecap="round"
+              stroke-dasharray="157.08"
+              stroke-dashoffset={157.08 - (157.08 * tvaProgressionPct) / 100}
+              transform="rotate(-90 31 31)"
+              style="transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;"
+            />
+          </svg>
+          <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
+            <span style="font-size: 0.50rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1;">TVA</span>
+            <span style="font-size: 0.74rem; font-weight: 800; color: #0f172a; line-height: 1.1; margin-top: 2px;">{tvaProgressionPct}%</span>
+          </div>
+        </div>
+        <span style="font-size: 0.65rem; color: #64748b; font-weight: 600; white-space: nowrap;">
+          Max {(selectedRegime.franchiseTVA / 1000).toLocaleString('fr-FR')} k€
+        </span>
+      </div>
+
+      <!-- Séparateur discret -->
+      <div style="width: 1px; height: 42px; background: #e2e8f0;"></div>
+
+      <!-- Compteur 2 : Plafond statut Micro -->
+      <div 
+        style="display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: default;" 
+        title="Plafond du régime micro : {caEncaissé.toLocaleString('fr-FR')} € / {selectedRegime.plafondCA.toLocaleString('fr-FR')} € ({plafondProgressionPct}%) - Marge : {Math.max(0, selectedRegime.plafondCA - caEncaissé).toLocaleString('fr-FR')} €"
+      >
+        <div style="position: relative; width: 62px; height: 62px;">
+          <svg width="62" height="62" viewBox="0 0 62 62" style="display: block;">
+            <circle cx="31" cy="31" r="25" fill="none" stroke="#f1f5f9" stroke-width="4" />
+            <circle 
+              cx="31" cy="31" r="25" 
+              fill="none" 
+              stroke={plafondColor} 
+              stroke-width="4" 
+              stroke-linecap="round"
+              stroke-dasharray="157.08"
+              stroke-dashoffset={157.08 - (157.08 * plafondProgressionPct) / 100}
+              transform="rotate(-90 31 31)"
+              style="transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;"
+            />
+          </svg>
+          <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
+            <span style="font-size: 0.48rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1;">STATUT</span>
+            <span style="font-size: 0.74rem; font-weight: 800; color: #0f172a; line-height: 1.1; margin-top: 2px;">{plafondProgressionPct}%</span>
+          </div>
+        </div>
+        <span style="font-size: 0.65rem; color: #64748b; font-weight: 600; white-space: nowrap;">
+          Max {(selectedRegime.plafondCA / 1000).toLocaleString('fr-FR')} k€
+        </span>
+      </div>
+
+    </div>
+  </PageHeader>
 
   <!-- 1. VOTRE MICRO-ENTREPRISE -->
   <div style="display: flex; flex-direction: column; gap: 18px;">
@@ -272,75 +348,6 @@
       </div>
     </div>
 
-    <!-- 4. BLOC GÉNÉRAL SEUILS & LIMITES (ENGLOBANT LE TITRE) -->
-    <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
-        <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-gauge-high" style="color: #2563eb; font-size: 0.95rem;"></i> Seuils & Limites de votre régime
-        </h3>
-        <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
-          Surveillance de la franchise de TVA et des plafonds autorisés
-        </span>
-      </div>
-
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
-        <!-- Jauge 1 : Franchise de TVA (fond blanc) -->
-        <div style="background: var(--bg-card, #ffffff); border: none; border-radius: 12px; padding: 18px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div>
-              <h4 style="font-family: var(--font-title); font-size: 0.98rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">
-                Seuil de franchise en base de TVA
-              </h4>
-              <p style="font-size: 0.8rem; color: #64748b; margin: 0;">
-                Limite sans TVA : <strong>{selectedRegime.franchiseTVA.toLocaleString('fr-FR')} €</strong> / an
-              </p>
-            </div>
-            <span style="background: var(--bg-subtle); border: 1px solid var(--border-subtle); color: {tvaProgressionPct < 85 ? '#15803d' : '#c2410c'}; font-size: 0.82rem; font-weight: 800; padding: 4px 10px; border-radius: 8px;">
-              {tvaProgressionPct}%
-            </span>
-          </div>
-
-          <div style="background: var(--bg-container); border: 1px solid var(--border-subtle, #e2e8f0); height: 10px; border-radius: 6px; overflow: hidden; margin-bottom: 12px;">
-            <div style="width: {tvaProgressionPct}%; height: 100%; background: {tvaProgressionPct < 80 ? '#22c55e' : (tvaProgressionPct < 100 ? '#f59e0b' : '#ef4444')}; border-radius: 6px; transition: width 0.3s ease;"></div>
-          </div>
-
-          <p style="font-size: 0.82rem; color: #475569; margin: 0; line-height: 1.4;">
-            {#if tvaProgressionPct < 80}
-              <i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> Vous bénéficiez de la franchise en base : pas de TVA à facturer ni à déclarer.
-            {:else if tvaProgressionPct < 100}
-              <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b;"></i> Vigilance : vous approchez du seuil de franchise. Anticipez la facturation avec TVA.
-            {:else}
-              <i class="fa-solid fa-circle-exclamation" style="color: #ef4444;"></i> Seuil dépassé : vous devenez assujetti à la TVA dès le 1er jour du mois de dépassement.
-            {/if}
-          </p>
-        </div>
-
-        <!-- Jauge 2 : Plafond du régime Micro (fond blanc) -->
-        <div style="background: var(--bg-card, #ffffff); border: none; border-radius: 12px; padding: 18px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div>
-              <h4 style="font-family: var(--font-title); font-size: 0.98rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">
-                Plafond annuel de chiffre d'affaires
-              </h4>
-              <p style="font-size: 0.8rem; color: #64748b; margin: 0;">
-                Chiffre d'affaires max autorisé : <strong>{selectedRegime.plafondCA.toLocaleString('fr-FR')} €</strong> / an
-              </p>
-            </div>
-            <span style="background: var(--bg-subtle); border: 1px solid var(--border-subtle); color: #334155; font-size: 0.82rem; font-weight: 800; padding: 4px 10px; border-radius: 8px;">
-              {plafondProgressionPct}%
-            </span>
-          </div>
-
-          <div style="background: var(--bg-container); border: 1px solid var(--border-subtle, #e2e8f0); height: 10px; border-radius: 6px; overflow: hidden; margin-bottom: 12px;">
-            <div style="width: {plafondProgressionPct}%; height: 100%; background: #3b82f6; border-radius: 6px; transition: width 0.3s ease;"></div>
-          </div>
-
-          <p style="font-size: 0.82rem; color: #475569; margin: 0; line-height: 1.4;">
-            <i class="fa-solid fa-shield-halved" style="color: #3b82f6;"></i> Il vous reste <strong>{Math.max(0, selectedRegime.plafondCA - caEncaissé).toLocaleString('fr-FR')} €</strong> de marge sous le statut micro.
-          </p>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- 5. PANORAMA DES DÉCLARATIONS URSSAF (ENGLOBANT LE TITRE) -->
@@ -356,10 +363,10 @@
       </div>
     </div>
 
-    <div class="table-container" style="border: none; border-radius: 12px; overflow: hidden; background: var(--bg-card, #ffffff); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);">
+    <div class="table-container" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
       <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
-          <tr style="background: var(--bg-container); border-bottom: 1.5px solid var(--border-subtle, #e2e8f0);">
+          <tr style="background: #ffffff; border-bottom: 1.5px solid #e2e8f0;">
             <th style="padding: 12px 14px; text-align: left; font-size: 0.78rem; font-weight: 800; color: #475569; text-transform: uppercase;">Trimestre</th>
             <th style="padding: 12px 14px; text-align: left; font-size: 0.78rem; font-weight: 800; color: #475569; text-transform: uppercase;">Période couverte</th>
             <th style="padding: 12px 14px; text-align: right; font-size: 0.78rem; font-weight: 800; color: #475569; text-transform: uppercase;">CA Encaissé</th>
@@ -412,10 +419,10 @@
       </button>
     </div>
 
-    <div class="table-container" style="border: none; border-radius: 12px; overflow: hidden; background: var(--bg-card, #ffffff); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);">
+    <div class="table-container" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
       <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
-          <tr style="background: var(--bg-container); border-bottom: 1.5px solid var(--border-subtle, #e2e8f0);">
+          <tr style="background: #ffffff; border-bottom: 1.5px solid #e2e8f0;">
             <th>Date</th>
             <th>Client / Libellé</th>
             <th>Mode de règlement</th>

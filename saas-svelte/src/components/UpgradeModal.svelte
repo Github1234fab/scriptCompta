@@ -9,7 +9,7 @@
   }
 
   function handleStartSubscription() {
-    showToast('🚀 Redirection vers le paiement sécurisé Stripe...');
+    showToast('Redirection vers le paiement sécurisé Stripe...');
     
     // Construction de l'URL avec les paramètres Stripe pour associer le paiement au compte Firebase
     const url = new URL(stripeBaseUrl);
@@ -66,7 +66,7 @@
 
       <!-- Badge Premium -->
       <div style="display: inline-flex; align-items: center; gap: 8px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; font-size: 0.78rem; font-weight: 800; padding: 5px 14px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px;">
-        ⭐ FORMULE ILLIMITÉE
+        <i class="fa-solid fa-crown" style="font-size: 0.8rem;"></i> FORMULE ILLIMITÉE
       </div>
 
       <h2 style="font-size: 1.55rem; font-weight: 800; color: #0f172a; margin: 0 0 10px 0; line-height: 1.25;">
@@ -74,7 +74,7 @@
       </h2>
 
       <p style="font-size: 0.9rem; color: #475569; line-height: 1.5; margin: 0 0 24px 0;">
-        Vous avez atteint la limite de <strong>50 écritures gratuites</strong>. Passez au forfait mensuel sans engagement pour gérer l'ensemble de votre comptabilité sans contrainte.
+        Vous avez atteint la limite de <strong>60 écritures gratuites</strong>. Passez au forfait mensuel sans engagement pour gérer l'ensemble de votre comptabilité sans contrainte.
       </p>
 
       <!-- Avantages listés -->
@@ -96,7 +96,7 @@
       <!-- Prix & CTA -->
       <div style="margin-bottom: 20px;">
         <div style="display: flex; align-items: baseline; justify-content: center; gap: 6px;">
-          <span style="font-size: 2.3rem; font-weight: 800; color: #0f172a;">9,90 €</span>
+          <span style="font-size: 2.3rem; font-weight: 800; color: #0f172a;">6,99 €</span>
           <span style="font-size: 0.95rem; color: #64748b; font-weight: 600;">/ mois TTC</span>
         </div>
         <span style="font-size: 0.78rem; color: #94a3b8;">Sans engagement • Facturation mensuelle • Annulation libre</span>

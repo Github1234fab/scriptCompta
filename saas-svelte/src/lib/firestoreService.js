@@ -24,7 +24,7 @@ export async function ensureUserProfile(uid, email, name = '') {
         email,
         name: name || '',
         createdAt: new Date().toISOString(),
-        plan: 'free', // 'free' (limité à 50 écritures) ou 'premium'
+        plan: 'free', // 'free' (limité à 60 écritures) ou 'premium'
         subscriptionStatus: 'inactive',
         structuresCount: 0
       };

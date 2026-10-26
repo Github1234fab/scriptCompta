@@ -906,40 +906,47 @@ h1, h2, h3, h4, h5, .page-title {
 }
 
 .custom-table th {
-  background-color: #f8fafc !important;
-  padding: 16px 20px;
+  background-color: #ffffff !important;
+  padding: 14px 18px;
   font-family: var(--font-title);
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #475569 !important;
-  border-bottom: 1px solid var(--border-color);
+  color: #64748b !important;
+  border-bottom: 1.5px solid #cbd5e1;
+  border-right: 1px solid #e2e8f0;
+}
+
+.custom-table th:last-child {
+  border-right: none;
 }
 
 .custom-table td {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
+  padding: 14px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
   color: #0f172a !important;
   font-weight: 500;
 }
 
+.custom-table td:last-child {
+  border-right: none;
+}
+
 .custom-table tbody tr {
-  transition: var(--transition-fast);
-  background-color: #ffffff;
+  transition: background-color 0.15s ease;
+  background-color: #ffffff !important;
 }
 
-/* Zebra Striping (Une ligne sur deux grisée pour une lisibilité optimale) */
-.custom-table tbody tr:nth-child(even), table.custom-table tbody tr:nth-child(even) {
-  background-color: #f8fafc !important;
-}
-
+/* Lignes uniformes calmes (suppression de l'alternance zébrée) */
+.custom-table tbody tr:nth-child(even), table.custom-table tbody tr:nth-child(even),
 .custom-table tbody tr:nth-child(odd), table.custom-table tbody tr:nth-child(odd) {
   background-color: #ffffff !important;
 }
 
 .custom-table tbody tr:hover, .student-row:hover {
-  background-color: #f1f5f9 !important;
+  background-color: #f8fafc !important;
 }
 
 .custom-table tbody tr:last-child td {

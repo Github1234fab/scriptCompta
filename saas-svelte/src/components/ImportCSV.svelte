@@ -290,19 +290,19 @@
     });
 
     if (newTransactions.length === 0) {
-      showToast("⚠️ Toutes les transactions de ce fichier ont déjà été importées (doublons détectés).");
+      showToast("Toutes les transactions de ce fichier ont déjà été importées (doublons détectés).");
       showMappingStep = false;
       return;
     }
 
-    // Contrôle Quota Freemium (Max 50 écritures en gratuit)
+    // Contrôle Quota Freemium (Max 60 écritures en gratuit)
     const totalAfterImport = $transactions.length + newTransactions.length;
     let userIsPremium = false;
     isPremium.subscribe(v => userIsPremium = v)();
 
     if (!userIsPremium && totalAfterImport > FREE_TIER_MAX_TRANSACTIONS) {
       showUpgradeModal.set(true);
-      showToast(`⚠️ Limite gratuite atteinte (${totalAfterImport} / ${FREE_TIER_MAX_TRANSACTIONS} écritures). Débloquez la formule Illimitée !`);
+      showToast(`Limite gratuite atteinte (${totalAfterImport} / ${FREE_TIER_MAX_TRANSACTIONS} écritures). Débloquez la formule Illimitée !`);
       return;
     }
 
