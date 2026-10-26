@@ -13,6 +13,7 @@
   let password = $state('');
   let displayName = $state('');
   let localError = $state('');
+  let showPassword = $state(false);
 
   onMount(() => {
     clearErrors();
@@ -26,6 +27,7 @@
   /** @param {'login' | 'register'} newMode */
   function switchMode(newMode) {
     mode = newMode;
+    showPassword = false;
     clearErrors();
   }
 
@@ -42,10 +44,10 @@
     try {
       if (mode === 'register') {
         await registerWithEmail(email, password, displayName);
-        showToast('🎉 Compte créé avec succès ! Bienvenue sur ScriptCompta.');
+        showToast('Compte créé avec succès ! Bienvenue sur ScriptCompta.');
       } else {
         await loginWithEmail(email, password);
-        showToast('👋 Connexion réussie !');
+        showToast('Connexion réussie !');
       }
     } catch (err) {
       localError = err?.message || 'Une erreur est survenue.';
@@ -128,18 +130,38 @@
 
       <div class="form-group">
         <label for="auth-pwd" class="input-label">Mot de passe</label>
-        <input 
-          type="password" 
-          id="auth-pwd"
-          bind:value={password}
-          oninput={clearErrors}
-          required
-          minlength="6"
-          placeholder="••••••••"
-          class="auth-input"
-        />
+        <div class="password-input-wrapper">
+          <input 
+            type={showPassword ? 'text' : 'password'} 
+            id="auth-pwd"
+            bind:value={password}
+            oninput={clearErrors}
+            required
+            minlength="6"
+            placeholder="••••••••"
+            class="auth-input password-input"
+          />
+          <button 
+            type="button" 
+            class="toggle-password-btn"
+            onclick={() => showPassword = !showPassword}
+            aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+            title={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+          >
+            <i class="fa-regular {showPassword ? 'fa-eye-slash' : 'fa-eye'}"></i>
+          </button>
+        </div>
         {#if mode === 'register'}
-          <span class="input-hint">6 caractères minimum</span>
+          <div class="password-requirements">
+            <div class="requirement-item" class:valid={password.length >= 6}>
+              <i class="fa-solid {password.length >= 6 ? 'fa-circle-check' : 'fa-circle-dot'}"></i>
+              <span>6 caractères minimum</span>
+            </div>
+            <div class="requirement-item valid">
+              <i class="fa-solid fa-circle-check"></i>
+              <span>Caractères autorisés : lettres, chiffres et symboles (@, #, $, !, %, etc.)</span>
+            </div>
+          </div>
         {/if}
       </div>
 
@@ -289,11 +311,6 @@
     color: #0f172a;
   }
 
-  .input-hint {
-    font-size: 0.74rem;
-    color: #94a3b8;
-  }
-
   .auth-input {
     width: 100%;
     padding: 11px 14px;
@@ -310,6 +327,67 @@
   .auth-input:focus {
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  .password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  .password-input {
+    padding-right: 44px;
+  }
+
+  .toggle-password-btn {
+    position: absolute;
+    right: 6px;
+    background: transparent;
+    border: none;
+    padding: 8px 10px;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .toggle-password-btn:hover {
+    color: #0f172a;
+    background: #f1f5f9;
+  }
+
+  .password-requirements {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 4px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .requirement-item {
+    font-size: 0.76rem;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    line-height: 1.35;
+  }
+
+  .requirement-item.valid {
+    color: #166534;
+  }
+
+  .requirement-item i {
+    font-size: 0.72rem;
+    flex-shrink: 0;
   }
 
   .submit-btn {
