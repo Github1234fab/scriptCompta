@@ -62,13 +62,13 @@
 
 <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px;">
   <div>
-    <h1 class="page-title">☀️ La Météo de Trésorerie</h1>
+    <h1 class="page-title">La Météo de Trésorerie</h1>
     <p class="page-subtitle">Combien j'ai vraiment ? Éliminez le doute sur l'argent réellement disponible après provisions.</p>
   </div>
 </div>
 
-<div class="pedago-banner" style="margin-bottom: 25px;">
-  <div class="pedago-banner-icon">💡</div>
+<div class="pedago-banner" style="margin-bottom: 25px; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
+  <div class="pedago-banner-icon"><i class="fa-solid fa-lightbulb" style="color: #6366f1;"></i></div>
   <div class="pedago-banner-text">
     <h4>Pourquoi le solde bancaire est trompeur ?</h4>
     <p>Un dirigeant ou trésorier qui voit 10 000 € sur son compte stresse parce qu'il ne sait pas ce qui lui appartient réellement. La météo de trésorerie calcule en temps réel votre <strong>Vrai Disponible</strong> après déduction des provisions automatiques (Urssaf, TVA, charges récurrentes) et évalue votre autonomie financière sans rentrée d'argent !</p>
@@ -90,7 +90,7 @@
   </div>
 
   <!-- Vrai Disponible -->
-  <div class="glass-card highlight-success" style="border: 1px solid rgba(52, 211, 153, 0.4);">
+  <div class="glass-card highlight-success" style="border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
     <div class="stat-icon success"><i class="fa-solid fa-shield-halved"></i></div>
     <div class="stat-label" style="font-size: 1.15rem; font-weight: 700; color: #34d399; margin-bottom: 8px;">
       Le Vrai Disponible

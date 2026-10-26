@@ -639,7 +639,7 @@
 
     updated = deduplicateMembersList(updated);
     updateMembers(updated);
-    showToast(`🎉 Import réussi : ${addedCount} élève(s) créé(s), ${updatedCount} mis à jour.`);
+    showToast(`Import réussi : ${addedCount} élève(s) créé(s), ${updatedCount} mis à jour.`);
     showImportModal = false;
     importedRows = [];
     importFileName = "";
@@ -706,7 +706,7 @@
             <tr>
               <td colspan="4" style="text-align: center; color: #64748b; padding: 40px 10px;">
                 {#if activeTab === "a_attribuer"}
-                  🎉 Aucune opération bancaire en 756 / 706 en attente d'attribution.
+                  Aucune opération bancaire en 756 / 706 en attente d'attribution.
                 {:else}
                   Aucune opération déjà attribuée.
                 {/if}
@@ -746,7 +746,7 @@
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
     
     <!-- Card 1: Total attendu -->
-    <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
+    <div style="background: #0f172a; border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">TOTAL ATTENDU (FORFAITS)</span>
         <i class="fa-solid fa-calculator" style="color: #64748b; font-size: 0.85rem;"></i>
@@ -759,7 +759,7 @@
     </div>
 
     <!-- Card 2: Déjà encaissé -->
-    <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
+    <div style="background: #0f172a; border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">DÉJÀ ENCAISSÉ</span>
         <span style="font-size: 0.78rem; font-weight: 700; color: #cbd5e1; background: #1e293b; padding: 2px 8px; border-radius: 12px; font-family: ui-monospace, monospace;">{kpiPercentEncaisse}%</span>
@@ -776,7 +776,7 @@
     </div>
 
     <!-- Card 3: Reste à recouvrer -->
-    <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
+    <div style="background: #0f172a; border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">RESTE À RECOUVRER</span>
         <i class="fa-solid fa-clock-rotate-left" style="color: #64748b; font-size: 0.85rem;"></i>
@@ -789,7 +789,7 @@
     </div>
 
     <!-- Card 4: Élèves en retard / impayés -->
-    <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
+    <div style="background: #0f172a; border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">ÉLÈVES EN RETARD / IMPAYÉS</span>
         <i class="fa-solid fa-user-clock" style="color: #64748b; font-size: 0.85rem;"></i>
@@ -891,8 +891,8 @@
       </div>
     </div>
 
-    <!-- Table Container with Border and Alternating Rows -->
-    <div style="border: 1px solid rgba(51, 65, 85, 0.6); border-radius: 10px; overflow: hidden; background: rgba(15, 23, 42, 0.6); {viewMode === 'scroll' ? 'max-height: 530px; overflow-y: auto;' : ''}">
+    <!-- Table Container with Elevation Shadow and Alternating Rows -->
+    <div style="border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2); border-radius: 10px; overflow: hidden; background: rgba(15, 23, 42, 0.6); {viewMode === 'scroll' ? 'max-height: 530px; overflow-y: auto;' : ''}">
       <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="background: #1e293b; border-bottom: 2px solid #334155; {viewMode === 'scroll' ? 'position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.3);' : ''}">

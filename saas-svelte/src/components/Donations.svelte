@@ -63,7 +63,7 @@
     adresse = '';
     montant = '';
 
-    showToast('❤️ Don enregistré ! Reçu fiscal prêt dans le tableau.');
+    showToast('Don enregistré ! Reçu fiscal prêt dans le tableau.');
   }
 
   function openCerfaModal(d) {
@@ -85,13 +85,13 @@
         return d;
       });
       updateDonors(list);
-      showToast('💾 Reçu fiscal enregistré et archivé !');
+      showToast('Reçu fiscal enregistré et archivé !');
     }
     fermerModal();
   }
 
   function imprimerRecu() {
-    alert("🖨️ Envoi du document vers votre imprimante...");
+    alert("Envoi du document vers votre imprimante...");
   }
 </script>
 
@@ -100,8 +100,8 @@
   <p class="page-subtitle">Suivez vos mécènes et éditez en 1 clic les reçus fiscaux Cerfa officiels.</p>
 </div>
 
-<div class="pedago-banner">
-  <div class="pedago-banner-icon">💡</div>
+<div class="pedago-banner" style="border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
+  <div class="pedago-banner-icon"><i class="fa-solid fa-lightbulb" style="color: #6366f1;"></i></div>
   <div class="pedago-banner-text">
     <h4>Qu'est-ce qu'un reçu fiscal Cerfa ?</h4>
     <p>Si votre association est déclarée d'intérêt général, vous pouvez délivrer aux donateurs un reçu officiel (Cerfa 11580) qui leur permet de déduire 66% de leur don de leurs impôts sur le revenu. Notre outil gère le registre des mécènes et pré-remplit le Cerfa de façon automatisée.</p>

@@ -141,7 +141,7 @@
   <div style="display: flex; flex-direction: column; gap: 24px;">
 
     <!-- BANDEAU SÉLECTEUR DE RÉGIME ET TAUX URSSAF -->
-    <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div style="background: var(--bg-card, #ffffff); border: none; border-radius: 14px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
       <div>
         <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #64748b; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">
           Activité micro-entrepreneur & Taux de cotisations
@@ -199,7 +199,7 @@
     </div>
 
     <!-- BANDEAU FIL CONDUCTEUR : FORMULE DE TRÉSORERIE ÉTAPE PAR ÉTAPE -->
-    <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 0.88rem;">
+    <div style="background: var(--bg-card, #ffffff); border: none; border-radius: 12px; padding: 14px 20px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 0.88rem;">
       <div style="display: flex; align-items: center; gap: 8px;">
         <i class="fa-solid fa-calculator" style="color: #64748b;"></i>
         <span style="color: #475569; font-weight: 700;">Votre trésorerie étape par étape :</span>
@@ -221,7 +221,7 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px;">
       
       <!-- Jauge 1 : Franchise de TVA -->
-      <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <div style="background: var(--bg-card, #ffffff); border: none; border-radius: 14px; padding: 22px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <div>
             <h4 style="font-family: var(--font-title); font-size: 1rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">
@@ -252,7 +252,7 @@
       </div>
 
       <!-- Jauge 2 : Plafond du régime Micro -->
-      <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <div style="background: var(--bg-card, #ffffff); border: none; border-radius: 14px; padding: 22px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <div>
             <h4 style="font-family: var(--font-title); font-size: 1rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">
@@ -279,7 +279,7 @@
     </div>
 
     <!-- TABLEAU RÉCAPITULATIF TRIMESTRIEL URSSAF -->
-    <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="background: var(--bg-card, #ffffff); border: none; border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
         <div>
           <h3 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">
@@ -291,7 +291,7 @@
         </div>
       </div>
 
-      <div class="table-container" style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+      <div class="table-container" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
         <table class="custom-table" style="width: 100%; border-collapse: collapse;">
           <thead>
             <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
@@ -343,7 +343,7 @@
 <!-- 3. ONGLET REGISTRE DES ACHATS -->
 <!-- ============================================== -->
 {:else if activeTab === 'achats'}
-  <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <div style="background: var(--bg-card, #ffffff); border: none; border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 14px;">
       <div>
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
@@ -360,7 +360,7 @@
       </div>
 
       <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; padding: 8px 16px; border-radius: 10px; text-align: right;">
+        <div style="background: #f8fafc; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); padding: 8px 16px; border-radius: 10px; text-align: right;">
           <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: #64748b; display: block;">Total Dépensé</span>
           <strong style="font-size: 1.25rem; color: #b91c1c; font-family: var(--font-title);">
             -{totalAchats.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
@@ -377,7 +377,7 @@
       </div>
     </div>
 
-    <div class="table-container" style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+    <div class="table-container" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
       <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">

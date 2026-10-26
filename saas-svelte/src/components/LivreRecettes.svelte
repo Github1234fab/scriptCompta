@@ -35,7 +35,7 @@
     link.click();
     document.body.removeChild(link);
 
-    showToast('📜 Export du Livre des Recettes (horodaté) téléchargé !');
+    showToast('Export du Livre des Recettes (horodaté) téléchargé !');
   }
 </script>
 
@@ -50,8 +50,8 @@
 </div>
 
 <!-- BANDEAU PÉDAGOGIQUE LÉGAL -->
-<div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px; display: flex; gap: 16px; align-items: flex-start;">
-  <div style="font-size: 1.6rem; line-height: 1;">⚖️</div>
+<div style="background: #eff6ff; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); border-radius: 12px; padding: 18px 20px; margin-bottom: 24px; display: flex; gap: 16px; align-items: flex-start;">
+  <div style="font-size: 1.6rem; line-height: 1;"><i class="fa-solid fa-scale-balanced" style="color: #1e40af;"></i></div>
   <div style="flex: 1;">
     <h4 style="margin: 0 0 6px 0; font-size: 0.95rem; font-weight: 800; color: #1e3a8a;">Ce que dit la loi pour les micro-entreprises :</h4>
     <p style="margin: 0; font-size: 0.84rem; color: #1e40af; line-height: 1.5;">
@@ -61,7 +61,7 @@
 </div>
 
 <!-- CARTE DU LIVRE OFFICIEL -->
-<div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 30px;">
+<div style="background: #ffffff; border: none; border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); margin-bottom: 30px;">
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 14px;">
     <div>
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
@@ -73,7 +73,7 @@
       <p style="font-size: 0.82rem; color: #64748b; margin: 0;">Structure : <strong style="color: #0f172a;">{activeEntity.name}</strong></p>
     </div>
     
-    <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; padding: 8px 18px; border-radius: 10px; text-align: right;">
+    <div style="background: #f0fdf4; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); padding: 8px 18px; border-radius: 10px; text-align: right;">
       <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: #16a34a; display: block;">Chiffre d'Affaires Encaissé Total</span>
       <strong style="font-size: 1.35rem; color: #15803d; font-family: var(--font-title);">
         {totalCAEncaissé.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
@@ -81,7 +81,7 @@
     </div>
   </div>
 
-  <div class="table-container" style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+  <div class="table-container" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
     <table class="custom-table" style="width: 100%; border-collapse: collapse;">
       <thead>
         <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">

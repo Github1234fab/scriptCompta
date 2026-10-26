@@ -63,13 +63,13 @@
 
 <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px;">
   <div>
-    <h1 class="page-title">🎯 Radar des Échéances</h1>
+    <h1 class="page-title">Radar des Échéances</h1>
     <p class="page-subtitle">Anticipez les échéances obligatoires propres à votre gestion ({activeEntity.name}) sans mauvaise surprise.</p>
   </div>
 </div>
 
-<div class="pedago-banner" style="margin-bottom: 25px;">
-  <div class="pedago-banner-icon">🛡️</div>
+<div class="pedago-banner" style="margin-bottom: 25px; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
+  <div class="pedago-banner-icon"><i class="fa-solid fa-shield-halved" style="color: #6366f1;"></i></div>
   <div class="pedago-banner-text">
     <h4>Échéances de la structure active ({activeEntity.model === 'micro' ? 'Micro-Entreprise' : activeEntity.model === 'tpe' ? 'Société / TPE' : 'Association'}) :</h4>
     <p>Ce radar calcule automatiquement vos prochaines obligations légales, fiscales et sociales en fonction de votre modèle de gestion sélectionné.</p>
@@ -176,8 +176,8 @@
       </div>
       <button 
         class="btn btn-sm"
-        onclick={() => showToast(`📧 Relances automatiques envoyées aux ${nombreCotisantsRetard} membre(s) en retard !`)}
-        style="width: 100%; background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); font-weight: 700; border-radius: 8px; padding: 8px 12px; cursor: pointer;"
+        onclick={() => showToast(`Relances automatiques envoyées aux ${nombreCotisantsRetard} membre(s) en retard !`)}
+        style="width: 100%; background: rgba(52, 211, 153, 0.15); color: #34d399; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); font-weight: 700; border-radius: 8px; padding: 8px 12px; cursor: pointer;"
       >
         <i class="fa-solid fa-paper-plane" style="margin-right: 6px;"></i> Relancer les {nombreCotisantsRetard} membres en retard
       </button>
@@ -196,8 +196,8 @@
       </div>
       <button 
         class="btn btn-sm"
-        onclick={() => showToast("📄 Émission des reçus fiscaux CERFA effectuée avec succès !")}
-        style="width: 100%; background: rgba(236, 72, 153, 0.15); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.3); font-weight: 700; border-radius: 8px; padding: 8px 12px; cursor: pointer;"
+        onclick={() => showToast("Émission des reçus fiscaux CERFA effectuée avec succès !")}
+        style="width: 100%; background: rgba(236, 72, 153, 0.15); color: #f472b6; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); font-weight: 700; border-radius: 8px; padding: 8px 12px; cursor: pointer;"
       >
         <i class="fa-solid fa-bolt" style="margin-right: 6px;"></i> Émettre les reçus fiscaux en 1 clic
       </button>
@@ -212,8 +212,8 @@
         <div style="font-size: 1.1rem; font-weight: 700; color: white; margin-bottom: 8px;">
           Rapport Moral & Financier
         </div>
-        <div style="display: inline-block; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 700; font-size: 0.78rem; padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.3); margin-bottom: 10px;">
-          ⏰ À organiser avant le 30 juin
+        <div style="display: inline-block; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 700; font-size: 0.78rem; padding: 4px 10px; border-radius: 6px; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); margin-bottom: 10px;">
+          <i class="fa-regular fa-clock" style="margin-right: 4px;"></i> À organiser avant le 30 juin
         </div>
         <p style="font-size: 0.82rem; color: var(--text-secondary);">Présentation des comptes de l'exercice et approbation par les adhérents.</p>
       </div>

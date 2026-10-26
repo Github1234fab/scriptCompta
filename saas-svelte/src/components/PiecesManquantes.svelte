@@ -45,7 +45,7 @@
     });
 
     updateTransactions(updated);
-    showToast(`📎 Justificatif "${file.name}" rattaché à l'opération !`);
+    showToast(`Justificatif "${file.name}" rattaché à l'opération !`);
   }
 
   function exporterArchiveComptable() {
@@ -62,7 +62,7 @@
     link.click();
     document.body.removeChild(link);
 
-    showToast('📂 Export des écritures pré-comptables téléchargé !');
+    showToast('Export des écritures pré-comptables téléchargé !');
   }
 </script>
 
@@ -85,10 +85,10 @@
         {scoreConformite}% <span style="font-size: 1rem; font-weight: normal; color: var(--text-secondary);">de vos dépenses sont justifiées</span>
       </h2>
       <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
-        {piecesManquantes.length === 0 ? '🎉 Bravo ! Toutes vos dépenses bancaires ont un justificatif rattaché.' : `⚠️ Il vous reste ${piecesManquantes.length} pièce(s) manquante(s) à glisser-déposer ci-dessous.`}
+        {piecesManquantes.length === 0 ? 'Bravo ! Toutes vos dépenses bancaires ont un justificatif rattaché.' : `Il vous reste ${piecesManquantes.length} pièce(s) manquante(s) à glisser-déposer ci-dessous.`}
       </p>
-      <div style="margin-top: 8px; font-size: 0.78rem; color: #a5b4fc; background: rgba(99, 102, 241, 0.1); padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.2); display: inline-flex; align-items: center; gap: 6px;">
-        <span>💡 Les frais bancaires et cotisations Urssaf sont automatiquement exemptés de facture (votre relevé fait foi).</span>
+      <div style="margin-top: 8px; font-size: 0.78rem; color: #a5b4fc; background: rgba(99, 102, 241, 0.1); padding: 6px 10px; border-radius: 6px; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); display: inline-flex; align-items: center; gap: 6px;">
+        <span><i class="fa-solid fa-circle-info" style="color: #818cf8;"></i> Les frais bancaires et cotisations Urssaf sont automatiquement exemptés de facture (votre relevé fait foi).</span>
       </div>
     </div>
     
