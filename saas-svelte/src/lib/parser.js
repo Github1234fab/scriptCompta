@@ -7,6 +7,9 @@
 export const CSVParser = {
   /**
    * Analyse une chaîne brute CSV et retourne un tableau d'objets transaction
+   * @param {string} rawCsvText
+   * @param {Record<string, any> | null} [mappingConfig]
+   * @returns {Array<any>}
    */
   parse(rawCsvText, mappingConfig = null) {
     if (!rawCsvText || rawCsvText.trim() === '') return [];
