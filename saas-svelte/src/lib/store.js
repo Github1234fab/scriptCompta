@@ -58,6 +58,25 @@ export function safeGetJson(key, fallback) {
   }
 }
 
+// Helper pour formater une date au format français JJ/MM/AAAA
+export function formatDateFr(dateVal) {
+  if (!dateVal) return '';
+  const str = String(dateVal).trim();
+  if (str.includes('/')) return str; // déjà JJ/MM/AAAA
+  const cleanIso = str.split('T')[0];
+  const parts = cleanIso.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  try {
+    const dt = new Date(dateVal);
+    if (!isNaN(dt.getTime())) {
+      return dt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+  } catch (e) {}
+  return str;
+}
+
 /**
  * Nettoie et sécurise les transactions pour éliminer toute corruption d'importation
  * (ex: date de carte bancaire '040926' ou '110926' parsée en crédit, ou débits/crédits simultanés).

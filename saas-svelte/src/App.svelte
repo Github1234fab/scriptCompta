@@ -378,6 +378,19 @@
   <div class="tour-overlay active" id="tour-overlay" onclick={stopTour}></div>
   
   <div class="tour-popover" id="tour-popover" style="display: block; top: {popoverTop}px; left: {popoverLeft}px; z-index: 10001; position: absolute;">
+    <!-- Bouton de fermeture à tout moment -->
+    <button 
+      type="button" 
+      onclick={stopTour} 
+      aria-label="Fermer le guide"
+      title="Fermer le guide"
+      style="position: absolute; top: 14px; right: 14px; background: transparent; border: none; color: #94a3b8; font-size: 1rem; cursor: pointer; padding: 4px 6px; line-height: 1; border-radius: 6px; transition: all 0.15s ease;"
+      onmouseenter={(e) => { e.currentTarget.style.color = '#ffffff'; e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
+      onmouseleave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'transparent'; }}
+    >
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+
     <h4 class="tour-popover-title">{tourSteps[tourStep].title}</h4>
     <p class="tour-popover-text">{tourSteps[tourStep].text}</p>
     <div class="tour-popover-actions">

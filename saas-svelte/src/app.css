@@ -1228,13 +1228,13 @@ h1, h2, h3, h4, h5, .page-title {
 .tour-popover {
   position: absolute;
   z-index: 1000;
-  width: 320px;
-  background-color: #1a223f;
-  border: 2px solid var(--color-primary);
+  width: 340px;
+  background-color: #0f172a;
+  border: 1.5px solid #334155;
   border-radius: var(--radius-md);
   padding: 20px;
   color: white;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
   pointer-events: auto;
   font-family: var(--font-body);
   animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -1248,16 +1248,17 @@ h1, h2, h3, h4, h5, .page-title {
 .tour-popover-title {
   font-family: var(--font-title);
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.08rem;
   margin-bottom: 8px;
-  color: var(--color-primary-light);
+  color: #ffffff;
+  padding-right: 24px;
 }
 
 .tour-popover-text {
   font-size: 0.88rem;
-  line-height: 1.45;
-  color: var(--text-primary);
-  margin-bottom: 15px;
+  line-height: 1.5;
+  color: #cbd5e1;
+  margin-bottom: 16px;
 }
 
 .tour-popover-actions {
@@ -1267,8 +1268,9 @@ h1, h2, h3, h4, h5, .page-title {
 }
 
 .tour-popover-steps {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #94a3b8;
 }
 
 /* ═══════════════════════════════════════════════════════════════════

@@ -4,10 +4,11 @@
     updateMembers, 
     transactions,
     updateTransactions,
-    showToast 
+    showToast,
+    formatDateFr 
   } from "../lib/store.js";
 
-  let currentSubView = $state("operations");
+  let currentSubView = $state("tableau_gestion");
   let activeTab = $state("a_attribuer");
 
   let memberFilter = $state("tous");
@@ -639,53 +640,73 @@
 
     updated = deduplicateMembersList(updated);
     updateMembers(updated);
-    showToast(`Import réussi : ${addedCount} élève(s) créé(s), ${updatedCount} mis à jour.`);
+    showToast(`Import réussi : ${addedCount} adhérent(s) créé(s), ${updatedCount} mis à jour.`);
     showImportModal = false;
     importedRows = [];
     importFileName = "";
     rawPasteText = "";
   }
 </script>
-{#if currentSubView === "operations"}
-  <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+<!-- BARRE DE NAVIGATION ENTRE LE REGISTRE DES ÉLÈVES ET LE RAPPROCHEMENT BANCAIRE -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+  <div style="display: flex; background: #e2e8f0; padding: 4px; border-radius: 10px; gap: 4px;">
     <button 
-      class="btn btn-secondary" 
-      onclick={() => currentSubView = "tableau_gestion"}
-      style="padding: 9px 16px; font-weight: 600; font-size: 0.88rem; background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); color: white; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
+      class="sub-tab-btn"
+      style="padding: 8px 18px; font-size: 0.88rem; font-weight: 700; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; {currentSubView === 'tableau_gestion' ? 'background: #0f172a; color: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #475569;'}"
+      onclick={() => currentSubView = 'tableau_gestion'}
     >
-      <i class="fa-solid fa-arrow-left"></i> Accéder au registre des élèves
+      <i class="fa-solid fa-users"></i> Registre & Suivi des adhérents
+    </button>
+    <button 
+      class="sub-tab-btn"
+      style="padding: 8px 18px; font-size: 0.88rem; font-weight: 700; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; {currentSubView === 'operations' ? 'background: #0f172a; color: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #475569;'}"
+      onclick={() => currentSubView = 'operations'}
+    >
+      <i class="fa-solid fa-link"></i> Rapprochement des règlements bancaires ({allAssoTransactions.filter(t => !t.memberAssociated).length} en attente)
     </button>
   </div>
+</div>
 
-  <div class="glass-card" style="margin-top: 24px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h3 style="font-family: var(--font-title); margin: 0; font-size: 1.3rem; display: flex; align-items: center; gap: 10px;">
-        <i class="fa-solid fa-university" style="color: #818cf8;"></i> Opérations bancaires (756 / 706)
+{#if currentSubView === "operations"}
+  <!-- Bandeau explicatif du Rapprochement Adhérents -->
+  <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 12px;">
+    <i class="fa-solid fa-circle-info" style="color: #2563eb; font-size: 1.1rem; margin-top: 2px;"></i>
+    <div style="font-size: 0.86rem; color: #1e3a8a; line-height: 1.5;">
+      <strong>Vos opérations sont déjà classées en comptabilité (comptes 706 & 756).</strong><br />
+      Cette section facultative sert à <strong>relier chaque virement bancaire reçu à la fiche d'un adhérent</strong> du registre, afin de constater automatiquement que sa cotisation ou adhésion est payée et de suivre les éventuels impayés.
+    </div>
+  </div>
+
+  <div class="glass-card" style="margin-top: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+      <h3 style="font-family: var(--font-title); margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; color: #0f172a;">
+        <i class="fa-solid fa-building-columns" style="color: #2563eb;"></i> Règlements bancaires des adhésions & cotisations
       </h3>
 
-      <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
         {#if activeTab === "a_attribuer" && filteredOperations.length > 0}
           <button 
             class="btn btn-cta-magic"
             onclick={toutAssocier}
+            title="Associer automatiquement les virements aux adhérents dont le nom est reconnu dans le libellé bancaire"
           >
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Tout associer ({filteredOperations.length})
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Associer automatiquement ({filteredOperations.length})
           </button>
         {/if}
         <div style="display: flex; background: #e2e8f0; padding: 4px; border-radius: 8px;">
           <button 
             class="tab-btn"
-            style="padding: 8px 18px; font-size: 0.9rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 700; transition: all 0.2s; {activeTab === 'a_attribuer' ? 'background: #0f172a; color: #ffffff;' : 'background: transparent; color: #475569;'}"
+            style="padding: 7px 14px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 700; transition: all 0.2s; {activeTab === 'a_attribuer' ? 'background: #0f172a; color: #ffffff;' : 'background: transparent; color: #475569;'}"
             onclick={() => activeTab = "a_attribuer"}
           >
-            À attribuer
+            À associer à un adhérent ({allAssoTransactions.filter(t => !t.memberAssociated).length})
           </button>
           <button 
             class="tab-btn"
-            style="padding: 8px 18px; font-size: 0.9rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 700; transition: all 0.2s; {activeTab === 'attribuees' ? 'background: #0f172a; color: #ffffff;' : 'background: transparent; color: #475569;'}"
+            style="padding: 7px 14px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 700; transition: all 0.2s; {activeTab === 'attribuees' ? 'background: #0f172a; color: #ffffff;' : 'background: transparent; color: #475569;'}"
             onclick={() => activeTab = "attribuees"}
           >
-            Attribuées
+            Déjà associés ({allAssoTransactions.filter(t => t.memberAssociated).length})
           </button>
         </div>
       </div>
@@ -706,29 +727,29 @@
             <tr>
               <td colspan="4" style="text-align: center; color: #64748b; padding: 40px 10px;">
                 {#if activeTab === "a_attribuer"}
-                  Aucune opération bancaire en 756 / 706 en attente d'attribution.
+                  Tous les règlements bancaires sont associés à des adhérents.
                 {:else}
-                  Aucune opération déjà attribuée.
+                  Aucun règlement n'a encore été associé à un adhérent.
                 {/if}
               </td>
             </tr>
           {:else}
             {#each filteredOperations as tx}
               <tr style="border-bottom: 1px solid #f1f5f9; background: #ffffff;">
-                <td style="font-size: 0.9rem; color: #64748b; white-space: nowrap;">{tx.date || tx.datePaiement}</td>
-                <td style="color: #0f172a; font-weight: 700; font-size: 0.95rem;">
+                <td style="font-size: 0.88rem; color: #64748b; white-space: nowrap; font-weight: 600;">{formatDateFr(tx.date || tx.datePaiement)}</td>
+                <td style="color: #0f172a; font-weight: 700; font-size: 0.92rem;">
                   {tx.libelle}
-                  <div style="font-size: 0.78rem; color: #4338ca; font-weight: 600; margin-top: 3px;">Compte {tx.compteAttribué || tx.compteCredit || tx.account || "756/706"}</div>
+                  <div style="font-size: 0.76rem; color: #4338ca; font-weight: 600; margin-top: 2px;">Compte comptable {tx.compteAttribué || tx.compteCredit || tx.account || "706"}</div>
                 </td>
-                <td class="amount credit" style="font-weight: 800; font-size: 1.05rem; color: #15803d;">+{tx.credit.toFixed(2)} €</td>
+                <td class="amount credit" style="font-weight: 800; font-size: 1rem; color: #15803d; white-space: nowrap;">+{tx.credit.toFixed(2)} €</td>
                 <td>
                   {#if !tx.memberAssociated}
                     <button class="btn btn-cta-members btn-sm" onclick={() => openAssociationModal(tx)} style="white-space: nowrap; background: #0f172a; color: #ffffff; font-weight: 700; border-radius: 6px; padding: 6px 14px; border: none; cursor: pointer;">
-                      <i class="fa-solid fa-link"></i> Associer à la gestion
+                      <i class="fa-solid fa-user-check"></i> Associer à un adhérent
                     </button>
                   {:else}
-                    <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 0.85rem; padding: 6px 12px; font-weight: 700;">
-                      <i class="fa-solid fa-check"></i> Attribué ({tx.associatedMember || "Élève"})
+                    <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 0.82rem; padding: 5px 10px; font-weight: 700;">
+                      <i class="fa-solid fa-check"></i> Relié à {tx.associatedMember || "Adhérent"}
                     </span>
                   {/if}
                 </td>
@@ -788,15 +809,15 @@
       </div>
     </div>
 
-    <!-- Card 4: Élèves en retard / impayés -->
+    <!-- Card 4: Adhérents en retard / cotisations dues -->
     <div style="background: #0f172a; border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">ÉLÈVES EN RETARD / IMPAYÉS</span>
+        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">ADHÉRENTS EN RETARD / COTISATIONS DUES</span>
         <i class="fa-solid fa-user-clock" style="color: #64748b; font-size: 0.85rem;"></i>
       </div>
       <div>
         <div style="font-size: 1.75rem; font-weight: 800; color: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
-          {kpiImpayesCount} <span style="font-size: 1rem; font-weight: 600; color: #94a3b8;">élève{kpiImpayesCount > 1 ? 's' : ''}</span>
+          {kpiImpayesCount} <span style="font-size: 1rem; font-weight: 600; color: #94a3b8;">adhérent{kpiImpayesCount > 1 ? 's' : ''}</span>
         </div>
       </div>
     </div>
@@ -886,7 +907,7 @@
           onclick={() => showImportModal = true}
           style="padding: 9px 18px; font-weight: 700; font-size: 0.88rem; border-radius: 8px; display: flex; align-items: center; gap: 8px;"
         >
-          <i class="fa-solid fa-file-import"></i> + Importer la liste des élèves
+          <i class="fa-solid fa-file-import"></i> + Importer la liste des adhérents
         </button>
       </div>
     </div>
@@ -897,7 +918,7 @@
         <thead>
           <tr style="background: #1e293b; border-bottom: 2px solid #334155; {viewMode === 'scroll' ? 'position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.3);' : ''}">
             <th style="padding: 14px 18px; text-align: left; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Nom de l'adhérent</th>
-            <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Montant forfait</th>
+            <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Cotisation / Forfait</th>
             <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Déjà versé</th>
             <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Reste à régler</th>
             <th style="padding: 14px 18px; text-align: center; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Statut</th>
@@ -908,7 +929,7 @@
           {#if displayedMembers.length === 0}
             <tr>
               <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 45px 10px;">
-                Aucun élève ne correspond aux critères de recherche.
+                Aucun adhérent ne correspond aux critères de recherche.
               </td>
             </tr>
           {:else}
@@ -960,7 +981,7 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(51, 65, 85, 0.5); font-size: 0.88rem; color: rgba(255, 255, 255, 0.6);">
         {#if viewMode === 'pagination'}
           <div>
-            Affichage <strong>{Math.min((currentPage - 1) * pageSize + 1, filteredMembers.length)}</strong> à <strong>{Math.min(currentPage * pageSize, filteredMembers.length)}</strong> sur <strong>{filteredMembers.length}</strong> élèves
+            Affichage <strong>{Math.min((currentPage - 1) * pageSize + 1, filteredMembers.length)}</strong> à <strong>{Math.min(currentPage * pageSize, filteredMembers.length)}</strong> sur <strong>{filteredMembers.length}</strong> adhérents
           </div>
 
           {#if totalPages > 1}
@@ -996,7 +1017,7 @@
         {:else}
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
             <div>
-              📜 <strong>{filteredMembers.length}</strong> élèves affichés en défilement continu
+              📜 <strong>{filteredMembers.length}</strong> adhérents affichés en défilement continu
             </div>
             <button 
               class="btn btn-secondary btn-sm"
@@ -1028,7 +1049,7 @@
 
       <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; font-size: 0.9rem; color: rgba(255, 255, 255, 0.9); line-height: 1.5;">
         <p style="margin: 0 0 10px 0;">
-          Déposez votre tableau (Excel ou CSV). Nous avons seulement besoin de deux informations : <strong>le nom de l'élève ou du client</strong> et <strong>le montant total de son inscription ou de son dû</strong> (forfait annuel, trimestriel, achat de produit...).
+          Déposez votre tableau (Excel ou CSV). Nous avons seulement besoin de deux informations : <strong>le nom de l'adhérent ou du membre</strong> et <strong>le montant total de sa cotisation ou de son dû</strong> (adhésion annuelle, abonnement, forfait...).
         </p>
         <button 
           type="button" 
@@ -1099,7 +1120,7 @@
       {#if importedRows.length > 0}
         <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
           <div style="font-weight: 700; color: #34d399; font-size: 0.9rem; margin-bottom: 8px;">
-            ✅ {importedRows.length} élève(s) / client(s) identifié(s) prêt(s) à l'import :
+            ✅ {importedRows.length} adhérent(s) identifié(s) prêt(s) à l'import :
           </div>
           <div style="max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
             {#each importedRows.slice(0, 5) as row}
@@ -1196,7 +1217,7 @@
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_interactive_supports_focus -->
     <div class="glass-card modal-content" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1" style="max-width: 540px; width: 100%; max-height: 90vh; overflow-y: auto;">
       <h3 style="font-family: var(--font-title); margin-bottom: 16px;">
-        <i class="fa-solid fa-link" style="color: #818cf8;"></i> Associer à la gestion des élèves
+        <i class="fa-solid fa-link" style="color: #818cf8;"></i> Associer le règlement à un adhérent
       </h3>
       
       <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); margin-bottom: 20px;">
@@ -1205,7 +1226,7 @@
 
       <form onsubmit={validerAssociation}>
         <div class="form-group" style="margin-bottom: 16px;">
-          <label class="form-label" for="modal-nom">Nom de l'élève ou de l'adhérent</label>
+          <label class="form-label" for="modal-nom">Nom de l'adhérent / membre</label>
           <input id="modal-nom" type="text" class="input-field" bind:value={nomEleve} required />
         </div>
 
@@ -1217,7 +1238,7 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 24px;">
-          <label class="form-label" for="modal-montant-forfait">Montant Total du Forfait / Cotisation (€)</label>
+          <label class="form-label" for="modal-montant-forfait">Montant de la cotisation / adhésion annuelle (€)</label>
           <input id="modal-montant-forfait" type="number" class="input-field" placeholder="ex: 350" bind:value={montantTotalPercevoir} required />
         </div>
 

@@ -13,7 +13,7 @@
     onclick={() => activeTab = 'members'} 
     style="padding: 8px 16px; font-weight: 700; font-size: 0.9rem; background: transparent; border: none; border-bottom: 2.5px solid {activeTab === 'members' ? '#0f172a' : 'transparent'}; color: {activeTab === 'members' ? '#0f172a' : '#64748b'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; margin-bottom: -4px;"
   >
-    <i class="fa-solid fa-users" style="color: {activeTab === 'members' ? '#0f172a' : '#64748b'};"></i> Inscriptions & Élèves
+    <i class="fa-solid fa-users" style="color: {activeTab === 'members' ? '#0f172a' : '#64748b'};"></i> Adhérents & Cotisations
   </button>
   
   <button 

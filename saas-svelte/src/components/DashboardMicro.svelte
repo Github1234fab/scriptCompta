@@ -6,7 +6,8 @@
     entities, 
     updateEntities, 
     activeView, 
-    showToast 
+    showToast,
+    formatDateFr
   } from '../lib/store.js';
   import { get } from 'svelte/store';
   import PageHeader from './PageHeader.svelte';
@@ -256,27 +257,27 @@
     </div>
 
     <!-- 2. BLOC GÉNÉRAL TÂCHES À EFFECTUER (ENGLOBANT LE TITRE) -->
-    <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px; display: flex; flex-direction: column; gap: 14px;">
+    <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px; display: flex; flex-direction: column; gap: 12px; max-width: 580px;">
       <div style="display: flex; align-items: center; gap: 10px;">
-        <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-list-check" style="color: #2563eb; font-size: 0.95rem;"></i> Tâches à effectuer
+        <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-list-check" style="color: #2563eb; font-size: 0.92rem;"></i> Tâches à effectuer
         </h3>
         <span style="background: {pendingTxCount > 0 ? '#ef4444' : '#10b981'}; color: #ffffff; font-size: 0.74rem; font-weight: 800; padding: 2px 8px; border-radius: 9999px;">
           {pendingTxCount}
         </span>
       </div>
 
-      <!-- Bloc tâche : blanc avec ombre douce sans bordure -->
-      <div style="padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: none; border-radius: 12px; background: var(--bg-card, #ffffff); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06); flex-wrap: wrap;">
-        <div style="display: flex; align-items: center; gap: 14px;">
-          <div style="width: 42px; height: 42px; border-radius: 10px; background: var(--bg-subtle, #f1f5f9); border: none; color: {pendingTxCount > 0 ? '#d97706' : '#16a34a'}; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;">
+      <!-- Bloc tâche : blanc avec ombre douce et largeur maîtrisée -->
+      <div style="padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: var(--bg-card, #ffffff); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); max-width: 540px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 38px; height: 38px; border-radius: 10px; background: var(--bg-subtle, #f1f5f9); border: none; color: {pendingTxCount > 0 ? '#d97706' : '#16a34a'}; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;">
             <i class="fa-solid {pendingTxCount > 0 ? 'fa-arrows-split-up-and-left' : 'fa-circle-check'}"></i>
           </div>
           <div>
-            <div style="font-weight: 700; font-size: 0.92rem; color: #0f172a;">
+            <div style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">
               {pendingTxCount > 0 ? `Vous devez attribuer ${pendingTxCount} opération${pendingTxCount > 1 ? 's' : ''}` : "Vous n'avez aucune attribution en attente"}
             </div>
-            <div style="font-size: 0.8rem; color: #64748b;">
+            <div style="font-size: 0.78rem; color: #64748b; line-height: 1.35;">
               {pendingTxCount > 0 ? 'Classez ces mouvements bancaires pour actualiser vos indicateurs et vos registres légaux.' : 'Toutes vos opérations sont classées et votre comptabilité est à jour.'}
             </div>
           </div>
@@ -285,7 +286,7 @@
           type="button" 
           class="btn btn-sm" 
           onclick={() => activeView.set('categorize')}
-          style="background: #0f172a; color: #ffffff; border: none; padding: 7px 16px; border-radius: 6px; font-weight: 700; font-size: 0.82rem; cursor: pointer;"
+          style="background: #0f172a; color: #ffffff; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; flex-shrink: 0;"
         >
           {pendingTxCount > 0 ? 'Attribuer' : 'Consulter'}
         </button>
@@ -352,7 +353,7 @@
         <tbody>
           {#each activeTx.filter(t => t.credit > 0 && t.compteAttribué !== '699' && t.statut === 'attribue').slice(0, 6) as tx}
             <tr style="border-bottom: 1px solid var(--border-subtle, #e2e8f0); background: #ffffff;">
-              <td style="color: var(--text-muted); white-space: nowrap;">{tx.date}</td>
+              <td style="color: var(--text-muted); white-space: nowrap;">{formatDateFr(tx.date)}</td>
               <td style="font-weight: 600; color: var(--text-main);">{tx.libelle}</td>
               <td>
                 <span class="badge badge-muted" style="background: var(--bg-subtle); border: 1px solid var(--border-subtle);">
