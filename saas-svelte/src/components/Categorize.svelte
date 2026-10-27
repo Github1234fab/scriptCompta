@@ -656,10 +656,20 @@
   let modalAccordionGroups = $derived((() => {
     const plan = $planComptable.filter(c => c.compte !== '699');
 
-    /** @param {string[]} codes */
-    const getAccounts = (codes) => codes.map(code => {
+    /** @param {string[]} codes @param {boolean} [isExpenseContext] */
+    const getAccounts = (codes, isExpenseContext = false) => codes.map(code => {
       const found = plan.find(c => c.compte === code);
-      return found || { compte: code, libelle: Categorizer.obtenirLibelleCompte(code), desc: '' };
+      if (code === '411' && isExpenseContext) {
+        return {
+          compte: '411',
+          libelle: 'Remboursement élève / adhérent',
+          desc: 'Remboursement d’un trop-perçu, annulation de cours ou d’inscription.'
+        };
+      }
+      return found ? {
+        ...found,
+        libelle: Categorizer.obtenirLibelleCompte(code) || found.libelle
+      } : { compte: code, libelle: Categorizer.obtenirLibelleCompte(code), desc: '' };
     });
 
     /** @param {any} c */
@@ -709,7 +719,7 @@
       },
       {
         id: 'dep_social',
-        label: 'Urssaf, impôts, charges sociales, cotisations',
+        label: 'Salaires, cotisations & charges sociales ...',
         icon: 'fa-building-columns',
         codes: ['645', '635', '6453', '641', '611', '658']
       },
@@ -721,17 +731,17 @@
       },
       {
         id: 'dep_transferts',
-        label: 'Virements émis et prélèvements internes',
+        label: 'Remboursements, virements & trésorerie',
         icon: 'fa-arrow-up-right',
-        codes: ['455', '512', '530', '401', '467']
+        codes: ['411', '455', '512', '530', '401', '467']
       }
     ];
 
-    /** @param {any[]} subMenus @param {(c: any) => boolean} fallbackFilter */
-    const buildSection = (subMenus, fallbackFilter) => {
+    /** @param {any[]} subMenus @param {(c: any) => boolean} fallbackFilter @param {boolean} [isExpenseContext] */
+    const buildSection = (subMenus, fallbackFilter, isExpenseContext = false) => {
       const handledCodes = new Set();
       const list = subMenus.map(sub => {
-        const accs = getAccounts(sub.codes);
+        const accs = getAccounts(sub.codes, isExpenseContext);
         accs.forEach(a => handledCodes.add(a.compte));
         return {
           ...sub,
@@ -753,8 +763,8 @@
     };
 
     return {
-      recettes: buildSection(recettesSubMenus, isRecette),
-      depenses: buildSection(depensesSubMenus, isDepense)
+      recettes: buildSection(recettesSubMenus, isRecette, false),
+      depenses: buildSection(depensesSubMenus, isDepense, true)
     };
   })());
 

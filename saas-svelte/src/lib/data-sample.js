@@ -7,7 +7,7 @@
 export const INITIAL_PLAN_COMPTABLE = [
   { compte: "512", libelle: "Virement interne / Compte bancaire", type: "Transfert", group: "transferts", desc: "Le compte courant de votre structure." },
   { compte: "530", libelle: "Dépôt ou retrait d'espèces (Caisse)", type: "Transfert", group: "transferts", desc: "Argent liquide détenu dans votre boîte." },
-  { compte: "411", libelle: "Règlement membre / élève", type: "Transfert", group: "transferts", desc: "Sommes dues par vos membres ou à rembourser." },
+  { compte: "411", libelle: "Remboursement ou règlement élève / adhérent", type: "Transfert", group: "transferts", desc: "Remboursement d'un trop-perçu, annulation, ou règlement d'un membre." },
   { compte: "401", libelle: "Paiement fournisseur en attente", type: "Transfert", group: "transferts", desc: "Dettes envers vos fournisseurs réguliers." },
   { compte: "467", libelle: "Autre transfert ou avance", type: "Transfert", group: "transferts", desc: "Personnes ou structures tierces en compte." },
   { compte: "455", libelle: "Compte courant d'associé (Apport / Avance CCA)", type: "Transfert", group: "transferts", desc: "Avances de trésorerie ou apports des associés (SCI / SASU / SARL)." },

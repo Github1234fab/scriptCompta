@@ -582,6 +582,11 @@ export const Categorizer = {
       return 'Frais & Débours refacturés';
     }
 
+    if (String(numCompte) === '411') {
+      if (model === 'asso') return 'Remboursement ou règlement élève / adhérent';
+      return 'Remboursement ou règlement élève / client';
+    }
+
     if (String(numCompte) === '455') {
       if (model === 'sci') return 'Compte courant d’associé (Apport CCA)';
       return 'Compte courant d’associé';
