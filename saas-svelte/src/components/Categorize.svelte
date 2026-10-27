@@ -1149,22 +1149,7 @@
           <thead>
             <tr>
               <th style="width: 12%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Date</th>
-              <th style="width: 34%; padding: 10px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; letter-spacing: 0.04em;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                  <span style="text-transform: uppercase;">Libellé</span>
-                  <button
-                    type="button"
-                    onclick={() => showConcatModal = true}
-                    style="text-transform: none; font-size: 0.72rem; font-weight: 700; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 3px 9px; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;"
-                    onmouseenter={(e) => { e.currentTarget.style.background = '#dbeafe'; }}
-                    onmouseleave={(e) => { e.currentTarget.style.background = '#eff6ff'; }}
-                    title="Associer une colonne complémentaire (payeur, motif, référence...)"
-                  >
-                    <i class="fa-solid fa-link" style="font-size: 0.68rem;"></i>
-                    <span>Associer un complément</span>
-                  </button>
-                </div>
-              </th>
+              <th style="width: 34%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Libellé</th>
               <th style="width: 14%; padding: 12px 14px; text-align: right; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Montant</th>
               <th style="width: 30%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Catégorie / Attribution</th>
               <th style="width: 12%; padding: 12px 14px; text-align: right; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Action</th>
@@ -1196,13 +1181,26 @@
                     {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
                   </td>
 
-                  <!-- 2. Libellé épuré -->
-                  <td style="padding: 14px 14px; vertical-align: middle;" title="{tx.libelle} {tx.info ? `• ${tx.info}` : ''} {tx.reference ? `• Ref: ${tx.reference}` : ''}">
+                  <!-- 2. Libellé épuré avec pilule de concaténation -->
+                  <td style="padding: 12px 14px; vertical-align: middle;" title="{tx.libelle} {tx.info ? `• ${tx.info}` : ''} {tx.reference ? `• Ref: ${tx.reference}` : ''}">
                     <div style="font-weight: 700; color: #0f172a; font-size: 0.93rem;">
                       {cleanTransactionLibelle(tx.libelle, tx)}
                     </div>
-                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">
-                      {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 3px;">
+                      <span style="font-size: 0.74rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
+                      </span>
+                      <button
+                        type="button"
+                        onclick={() => showConcatModal = true}
+                        style="margin-left: auto; flex-shrink: 0; font-size: 0.68rem; font-weight: 700; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.12s ease; line-height: 1.4; white-space: nowrap;"
+                        onmouseenter={(e) => { e.currentTarget.style.background = '#dbeafe'; }}
+                        onmouseleave={(e) => { e.currentTarget.style.background = '#eff6ff'; }}
+                        title="Mixer une autre colonne de votre fichier bancaire (payeur, motif, référence...)"
+                      >
+                        <i class="fa-solid fa-link" style="font-size: 0.62rem;"></i>
+                        <span>Associer un complément d'information</span>
+                      </button>
                     </div>
                   </td>
 
@@ -1287,10 +1285,23 @@
                   <td style="padding: 14px 14px; font-weight: 600; font-size: 0.88rem; color: #64748b; white-space: nowrap;">
                     {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
                   </td>
-                  <td style="padding: 14px 14px;">
+                  <td style="padding: 12px 14px; vertical-align: middle;">
                     <div style="font-weight: 700; color: #0f172a;">{cleanTransactionLibelle(tx.libelle, tx)}</div>
-                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">
-                      {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 3px;">
+                      <span style="font-size: 0.74rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
+                      </span>
+                      <button
+                        type="button"
+                        onclick={() => showConcatModal = true}
+                        style="margin-left: auto; flex-shrink: 0; font-size: 0.68rem; font-weight: 700; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.12s ease; line-height: 1.4; white-space: nowrap;"
+                        onmouseenter={(e) => { e.currentTarget.style.background = '#dbeafe'; }}
+                        onmouseleave={(e) => { e.currentTarget.style.background = '#eff6ff'; }}
+                        title="Mixer une autre colonne de votre fichier bancaire (payeur, motif, référence...)"
+                      >
+                        <i class="fa-solid fa-link" style="font-size: 0.62rem;"></i>
+                        <span>Associer un complément d'information</span>
+                      </button>
                     </div>
                   </td>
                   <td style="padding: 14px 14px; text-align: right; font-weight: 700; font-size: 0.95rem; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: {tx.debit > 0 ? '#b91c1c' : '#15803d'}; white-space: nowrap;">
