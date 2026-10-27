@@ -289,8 +289,20 @@
 
   // États pour la modal de concaténation assistée
   let showConcatModal = $state(false);
-  let concatRawText = $state('');
-  let concatFileName = $state('');
+  let concatRawText = $state((() => {
+    try {
+      return localStorage.getItem(`saas_compta_last_csv_text_${$activeEntityId}`) || '';
+    } catch {
+      return '';
+    }
+  })());
+  let concatFileName = $state((() => {
+    try {
+      return localStorage.getItem(`saas_compta_last_csv_name_${$activeEntityId}`) || '';
+    } catch {
+      return '';
+    }
+  })());
   /** @type {HTMLInputElement | null} */
   let concatFileInput = $state(null);
   
@@ -298,7 +310,16 @@
   let availableCsvHeaders = $state((() => {
     try {
       const saved = localStorage.getItem(`saas_compta_csv_headers_${$activeEntityId}`);
-      return saved ? JSON.parse(saved) : [];
+      if (saved) return JSON.parse(saved);
+      const raw = localStorage.getItem(`saas_compta_last_csv_text_${$activeEntityId}`);
+      if (raw) {
+        const lines = raw.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length > 0) {
+          const sep = lines[0].split(',').length > lines[0].split(';').length ? ',' : ';';
+          return CSVParser.splitLineRespectingQuotes(lines[0], sep).map(h => h.trim().replace(/^"|"$/g, ''));
+        }
+      }
+      return [];
     } catch {
       return [];
     }
@@ -315,7 +336,18 @@
   })());
 
   /** @type {Array<Array<string>>} */
-  let concatSampleRows = $state([]);
+  let concatSampleRows = $state((() => {
+    try {
+      const raw = localStorage.getItem(`saas_compta_last_csv_text_${$activeEntityId}`);
+      if (!raw) return [];
+      const lines = raw.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) return [];
+      const sep = lines[0].split(',').length > lines[0].split(';').length ? ',' : ';';
+      return lines.slice(1, 6).map(l => CSVParser.splitLineRespectingQuotes(l, sep));
+    } catch {
+      return [];
+    }
+  })());
 
   /** @param {string} rawText @param {string} [fileName] */
   function handleRawCsvUpload(rawText, fileName = '') {
@@ -324,9 +356,13 @@
     const sep = lines[0].split(',').length > lines[0].split(';').length ? ',' : ';';
     const headers = CSVParser.splitLineRespectingQuotes(lines[0], sep).map(h => h.trim().replace(/^"|"$/g, ''));
     availableCsvHeaders = headers;
-    localStorage.setItem(`saas_compta_csv_headers_${$activeEntityId}`, JSON.stringify(headers));
     concatRawText = rawText;
-    if (fileName) concatFileName = fileName;
+    localStorage.setItem(`saas_compta_csv_headers_${$activeEntityId}`, JSON.stringify(headers));
+    localStorage.setItem(`saas_compta_last_csv_text_${$activeEntityId}`, rawText);
+    if (fileName) {
+      concatFileName = fileName;
+      localStorage.setItem(`saas_compta_last_csv_name_${$activeEntityId}`, fileName);
+    }
     concatSampleRows = lines.slice(1, 6).map(l => CSVParser.splitLineRespectingQuotes(l, sep));
 
     if (selectedComplementColIdx === -1) {
@@ -370,19 +406,43 @@
         const currentTx = $transactions.filter(t => !t.entityId || t.entityId === $activeEntityId);
         const otherTx = $transactions.filter(t => t.entityId && t.entityId !== $activeEntityId);
 
+        const isStrictSequenceMatch = currentTx.length === parsed.length && currentTx.every((tx, idx) => {
+          const p = parsed[idx];
+          return p && p.date === tx.date && Math.abs((p.debit || 0) - (tx.debit || 0)) < 0.01 && Math.abs((p.credit || 0) - (tx.credit || 0)) < 0.01;
+        });
+
+        const remainingParsed = [...parsed];
         const updatedTxList = currentTx.map((tx, i) => {
-          const match = parsed[i] || parsed.find(p => p.date === tx.date && Math.abs((p.debit || 0) - (tx.debit || 0)) < 0.01 && Math.abs((p.credit || 0) - (tx.credit || 0)) < 0.01);
+          let match = null;
+          if (isStrictSequenceMatch) {
+            match = parsed[i];
+          } else {
+            const foundIdx = remainingParsed.findIndex(p => 
+              p.date === tx.date && 
+              Math.abs((p.debit || 0) - (tx.debit || 0)) < 0.01 && 
+              Math.abs((p.credit || 0) - (tx.credit || 0)) < 0.01
+            );
+            if (foundIdx !== -1) {
+              match = remainingParsed.splice(foundIdx, 1)[0];
+            }
+          }
+
           if (match && match.info) {
+            const baseLib = match.rawLibelle || tx.rawLibelle || tx.libelle.split('—')[0].split('|')[0].trim();
+            const isGeneric = /^(REMISE EUROPRELEVEMENT|REMISE SDD|PRLV SEPA|PRELEVEMENT SDD|VIREMENT SEPA|REMISE CHEQUE)$/i.test(baseLib);
             return {
               ...tx,
               info: match.info,
-              libelle: match.libelle || tx.libelle
+              rawLibelle: baseLib,
+              libelle: isGeneric ? `${baseLib} — ${match.info}` : (match.libelle || tx.libelle),
+              rawCells: match.rawCells || tx.rawCells
             };
           }
           return tx;
         });
 
         updateTransactions([...otherTx, ...updatedTxList]);
+        Categorizer.reappliquerReglesAuxTransactionsEnAttente();
         showToast("Complément d'information associé avec succès à tout le relevé.");
         showConcatModal = false;
         return;
@@ -2202,6 +2262,7 @@
           <!-- Live Preview Box -->
           {#if concatSampleRows.length > 0 && selectedComplementColIdx !== -1}
             {@const colName = availableCsvHeaders[selectedComplementColIdx] || ''}
+            {@const libColIdx = availableCsvHeaders.findIndex(h => h.toLowerCase().includes('libelle')) !== -1 ? availableCsvHeaders.findIndex(h => h.toLowerCase().includes('libelle')) : 1}
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
               <div style="font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                 <i class="fa-solid fa-wand-magic-sparkles" style="color: #2563eb;"></i>
@@ -2209,12 +2270,14 @@
               </div>
               <div style="display: flex; flex-direction: column; gap: 6px;">
                 {#each concatSampleRows.slice(0, 3) as row}
-                  {@const lib = row[1] || 'REMISE EUROPRELEVEMENT'}
+                  {@const lib = row[libColIdx] || 'Libellé'}
                   {@const comp = row[selectedComplementColIdx] || ''}
-                  <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; background: #ffffff; padding: 7px 10px; border-radius: 6px; border: 1px solid #e2e8f0; gap: 8px;">
-                    <span style="color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%;">{lib}</span>
-                    <i class="fa-solid fa-arrow-right" style="color: #94a3b8; font-size: 0.7rem; flex-shrink: 0;"></i>
-                    <strong style="color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%;">{lib}{comp ? ` — ${comp}` : ''}</strong>
+                  <div style="display: flex; align-items: center; font-size: 0.82rem; background: #ffffff; padding: 7px 10px; border-radius: 6px; border: 1px solid #e2e8f0; gap: 10px;">
+                    <span style="color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;" title="{lib}">{lib}</span>
+                    <span style="color: #2563eb; font-weight: 800; font-size: 1rem; flex-shrink: 0; line-height: 1;">+</span>
+                    <strong style="color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; background: #eff6ff; padding: 2px 8px; border-radius: 4px; border: 1px solid #dbeafe;" title="{comp || '(vide)'}">
+                      {comp || '(vide)'}
+                    </strong>
                   </div>
                 {/each}
               </div>

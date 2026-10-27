@@ -272,6 +272,11 @@
       colReference: mappingConfig.indexReference !== -1 ? csvHeaders[mappingConfig.indexReference] || '' : ''
     };
     localStorage.setItem(`saas_compta_csv_mapping_${$activeEntityId}`, JSON.stringify(savedConfig));
+    localStorage.setItem(`saas_compta_csv_headers_${$activeEntityId}`, JSON.stringify(csvHeaders));
+    localStorage.setItem(`saas_compta_last_csv_text_${$activeEntityId}`, uploadedRawText);
+    if (uploadedFileName) {
+      localStorage.setItem(`saas_compta_last_csv_name_${$activeEntityId}`, uploadedFileName);
+    }
 
     // Déduplication
     const existingHashes = new Set($transactions.map(tx => {
