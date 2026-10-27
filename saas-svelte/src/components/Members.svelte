@@ -36,7 +36,7 @@
 
   let allAssoTransactions = $derived.by(() => {
     return $transactions.filter((/** @type {any} */ t) => 
-      (t.compteAttribué === "756" || t.compteAttribué === "706" || t.compteCredit === "756" || t.compteCredit === "706" || t.compte === "756" || t.compte === "706") && t.credit > 0
+      (t.compteAttribué === "756" || t.compteAttribué === "706" || (t.compteAttribué && t.compteAttribué.startsWith("706")) || t.compteCredit === "756" || t.compteCredit === "706" || (t.compteCredit && t.compteCredit.startsWith("706")) || t.compte === "756" || t.compte === "706") && t.credit > 0
     );
   });
 
@@ -827,6 +827,48 @@
   <!-- BLOC C : REGISTRE DE L'ESPACE DE TRAVAIL (Conteneur principal en boîte Slate-900) -->
   <div style="background: #0f172a; border: 1px solid rgba(51, 65, 85, 0.6); border-radius: 14px; padding: 24px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);">
     
+    {#if $members.length === 0}
+      <!-- Bandeau universel d'initialisation du registre -->
+      <div style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(15, 23, 42, 0.7)); border: 1.5px solid rgba(59, 130, 246, 0.4); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+          <div style="max-width: 640px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+              <i class="fa-solid fa-users-viewfinder" style="color: #60a5fa; font-size: 1.25rem;"></i>
+              <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: #ffffff;">
+                Initialiser votre registre d'adhérents / élèves
+              </h3>
+            </div>
+            <p style="margin: 0; font-size: 0.88rem; color: #cbd5e1; line-height: 1.5;">
+              Votre registre est actuellement vide. Choisissez la méthode qui convient à votre fonctionnement :
+            </p>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px; font-size: 0.84rem; color: #94a3b8; line-height: 1.55;">
+              <li><strong style="color: #f1f5f9;">Génération automatique depuis la banque :</strong> crée directement vos fiches adhérents à partir des règlements bancaires détectés (virements et cotisations).</li>
+              <li><strong style="color: #f1f5f9;">Import d'un fichier Excel / CSV :</strong> charge votre grille de rentrée avec les forfaits/cotisations annuels attendus.</li>
+            </ul>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px; align-self: center;">
+            {#if allAssoTransactions.length > 0}
+              <button 
+                type="button"
+                onclick={toutAssocier}
+                style="background: #2563eb; color: #ffffff; border: none; padding: 11px 20px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(37,99,235,0.4);"
+              >
+                <i class="fa-solid fa-bolt"></i> Générer depuis la banque ({allAssoTransactions.length} règlements)
+              </button>
+            {/if}
+            <button 
+              type="button"
+              onclick={() => showImportModal = true}
+              style="background: rgba(255, 255, 255, 0.08); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.22); padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 8px;"
+            >
+              <i class="fa-solid fa-file-import"></i> Importer un fichier Excel / CSV
+            </button>
+          </div>
+        </div>
+      </div>
+    {/if}
+    
     <!-- Barre d'outils supérieure avec respiration et alignement parfait -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; padding-bottom: 6px;">
       <!-- Côté Gauche (Filtrer & Trouver) : Filtres de statut -->
@@ -929,7 +971,11 @@
           {#if displayedMembers.length === 0}
             <tr>
               <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 45px 10px;">
-                Aucun adhérent ne correspond aux critères de recherche.
+                {#if $members.length === 0}
+                  Aucun adhérent enregistré. Cliquez sur le bouton ci-dessus pour générer les adhérents depuis les règlements bancaires ou importer votre fichier.
+                {:else}
+                  Aucun adhérent ne correspond aux critères de recherche.
+                {/if}
               </td>
             </tr>
           {:else}

@@ -1,5 +1,5 @@
 <script>
-  import { transactions, planComptable, activeEntityId, entities, activeView, showToast, formatDateFr } from '../lib/store.js';
+  import { transactions, planComptable, activeEntityId, entities, activeView, showToast, formatDateFr, initialBankBalance, updateInitialBankBalance } from '../lib/store.js';
   import PageHeader from './PageHeader.svelte';
   import KpiCard from './KpiCard.svelte';
 
@@ -8,7 +8,7 @@
 
   let activeTx = $derived($transactions.filter((/** @type {any} */ tx) => !tx.entityId || tx.entityId === $activeEntityId));
 
-  let totalBanque = $derived(activeTx.reduce((sum, tx) => {
+  let totalBanque = $derived($initialBankBalance + activeTx.reduce((sum, tx) => {
     if (tx.compteAttribué !== '699' && tx.statut === 'attribue' && tx.compteAttribué !== '530') {
       return sum + (tx.credit - tx.debit);
     }
@@ -164,6 +164,21 @@
       : sortedActiveTx.slice(0, 8)
   );
 
+  let showInitialBalanceModal = $state(false);
+  let tempInitialBalance = $state('');
+
+  function openInitialBalanceModal() {
+    tempInitialBalance = $initialBankBalance ? String($initialBankBalance) : '';
+    showInitialBalanceModal = true;
+  }
+
+  function saveInitialBalance() {
+    const val = parseFloat(tempInitialBalance.replace(/\s/g, '').replace(',', '.')) || 0;
+    updateInitialBankBalance(val);
+    showInitialBalanceModal = false;
+    showToast(`Solde initial de trésorerie défini à ${val.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`);
+  }
+
   function toggleShowAll() {
     showAllTransactions = !showAllTransactions;
     currentPage = 1;
@@ -208,7 +223,9 @@
           <KpiCard 
             label="Trésorerie Disponible" 
             value={totalBanque.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-            subtext="Solde bancaire disponible"
+            subtext={$initialBankBalance !== 0 ? `Solde réel (dont ${$initialBankBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} au départ)` : 'Solde de départ non configuré (0,00 €)'}
+            actionLabel={$initialBankBalance !== 0 ? "Modifier départ" : "Définir solde initial"}
+            onAction={openInitialBalanceModal}
           />
 
           <KpiCard 
@@ -238,7 +255,9 @@
           <KpiCard 
             label="Trésorerie en Banque" 
             value={totalBanque.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-            subtext="Solde bancaire de la SCI"
+            subtext={$initialBankBalance !== 0 ? `Solde réel (dont ${$initialBankBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} au départ)` : 'Solde bancaire de la SCI'}
+            actionLabel={$initialBankBalance !== 0 ? "Modifier départ" : "Définir solde initial"}
+            onAction={openInitialBalanceModal}
           />
 
           <KpiCard 
@@ -268,7 +287,9 @@
           <KpiCard 
             label="Trésorerie Réelle (Net TVA)" 
             value={vraiDisponible.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-            subtext="Après déduction de la provision TVA"
+            subtext={$initialBankBalance !== 0 ? `Total banque : ${totalBanque.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}` : "Après déduction de la provision TVA"}
+            actionLabel={$initialBankBalance !== 0 ? "Modifier départ" : "Définir solde initial"}
+            onAction={openInitialBalanceModal}
           />
 
           <KpiCard 
@@ -450,3 +471,87 @@
     {/if}
   </div>
 </div>
+
+{#if showInitialBalanceModal}
+  <div 
+    class="modal-backdrop" 
+    onclick={() => showInitialBalanceModal = false} 
+    role="presentation" 
+    style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 20px;"
+  >
+    <div 
+      onclick={(e) => e.stopPropagation()} 
+      onkeydown={(e) => { if (e.key === 'Escape') showInitialBalanceModal = false; }}
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+      style="background: #ffffff; border-radius: 16px; width: 100%; max-width: 480px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #cbd5e1; overflow: hidden; animation: popIn 0.2s ease-out;"
+    >
+      <div style="padding: 22px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: flex-start; background: #f8fafc;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <i class="fa-solid fa-vault" style="color: #2563eb; font-size: 1.1rem;"></i>
+            <h3 style="margin: 0; font-size: 1.12rem; font-weight: 800; color: #0f172a; font-family: var(--font-title);">
+              Solde initial de trésorerie
+            </h3>
+          </div>
+          <p style="margin: 0; font-size: 0.82rem; color: #64748b; line-height: 1.4;">
+            Solde en compte bancaire au 1er jour de votre exercice comptable (compte 512).
+          </p>
+        </div>
+        <button 
+          type="button" 
+          onclick={() => showInitialBalanceModal = false}
+          style="background: transparent; border: none; font-size: 1.1rem; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 6px; line-height: 1;"
+          aria-label="Fermer"
+        >
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div style="padding: 24px;">
+        <label for="initial-balance-input-tpe" style="display: block; font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 8px;">
+          Montant disponible au départ de l'exercice (€)
+        </label>
+        <div style="position: relative; margin-bottom: 14px;">
+          <input 
+            id="initial-balance-input-tpe"
+            type="text" 
+            bind:value={tempInitialBalance}
+            onkeydown={(e) => { if (e.key === 'Enter') saveInitialBalance(); }}
+            placeholder="Ex : 15000 ou 40000"
+            style="width: 100%; padding: 12px 42px 12px 14px; font-size: 1.05rem; font-weight: 700; border: 1.5px solid #cbd5e1; border-radius: 10px; color: #0f172a; background: #ffffff; box-sizing: border-box;"
+          />
+          <span style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-weight: 800; color: #64748b; font-size: 1.05rem;">
+            €
+          </span>
+        </div>
+
+        <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; padding: 12px 14px; font-size: 0.82rem; color: #0369a1; line-height: 1.45;">
+          <div style="font-weight: 700; margin-bottom: 3px; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-circle-info"></i> Information comptable universelle
+          </div>
+          Les fichiers de relevés bancaires importés n'enregistrent que les mouvements de la période. Renseigner votre solde d'ouverture permet d'obtenir une trésorerie en direct 100% fidèle à votre compte bancaire.
+        </div>
+      </div>
+
+      <div style="padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px;">
+        <button 
+          type="button" 
+          onclick={() => showInitialBalanceModal = false}
+          style="padding: 9px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #475569; font-size: 0.85rem; font-weight: 700; cursor: pointer;"
+        >
+          Annuler
+        </button>
+        <button 
+          type="button" 
+          onclick={saveInitialBalance}
+          style="padding: 9px 18px; border-radius: 8px; border: none; background: #2563eb; color: #ffffff; font-size: 0.85rem; font-weight: 700; cursor: pointer; box-shadow: 0 2px 4px rgba(37,99,235,0.25);"
+        >
+          Enregistrer le solde
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+

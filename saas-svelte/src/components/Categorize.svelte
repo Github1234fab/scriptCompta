@@ -1128,8 +1128,8 @@
 <!-- ========================================== -->
 <div style="margin-bottom: 30px; max-width: 1000px;">
   <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-    <!-- En-tête du bloc avec Titre à gauche et Onglets à droite -->
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: {(activeTab === 'pending' && nonTriees.length === 0) ? '0' : '16px'}; flex-wrap: wrap; gap: 12px;">
+    <!-- En-tête du bloc : Titre, sous-titre, puis CTA en-dessous -->
+    <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: {(activeTab === 'pending' && nonTriees.length === 0) ? '0' : '16px'};">
       <div>
         <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
           <i class="fa-solid fa-arrows-split-up-and-left" style="color: #2563eb; font-size: 0.92rem;"></i> Traitement et affectation des opérations
@@ -1139,8 +1139,8 @@
         </span>
       </div>
 
-      <!-- Onglets intégrés dans l'en-tête -->
-      <div style="display: flex; gap: 6px; background: #ffffff; padding: 4px; border-radius: 10px; border: 1.5px solid #cbd5e1; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+      <!-- Onglets intégrés sous le sous-titre -->
+      <div style="display: inline-flex; gap: 6px; background: #ffffff; padding: 4px; border-radius: 10px; border: 1.5px solid #cbd5e1; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
         <button
           style="border: none; background: {activeTab === 'pending' ? '#0f172a' : 'transparent'}; color: {activeTab === 'pending' ? '#ffffff' : '#475569'}; font-size: 0.84rem; padding: 6px 16px; border-radius: 7px; cursor: pointer; font-weight: 700; transition: all 0.15s ease;"
           onclick={() => (activeTab = "pending")}

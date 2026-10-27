@@ -8,7 +8,9 @@
    *   borderColor?: string,
    *   textColor?: string,
    *   subtextColor?: string,
-   *   progressBarPct?: number | null
+   *   progressBarPct?: number | null,
+   *   actionLabel?: string,
+   *   onAction?: (() => void) | null
    * }}
    */
   let {
@@ -19,7 +21,9 @@
     borderColor = 'var(--border-subtle, #e2e8f0)',
     textColor = '#0f172a',
     subtextColor = '#64748b',
-    progressBarPct = null
+    progressBarPct = null,
+    actionLabel = '',
+    onAction = null
   } = $props();
 </script>
 
@@ -38,6 +42,21 @@
       <span style="font-size: 0.78rem; font-weight: 500; color: {subtextColor}; display: inline-block; line-height: 1.4;">
         {subtext}
       </span>
+    {/if}
+
+    {#if actionLabel && onAction}
+      <div style="margin-top: 6px;">
+        <button 
+          type="button" 
+          onclick={onAction}
+          style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 700; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; cursor: pointer; transition: all 0.15s ease;"
+          onmouseenter={(e) => { e.currentTarget.style.background = '#dbeafe'; }}
+          onmouseleave={(e) => { e.currentTarget.style.background = '#eff6ff'; }}
+        >
+          <i class="fa-solid fa-pen-to-square" style="font-size: 0.68rem;"></i>
+          {actionLabel}
+        </button>
+      </div>
     {/if}
   </div>
 

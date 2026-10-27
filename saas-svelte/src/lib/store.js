@@ -244,6 +244,7 @@ export const MANAGEMENT_MODELS = {
 
 // Entity-specific states
 export const transactions = writable([]);
+export const initialBankBalance = writable(0);
 export const closingMonth = writable(12);
 export const fiscalStartDate = writable('');
 export const fiscalEndDate = writable('');
@@ -274,6 +275,9 @@ export function loadEntityData(entityId) {
   // 1. Chargement instantané depuis LocalStorage (cache local strictement cloisonné par entityId)
   const m = localStorage.getItem(`saas_compta_closing_month_${entityId}`);
   closingMonth.set(m && !isNaN(parseInt(m)) ? parseInt(m) : 12);
+
+  const savedInitBalance = localStorage.getItem(`saas_compta_initial_balance_${entityId}`);
+  initialBankBalance.set(savedInitBalance !== null && !isNaN(parseFloat(savedInitBalance)) ? parseFloat(savedInitBalance) : 0);
 
   const fStart = localStorage.getItem(`saas_compta_fiscal_start_${entityId}`);
   const fEnd = localStorage.getItem(`saas_compta_fiscal_end_${entityId}`);
@@ -376,6 +380,11 @@ export function loadEntityData(entityId) {
           members.set(remoteData.members);
           localStorage.setItem(`saas_compta_members_${entityId}`, JSON.stringify(remoteData.members));
         }
+        if (remoteData.initialBankBalance !== undefined) {
+          const num = Number(remoteData.initialBankBalance) || 0;
+          initialBankBalance.set(num);
+          localStorage.setItem(`saas_compta_initial_balance_${entityId}`, String(num));
+        }
         if (remoteData.closingMonth) {
           closingMonth.set(remoteData.closingMonth);
           localStorage.setItem(`saas_compta_closing_month_${entityId}`, String(remoteData.closingMonth));
@@ -472,6 +481,27 @@ export function updateTransactions(val) {
   const uid = auth.currentUser?.uid;
   if (uid && entId) {
     saveTransactions(uid, entId, taggedVal);
+  }
+}
+
+export function updateInitialBankBalance(val) {
+  const num = typeof val === 'number' ? val : (parseFloat(String(val).replace(/\s/g, '').replace(',', '.')) || 0);
+  initialBankBalance.set(num);
+  const entId = get(activeEntityId);
+  if (entId) {
+    localStorage.setItem(`saas_compta_initial_balance_${entId}`, String(num));
+    const allEnts = get(entities);
+    const ent = allEnts.find(e => e.id === entId);
+    if (ent) {
+      ent.initialBankBalance = num;
+      updateEntities([...allEnts]);
+    }
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      import('./firestoreService.js').then(({ saveStructureKey }) => {
+        saveStructureKey(uid, entId, 'initialBankBalance', num);
+      });
+    }
   }
 }
 
