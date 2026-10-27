@@ -245,7 +245,7 @@
   let selectedTxForCategorization = $state(null);
   let modalSearchQuery = $state("");
   /** @type {'recettes' | 'depenses' | null} */
-  let activeAccordionSection = $state('depenses');
+  let activeAccordionSection = $state(null);
   /** @type {string | null} */
   let activeSubMenuKey = $state(null);
 
@@ -253,10 +253,8 @@
   function openCategorizeModal(tx) {
     selectedTxForCategorization = tx;
     modalSearchQuery = "";
-    activeAccordionSection = tx.credit > 0 ? 'recettes' : 'depenses';
-    const currentAcc = selectedCategoryMap[tx.id] || tx.compteAttribué || getSuggestionForTx(tx)?.compte;
-    const foundSub = findSubMenuForAccount(currentAcc, activeAccordionSection);
-    activeSubMenuKey = foundSub || (activeAccordionSection === 'recettes' ? 'rec_prestations' : 'dep_achats');
+    activeAccordionSection = null;
+    activeSubMenuKey = null;
     showCategorizeModal = true;
   }
 
@@ -439,7 +437,7 @@
     const recettesSubMenus = [
       {
         id: 'rec_prestations',
-        label: 'Prestations de services & Honoraires',
+        label: 'Prestations de services et honoraires',
         icon: 'fa-briefcase',
         codes: ['706', '7061', '7062', '7063', '7064', '708']
       },
@@ -451,13 +449,13 @@
       },
       {
         id: 'rec_cotisations',
-        label: 'Cotisations, Adhésions & Mécénat',
+        label: 'Cotisations, adhésions et mécénat',
         icon: 'fa-hand-holding-heart',
         codes: ['756', '758', '740']
       },
       {
         id: 'rec_virements',
-        label: 'Virements reçus & Apports',
+        label: 'Virements reçus et apports',
         icon: 'fa-arrow-down-left',
         codes: ['455', '512', '530', '411', '467']
       }
@@ -466,31 +464,31 @@
     const depensesSubMenus = [
       {
         id: 'dep_achats',
-        label: 'Achats, Logiciels & Fournitures',
+        label: 'Achats, fournitures et logiciels',
         icon: 'fa-cart-shopping',
         codes: ['606', '6132', '615', '616', '626', '627']
       },
       {
-        id: 'dep_locaux',
-        label: 'Locaux, Loyers & Taxes',
-        icon: 'fa-building',
-        codes: ['613', '635', '661']
-      },
-      {
         id: 'dep_missions',
-        label: 'Déplacements & Repas',
+        label: 'Déplacements et repas',
         icon: 'fa-car',
         codes: ['625']
       },
       {
-        id: 'dep_equipe',
-        label: 'Rémunérations & Équipe',
-        icon: 'fa-users',
-        codes: ['611', '641', '645', '6453', '658']
+        id: 'dep_social',
+        label: 'Urssaf, impôts, charges sociales, cotisations',
+        icon: 'fa-building-columns',
+        codes: ['645', '635', '6453', '641', '611', '658']
+      },
+      {
+        id: 'dep_locaux',
+        label: 'Locaux et loyers',
+        icon: 'fa-building',
+        codes: ['613', '661']
       },
       {
         id: 'dep_transferts',
-        label: 'Virements émis & Prélèvements internes',
+        label: 'Virements émis et prélèvements internes',
         icon: 'fa-arrow-up-right',
         codes: ['455', '512', '530', '401', '467']
       }
@@ -1394,13 +1392,15 @@
           <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; background: #ffffff;">
             <button 
               type="button"
-              onclick={() => activeAccordionSection = activeAccordionSection === 'recettes' ? null : 'recettes'}
+              onclick={() => {
+                activeAccordionSection = activeAccordionSection === 'recettes' ? null : 'recettes';
+                activeSubMenuKey = null;
+              }}
               style="width: 100%; padding: 10px 14px; background: {activeAccordionSection === 'recettes' ? '#f8fafc' : '#ffffff'}; border: none; border-bottom: {activeAccordionSection === 'recettes' ? '1px solid #e2e8f0' : 'none'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; transition: background 0.15s ease;"
             >
               <div style="display: flex; align-items: center; gap: 8px;">
                 <i class="fa-solid fa-arrow-down-left" style="color: #2563eb; font-size: 0.85rem;"></i>
                 <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a;">Recettes</span>
-                <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Entrées d'argent)</span>
               </div>
               <i class="fa-solid fa-chevron-down" style="color: #64748b; font-size: 0.75rem; transform: {activeAccordionSection === 'recettes' ? 'rotate(180deg)' : 'none'}; transition: transform 0.2s ease;"></i>
             </button>
@@ -1415,16 +1415,16 @@
                     <button 
                       type="button"
                       onclick={() => activeSubMenuKey = isSubOpen ? null : sub.id}
-                      style="width: 100%; padding: 8px 12px; background: {isSubOpen ? '#f1f5f9' : '#ffffff'}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left;"
+                      style="width: 100%; padding: 8px 12px; background: {isSubOpen ? '#f1f5f9' : '#ffffff'}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; gap: 8px;"
                     >
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid {sub.icon}" style="color: #2563eb; font-size: 0.8rem;"></i>
-                        <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a;">{sub.label}</span>
+                      <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+                        <i class="fa-solid {sub.icon}" style="color: #2563eb; font-size: 0.8rem; flex-shrink: 0;"></i>
+                        <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={sub.label}>{sub.label}</span>
                         {#if hasSelectedInSub}
-                          <span style="font-size: 0.68rem; font-weight: 800; color: #2563eb; background: #eff6ff; padding: 1px 5px; border-radius: 4px; border: 1px solid #bfdbfe;">Sélectionné</span>
+                          <span style="font-size: 0.68rem; font-weight: 800; color: #2563eb; background: #eff6ff; padding: 1px 5px; border-radius: 4px; border: 1px solid #bfdbfe; flex-shrink: 0;">Sélectionné</span>
                         {/if}
                       </div>
-                      <i class="fa-solid fa-chevron-right" style="color: #94a3b8; font-size: 0.7rem; transform: {isSubOpen ? 'rotate(90deg)' : 'none'}; transition: transform 0.15s ease;"></i>
+                      <i class="fa-solid fa-chevron-right" style="color: #94a3b8; font-size: 0.7rem; transform: {isSubOpen ? 'rotate(90deg)' : 'none'}; transition: transform 0.15s ease; flex-shrink: 0;"></i>
                     </button>
 
                     {#if isSubOpen}
@@ -1470,13 +1470,15 @@
           <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; background: #ffffff;">
             <button 
               type="button"
-              onclick={() => activeAccordionSection = activeAccordionSection === 'depenses' ? null : 'depenses'}
+              onclick={() => {
+                activeAccordionSection = activeAccordionSection === 'depenses' ? null : 'depenses';
+                activeSubMenuKey = null;
+              }}
               style="width: 100%; padding: 10px 14px; background: {activeAccordionSection === 'depenses' ? '#f8fafc' : '#ffffff'}; border: none; border-bottom: {activeAccordionSection === 'depenses' ? '1px solid #e2e8f0' : 'none'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; transition: background 0.15s ease;"
             >
               <div style="display: flex; align-items: center; gap: 8px;">
                 <i class="fa-solid fa-arrow-up-right" style="color: #2563eb; font-size: 0.85rem;"></i>
                 <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a;">Dépenses</span>
-                <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Sorties d'argent & frais)</span>
               </div>
               <i class="fa-solid fa-chevron-down" style="color: #64748b; font-size: 0.75rem; transform: {activeAccordionSection === 'depenses' ? 'rotate(180deg)' : 'none'}; transition: transform 0.2s ease;"></i>
             </button>
@@ -1491,16 +1493,16 @@
                     <button 
                       type="button"
                       onclick={() => activeSubMenuKey = isSubOpen ? null : sub.id}
-                      style="width: 100%; padding: 8px 12px; background: {isSubOpen ? '#f1f5f9' : '#ffffff'}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left;"
+                      style="width: 100%; padding: 8px 12px; background: {isSubOpen ? '#f1f5f9' : '#ffffff'}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; gap: 8px;"
                     >
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid {sub.icon}" style="color: #2563eb; font-size: 0.8rem;"></i>
-                        <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a;">{sub.label}</span>
+                      <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+                        <i class="fa-solid {sub.icon}" style="color: #2563eb; font-size: 0.8rem; flex-shrink: 0;"></i>
+                        <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={sub.label}>{sub.label}</span>
                         {#if hasSelectedInSub}
-                          <span style="font-size: 0.68rem; font-weight: 800; color: #2563eb; background: #eff6ff; padding: 1px 5px; border-radius: 4px; border: 1px solid #bfdbfe;">Sélectionné</span>
+                          <span style="font-size: 0.68rem; font-weight: 800; color: #2563eb; background: #eff6ff; padding: 1px 5px; border-radius: 4px; border: 1px solid #bfdbfe; flex-shrink: 0;">Sélectionné</span>
                         {/if}
                       </div>
-                      <i class="fa-solid fa-chevron-right" style="color: #94a3b8; font-size: 0.7rem; transform: {isSubOpen ? 'rotate(90deg)' : 'none'}; transition: transform 0.15s ease;"></i>
+                      <i class="fa-solid fa-chevron-right" style="color: #94a3b8; font-size: 0.7rem; transform: {isSubOpen ? 'rotate(90deg)' : 'none'}; transition: transform 0.15s ease; flex-shrink: 0;"></i>
                     </button>
 
                     {#if isSubOpen}
