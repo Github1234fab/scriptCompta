@@ -234,9 +234,12 @@
         }
       }
 
+      const isGeneric = /^(REMISE EUROPRELEVEMENT|REMISE SDD|PRLV SEPA|PRELEVEMENT SDD|VIREMENT SEPA|REMISE CHEQUE)$/i.test(libelle);
+      const displayLibelle = (isGeneric && info) ? `${libelle} — ${info}` : libelle;
+
       return {
         date: dateStr || new Date().toISOString().split('T')[0],
-        libelle,
+        libelle: displayLibelle,
         debit,
         credit,
         info,
@@ -606,11 +609,11 @@
           </select>
         </div>
 
-        <!-- Note / Info -->
+        <!-- Ajout d'information au libellé -->
         <div class="form-group" style="margin: 0;">
-          <label for="map-info" class="form-label" style="color: #9ca3af;">Note / Info complémentaire</label>
+          <label for="map-info" class="form-label" style="color: #38bdf8;">Ajout d'information au libellé</label>
           <select id="map-info" class="form-control" bind:value={mappingConfig.indexInfo}>
-            <option value={-1}>[Ignorer]</option>
+            <option value={-1}>[Aucune / Ne rien ajouter]</option>
             {#each csvHeaders as header, i}
               <option value={i}>{header}</option>
             {/each}

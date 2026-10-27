@@ -393,13 +393,35 @@
   }
 
   // Helper to clean banking transaction labels & extract readable name
-  /** @param {string} [libelle] */
-  function cleanTransactionLibelle(libelle) {
-    if (!libelle) return "Opération sans libellé";
-    let main = libelle.split('|')[0].trim();
-    main = main.replace(/^(PRLV SEPA|PRLV|VIR SEPA|VIR|PAIEMENT CB|CB|CHEQUE|PRLV HARMONIE)\s+/i, '').trim();
-    main = main.replace(/^SA-/, '').trim();
-    return main || libelle;
+  /** @param {string} [libelle] @param {any} [tx] */
+  function cleanTransactionLibelle(libelle, tx = null) {
+    if (!libelle && (!tx || !tx.libelle)) return "Opération sans libellé";
+    const fullLibelle = libelle || tx?.libelle || "";
+    const parts = fullLibelle.split('|').map((/** @type {string} */ s) => s.trim()).filter(Boolean);
+    let main = parts[0] || fullLibelle;
+
+    // Détection de complément d'information (payeur, motif, etc.)
+    const complement = (tx?.info && String(tx.info).trim()) || (parts.length > 2 ? parts[2] : (parts.length === 2 && !/^[A-Z0-9]{5,20}$/.test(parts[1]) ? parts[1] : ''));
+
+    // Vérifier si le libellé principal est un intitulé bancaire générique (Option 2 : REMISE EUROPRELEVEMENT — Nom)
+    const isGeneric = /^(REMISE EUROPRELEVEMENT|REMISE SDD|PRLV SEPA|PRELEVEMENT SDD|VIREMENT SEPA|REMISE CHEQUE)$/i.test(main);
+    if (isGeneric && complement) {
+      return `${main} — ${complement}`;
+    }
+
+    // Nettoyage standard pour les opérations habituelles (retirer préfixes techniques)
+    let cleaned = main.replace(/^(PRLV SEPA|PRLV|VIR SEPA|VIR|PAIEMENT CB|CB|CHEQUE|PRLV HARMONIE)\s+/i, '').trim();
+    cleaned = cleaned.replace(/^SA-/, '').trim();
+    if (!cleaned) cleaned = main;
+
+    // Si on a un complément pertinent qui n'est pas déjà dans le libellé nettoyé (ex: virement court)
+    if (complement && !cleaned.toLowerCase().includes(complement.toLowerCase())) {
+      if (/^(INST|EVI|VIR)$/i.test(cleaned)) {
+        return `${cleaned} — ${complement}`;
+      }
+    }
+
+    return cleaned || main;
   }
 
   // Helper for subtitle info (e.g. "07/09/2026 • Prélèvement SEPA")
@@ -1019,7 +1041,7 @@
                   <!-- 2. Libellé épuré -->
                   <td style="padding: 14px 14px; vertical-align: middle;" title="{tx.libelle} {tx.info ? `• ${tx.info}` : ''} {tx.reference ? `• Ref: ${tx.reference}` : ''}">
                     <div style="font-weight: 700; color: #0f172a; font-size: 0.93rem;">
-                      {cleanTransactionLibelle(tx.libelle)}
+                      {cleanTransactionLibelle(tx.libelle, tx)}
                     </div>
                     <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">
                       {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
@@ -1108,7 +1130,7 @@
                     {tx.date ? new Date(tx.date).toLocaleDateString("fr-FR", { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
                   </td>
                   <td style="padding: 14px 14px;">
-                    <div style="font-weight: 700; color: #0f172a;">{cleanTransactionLibelle(tx.libelle)}</div>
+                    <div style="font-weight: 700; color: #0f172a;">{cleanTransactionLibelle(tx.libelle, tx)}</div>
                     <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">
                       {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
                     </div>
@@ -1278,7 +1300,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
           <div style="min-width: 0; flex: 1;">
             <div style="font-weight: 700; color: #0f172a !important; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={selectedTxForCategorization.libelle}>
-              {selectedTxForCategorization.libelle}
+              {cleanTransactionLibelle(selectedTxForCategorization.libelle, selectedTxForCategorization)}
             </div>
             <div style="font-size: 0.76rem; color: #64748b !important; margin-top: 2px;">
               {selectedTxForCategorization.date ? new Date(selectedTxForCategorization.date).toLocaleDateString("fr-FR") : ''} &bull; {selectedTxForCategorization.debit > 0 ? "Dépense" : "Recette"}
