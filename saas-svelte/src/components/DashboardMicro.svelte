@@ -92,33 +92,6 @@
     plafondProgressionPct >= 100 ? '#ef4444' : (plafondProgressionPct >= 85 ? '#f59e0b' : '#2563eb')
   );
 
-  // Découpage trimestriel du CA pour déclaration Urssaf
-  let caTrimestriel = $derived((() => {
-    const quarters = {
-      T1: { ca: 0, label: '1er Trimestre (Jan - Mar)' },
-      T2: { ca: 0, label: '2ème Trimestre (Avr - Jun)' },
-      T3: { ca: 0, label: '3ème Trimestre (Jul - Sep)' },
-      T4: { ca: 0, label: '4ème Trimestre (Oct - Déc)' }
-    };
-
-    activeTx.forEach(r => {
-      if (r.credit > 0 && r.compteAttribué !== '699' && r.statut === 'attribue') {
-        const month = new Date(r.date).getMonth() + 1;
-        if (month <= 3) quarters.T1.ca += r.credit;
-        else if (month <= 6) quarters.T2.ca += r.credit;
-        else if (month <= 9) quarters.T3.ca += r.credit;
-        else quarters.T4.ca += r.credit;
-      }
-    });
-
-    return quarters;
-  })());
-
-  /** @param {number} val */
-  function copierMontant(val) {
-    navigator.clipboard.writeText(val.toFixed(2));
-    showToast(`Montant ${val.toFixed(2)} € copié pour votre déclaration Urssaf !`);
-  }
   // Calcul des tâches à faire : seules les vraies actions opérationnelles sont conservées
   let pendingTxCount = $derived(activeTx.filter(t => t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere' || t.statut === 'a_attribuer').length);
 </script>
@@ -350,60 +323,7 @@
 
   </div>
 
-  <!-- 5. PANORAMA DES DÉCLARATIONS URSSAF (ENGLOBANT LE TITRE) -->
-  <div id="declaration-urssaf-section" style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px;">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
-      <div>
-        <h2 style="font-family: var(--font-title); font-size: 1.12rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-file-invoice-dollar" style="color: #2563eb; font-size: 0.95rem;"></i> Panorama des déclarations Urssaf
-        </h2>
-        <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
-          Montants précalculés prêts à être recopiés sur le portail autoentrepreneur.urssaf.fr
-        </span>
-      </div>
-    </div>
-
-    <div class="table-container" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
-      <table class="custom-table" style="width: 100%; border-collapse: collapse;">
-        <thead>
-          <tr style="background: #ffffff; border-bottom: 1.5px solid #e2e8f0;">
-            <th style="padding: 12px 14px; text-align: left; font-size: 0.78rem; font-weight: 800; color: #475569; text-transform: uppercase;">Trimestre</th>
-            <th style="padding: 12px 14px; text-align: left; font-size: 0.78rem; font-weight: 800; color: #475569; text-transform: uppercase;">Période couverte</th>
-            <th style="padding: 12px 14px; text-align: right; font-size: 0.78rem; font-weight: 800; color: #475569; text-transform: uppercase;">CA Encaissé</th>
-            <th style="padding: 12px 14px; text-align: right; font-size: 0.78rem; font-weight: 800; color: #475569; text-transform: uppercase;">Cotisations ({(selectedRegime.rate * 100).toFixed(1)}%)</th>
-            <th style="padding: 12px 14px; text-align: center; font-size: 0.78rem; font-weight: 800; color: #475569; text-transform: uppercase;">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each Object.entries(caTrimestriel) as [key, q]}
-            {@const cotis = q.ca * selectedRegime.rate}
-            <tr style="border-bottom: 1px solid var(--border-subtle, #e2e8f0); background: #ffffff;">
-              <td style="padding: 12px 14px; font-weight: 800; color: #0f172a;">{key}</td>
-              <td style="padding: 12px 14px; color: #475569; font-size: 0.85rem;">{q.label}</td>
-              <td style="padding: 12px 14px; text-align: right; font-weight: 800; font-size: 0.95rem; color: #0f172a; font-family: var(--font-title);">
-                {q.ca.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-              </td>
-              <td style="padding: 12px 14px; text-align: right; font-weight: 800; font-size: 0.95rem; color: #15803d; font-family: var(--font-title);">
-                {cotis.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-              </td>
-              <td style="padding: 12px 14px; text-align: center;">
-                <button 
-                  class="btn btn-sm"
-                  onclick={() => copierMontant(q.ca)}
-                  style="background: var(--bg-subtle); border: 1px solid var(--border-subtle); color: #0f172a; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"
-                  title="Copier le CA du trimestre pour urssaf.fr"
-                >
-                  <i class="fa-regular fa-copy"></i> Copier CA
-                </button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- 6. DERNIÈRES RECETTES ENCAISSÉES (ENGLOBANT LE TITRE) -->
+  <!-- 5. DERNIÈRES RECETTES ENCAISSÉES (ENGLOBANT LE TITRE) -->
   <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); padding: 20px; margin-bottom: 30px;">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
       <div>

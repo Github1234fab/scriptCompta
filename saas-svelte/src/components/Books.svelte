@@ -1,4 +1,5 @@
 <script>
+  import { get } from 'svelte/store';
   import { 
     transactions, 
     planComptable, 
@@ -9,7 +10,8 @@
     updateFiscalPeriod,
     showToast,
     activeEntityId,
-    entities
+    entities,
+    updateEntities
   } from '../lib/store.js';
   import { Categorizer } from '../lib/categorizer.js';
 
@@ -21,7 +23,7 @@
       return [
         { id: 'recettes', label: 'Livre des Recettes', icon: 'fa-book-journal-whills' },
         { id: 'achats', label: 'Registre des Achats', icon: 'fa-cart-shopping' },
-        { id: 'recap_ca', label: 'Déclaration CA & Urssaf', icon: 'fa-chart-pie' }
+        { id: 'recap_ca', label: 'Déclaration Urssaf', icon: 'fa-chart-pie' }
       ];
     }
     if (accountingModel === 'bnc') {
@@ -82,7 +84,7 @@
   function getDocTitle(docId) {
     if (docId === 'recettes') return 'Livre chronologique des Recettes (Art. 286 CGI)';
     if (docId === 'achats') return 'Registre des Achats & Dépenses (Art. 286 ter CGI)';
-    if (docId === 'recap_ca') return 'Déclaration de Chiffre d\'Affaires & Cotisations Urssaf';
+    if (docId === 'recap_ca') return 'Déclaration Urssaf (Art. L. 613-7 CSS)';
     if (docId === 'recettes_depenses') return 'Livre-Journal des Recettes et Dépenses (Art. 99 CGI)';
     if (docId === 'journal') return 'Livre-Journal général (Art. L.123-12 Code de commerce)';
     if (docId === 'grandlivre') return 'Grand-Livre des comptes (Art. R.123-176 Code de commerce)';
@@ -509,6 +511,25 @@
 
 
 
+  let declarationFrequency = $derived(activeEntity?.declarationFrequency || 'trimestrielle');
+  let microRate = $derived(activeEntity?.microActivity === 'vente_bic' ? 0.123 : (activeEntity?.microActivity === 'services_bnc' ? 0.258 : 0.212));
+  let microRatePct = $derived((microRate * 100).toFixed(1));
+
+  /** @param {'trimestrielle' | 'mensuelle'} newFreq */
+  function changeDeclarationFrequency(newFreq) {
+    if (!activeEntity) return;
+    const currentList = get(entities);
+    const updated = currentList.map(e => e.id === activeEntity.id ? { ...e, declarationFrequency: newFreq } : e);
+    updateEntities(updated);
+    showToast(`Déclaration Urssaf : rythme ${newFreq === 'mensuelle' ? 'mensuel' : 'trimestriel'} activé.`);
+  }
+
+  /** @param {number} val */
+  function copierMontant(val) {
+    navigator.clipboard.writeText(val.toFixed(2));
+    showToast(`Montant ${val.toFixed(2)} € copié pour votre déclaration Urssaf !`);
+  }
+
   // CA trimestriel pour déclaration Urssaf
   let caTrimestriel = $derived((() => {
     const quarters = { T1: 0, T2: 0, T3: 0, T4: 0 };
@@ -521,6 +542,27 @@
       else quarters.T4 += r.montant;
     });
     return quarters;
+  })());
+
+  const MOIS_NOMS_BOOKS = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  ];
+
+  // CA mensuel pour déclaration Urssaf
+  let caMensuel = $derived((() => {
+    const months = Array.from({ length: 12 }, (_, i) => ({
+      index: i + 1,
+      code: `Mois ${String(i + 1).padStart(2, '0')}`,
+      label: MOIS_NOMS_BOOKS[i],
+      ca: 0
+    }));
+    recettesMicro.forEach(r => {
+      const d = new Date(r.date);
+      const m = d.getMonth();
+      if (months[m]) months[m].ca += r.montant;
+    });
+    return months;
   })());
 
   function exportLivreRecettesMicro() {
@@ -558,19 +600,30 @@
   function exportDeclarationUrssafMicro() {
     let csv = "DECLARATION DE CHIFFRE D'AFFAIRES & COTISATIONS URSSAF\n";
     csv += `Entite;"${activeEntity.name.replace(/"/g, '""')}"\n`;
-    csv += `Exercice fiscal;"${formatPeriodLabel(localStartDate, localEndDate)}"\n\n`;
-    csv += "Trimestre;Periode;Chiffre d'Affaires Encaisse (EUR);Taux Cotisations;Cotisations Urssaf (EUR);Statut\n";
-    csv += `T1;Janvier - Mars;${caTrimestriel.T1.toFixed(2)};21.2%;${(caTrimestriel.T1 * 0.212).toFixed(2)};${caTrimestriel.T1 > 0 ? 'Pret a declarer' : '0 EUR'}\n`;
-    csv += `T2;Avril - Juin;${caTrimestriel.T2.toFixed(2)};21.2%;${(caTrimestriel.T2 * 0.212).toFixed(2)};${caTrimestriel.T2 > 0 ? 'Pret a declarer' : '0 EUR'}\n`;
-    csv += `T3;Juillet - Septembre;${caTrimestriel.T3.toFixed(2)};21.2%;${(caTrimestriel.T3 * 0.212).toFixed(2)};${caTrimestriel.T3 > 0 ? 'Pret a declarer' : '0 EUR'}\n`;
-    csv += `T4;Octobre - Decembre;${caTrimestriel.T4.toFixed(2)};21.2%;${(caTrimestriel.T4 * 0.212).toFixed(2)};${caTrimestriel.T4 > 0 ? 'Pret a declarer' : '0 EUR'}\n`;
-    csv += `TOTAL;;${totalRecettesMicro.toFixed(2)};21.2%;${(totalRecettesMicro * 0.212).toFixed(2)};\n\n`;
+    csv += `Exercice fiscal;"${formatPeriodLabel(localStartDate, localEndDate)}"\n`;
+    csv += `Rythme declare;"${declarationFrequency === 'mensuelle' ? 'Mensuel (12 declarations)' : 'Trimestriel (4 declarations)'}"\n\n`;
+
+    if (declarationFrequency === 'mensuelle') {
+      csv += "Mois;Libelle;Chiffre d'Affaires Encaisse (EUR);Taux Cotisations;Cotisations Urssaf (EUR);Statut\n";
+      caMensuel.forEach(m => {
+        const cotis = m.ca * microRate;
+        csv += `${m.code};${m.label};${m.ca.toFixed(2)};${microRatePct}%;${cotis.toFixed(2)};${m.ca > 0 ? 'Pret a declarer' : '0 EUR'}\n`;
+      });
+    } else {
+      csv += "Trimestre;Periode;Chiffre d'Affaires Encaisse (EUR);Taux Cotisations;Cotisations Urssaf (EUR);Statut\n";
+      csv += `T1;Janvier - Mars;${caTrimestriel.T1.toFixed(2)};${microRatePct}%;${(caTrimestriel.T1 * microRate).toFixed(2)};${caTrimestriel.T1 > 0 ? 'Pret a declarer' : '0 EUR'}\n`;
+      csv += `T2;Avril - Juin;${caTrimestriel.T2.toFixed(2)};${microRatePct}%;${(caTrimestriel.T2 * microRate).toFixed(2)};${caTrimestriel.T2 > 0 ? 'Pret a declarer' : '0 EUR'}\n`;
+      csv += `T3;Juillet - Septembre;${caTrimestriel.T3.toFixed(2)};${microRatePct}%;${(caTrimestriel.T3 * microRate).toFixed(2)};${caTrimestriel.T3 > 0 ? 'Pret a declarer' : '0 EUR'}\n`;
+      csv += `T4;Octobre - Decembre;${caTrimestriel.T4.toFixed(2)};${microRatePct}%;${(caTrimestriel.T4 * microRate).toFixed(2)};${caTrimestriel.T4 > 0 ? 'Pret a declarer' : '0 EUR'}\n`;
+    }
+
+    csv += `TOTAL;;${totalRecettesMicro.toFixed(2)};${microRatePct}%;${(totalRecettesMicro * microRate).toFixed(2)};\n\n`;
     csv += "SYNTHESE TRESORERIE ANNUELLE\n";
     csv += `Chiffre d'Affaires total encaisse (ce que je vends);${totalRecettesMicro.toFixed(2)} EUR\n`;
     csv += `Depenses d'activite decaissees (achats et frais);${totalAchatsMicro.toFixed(2)} EUR\n`;
     csv += `Reste avant Urssaf (CA moins depenses);${(totalRecettesMicro - totalAchatsMicro).toFixed(2)} EUR\n`;
-    csv += `Cotisations Urssaf (21.2% du CA);${(totalRecettesMicro * 0.212).toFixed(2)} EUR\n`;
-    csv += `Revenu net disponible en poche;${(totalRecettesMicro - (totalRecettesMicro * 0.212) - totalAchatsMicro).toFixed(2)} EUR\n`;
+    csv += `Cotisations Urssaf (${microRatePct}% du CA);${(totalRecettesMicro * microRate).toFixed(2)} EUR\n`;
+    csv += `Revenu net disponible en poche;${(totalRecettesMicro - (totalRecettesMicro * microRate) - totalAchatsMicro).toFixed(2)} EUR\n`;
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -974,11 +1027,11 @@
           </div>
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-weight: 800; font-size: 0.96rem; color: #0f172a;">Relevé pour Déclaration de CA (Urssaf)</span>
-              <span style="font-size: 0.72rem; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 700; letter-spacing: 0.02em;">DÉCLARATION URSSAF</span>
+              <span style="font-weight: 800; font-size: 0.96rem; color: #0f172a;">Déclaration Urssaf</span>
+              <span style="font-size: 0.72rem; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 700; letter-spacing: 0.02em;">OBLIGATOIRE (ART. L. 613-7 CSS)</span>
             </div>
             <div style="font-size: 0.82rem; color: #64748b; margin-top: 3px;">
-              Synthèse officielle du CA encaissé et calcul des cotisations sociales (21,2%) pour votre télédéclaration.
+              Télédéclaration périodique du CA encaissé et calcul des cotisations sociales ({microRatePct}%).
             </div>
           </div>
         </div>
@@ -1000,7 +1053,7 @@
             </button>
           </div>
           <span style="font-size: 0.74rem; color: #64748b; font-weight: 600;">
-            CA total : {totalRecettesMicro.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} (Charges : {(totalRecettesMicro * 0.212).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })})
+            CA total : {totalRecettesMicro.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} (Charges : {(totalRecettesMicro * microRate).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })})
           </span>
         </div>
       </div>
@@ -1387,112 +1440,139 @@
 {#if activeSubTab === 'recap_ca'}
   <div class="card" style="padding: 20px 24px; border: none; background: var(--bg-card, #ffffff); border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
 
-    <!-- 5 KPI Cards : Du Net Ventes au Net en Poche -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px;">
-      <div style="background: #f8fafc; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); border-radius: 12px; padding: 18px;">
-        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #64748b; display: block; margin-bottom: 6px;">CA Encaissé Net</span>
-        <strong style="font-size: 1.4rem; color: #0f172a; font-family: var(--font-title); display: block;">
-          {totalRecettesMicro.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-        </strong>
-        <span style="font-size: 0.78rem; color: #16a34a; font-weight: 700;">Facturé aux clients (ce que je vends)</span>
+    <!-- Table Urssaf (Trimestrielle ou Mensuelle) avec sélecteur de rythme -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin: 0 0 14px 0; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <h4 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0;">
+          Décomposition {declarationFrequency === 'mensuelle' ? 'mensuelle (12 déclarations)' : 'par trimestre (4 déclarations)'}
+        </h4>
+        <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
+          Montants précalculés prêts à être recopiés sur votre portail autoentrepreneur.urssaf.fr
+        </span>
       </div>
 
-      <div style="background: #f8fafc; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); border-radius: 12px; padding: 18px;">
-        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #64748b; display: block; margin-bottom: 6px;">Dépenses d'activité</span>
-        <strong style="font-size: 1.4rem; color: #b91c1c; font-family: var(--font-title); display: block;">
-          -{totalAchatsMicro.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-        </strong>
-        <span style="font-size: 0.78rem; color: #64748b;">Achats et frais pro décaissés</span>
-      </div>
-
-      <div style="background: #eff6ff; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); border-radius: 12px; padding: 18px;">
-        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #1e40af; display: block; margin-bottom: 6px;">CA moins les dépenses</span>
-        <strong style="font-size: 1.4rem; color: #1e3a8a; font-family: var(--font-title); display: block;">
-          {(totalRecettesMicro - totalAchatsMicro).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-        </strong>
-        <span style="font-size: 0.78rem; color: #2563eb; font-weight: 700;">Reste sur mes ventes avant Urssaf</span>
-      </div>
-
-      <div style="background: #f8fafc; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); border-radius: 12px; padding: 18px;">
-        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #64748b; display: block; margin-bottom: 6px;">Charges Urssaf (21,2%)</span>
-        <strong style="font-size: 1.4rem; color: #ea580c; font-family: var(--font-title); display: block;">
-          -{(totalRecettesMicro * 0.212).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-        </strong>
-        <span style="font-size: 0.78rem; color: #c2410c; font-weight: 600;">Cotisations sociales à régler</span>
-      </div>
-
-      <div style="background: #f0fdf4; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); border-radius: 12px; padding: 18px;">
-        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #16a34a; display: block; margin-bottom: 6px;">Reste Net Final</span>
-        <strong style="font-size: 1.4rem; color: #15803d; font-family: var(--font-title); display: block;">
-          {(totalRecettesMicro - (totalRecettesMicro * 0.212) - totalAchatsMicro).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-        </strong>
-        <span style="font-size: 0.78rem; color: #15803d; font-weight: 700;">En poche après charges</span>
+      <!-- Sélecteur de rythme : Trimestrielle ou Mensuelle -->
+      <div style="display: flex; align-items: center; gap: 4px; background: #f8fafc; padding: 3px; border-radius: 10px; border: 1.5px solid #e2e8f0;">
+        <button 
+          type="button"
+          onclick={() => changeDeclarationFrequency('trimestrielle')}
+          style="padding: 6px 14px; font-size: 0.82rem; font-weight: 700; border-radius: 7px; border: none; cursor: pointer; transition: all 0.15s ease; {declarationFrequency === 'trimestrielle' ? 'background: #0f172a; color: #ffffff;' : 'background: transparent; color: #64748b;'}"
+        >
+          Trimestrielle
+        </button>
+        <button 
+          type="button"
+          onclick={() => changeDeclarationFrequency('mensuelle')}
+          style="padding: 6px 14px; font-size: 0.82rem; font-weight: 700; border-radius: 7px; border: none; cursor: pointer; transition: all 0.15s ease; {declarationFrequency === 'mensuelle' ? 'background: #0f172a; color: #ffffff;' : 'background: transparent; color: #64748b;'}"
+        >
+          Mensuelle
+        </button>
       </div>
     </div>
 
-    <!-- BANDEAU FIL CONDUCTEUR : FORMULE DE TRÉSORERIE ÉTAPE PAR ÉTAPE -->
-    <div style="background: #f8fafc; border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 0.88rem; margin-bottom: 24px;">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-calculator" style="color: #64748b;"></i>
-        <span style="color: #475569; font-weight: 700;">Votre trésorerie étape par étape :</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-family: var(--font-title); flex-wrap: wrap;">
-        <span style="color: #0f172a;" title="Facturé aux clients">{totalRecettesMicro.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(CA encaissé net)</span></span>
-        <span style="color: #94a3b8;">−</span>
-        <span style="color: #b91c1c;" title="Achats & dépenses">{totalAchatsMicro.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Dépenses)</span></span>
-        <span style="color: #94a3b8;">=</span>
-        <span style="color: #2563eb; background: #eff6ff; padding: 3px 8px; border-radius: 6px; border: 1px solid #bfdbfe;" title="Reste sur mes ventes avant Urssaf">{(totalRecettesMicro - totalAchatsMicro).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #1e40af; font-weight: 600;">(CA moins dépenses)</span></span>
-        <span style="color: #94a3b8;">−</span>
-        <span style="color: #ea580c;" title="Cotisations Urssaf à régler">{(totalRecettesMicro * 0.212).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Charges Urssaf)</span></span>
-        <span style="color: #94a3b8;">=</span>
-        <span style="color: #15803d; background: #f0fdf4; padding: 3px 8px; border-radius: 6px; border: 1px solid #bbf7d0;" title="Revenu net disponible en poche">{(totalRecettesMicro - (totalRecettesMicro * 0.212) - totalAchatsMicro).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #166534; font-weight: 600;">(Reste net en poche)</span></span>
-      </div>
-    </div>
-
-    <!-- Table Trimestrielle Urssaf -->
-    <h4 style="font-family: var(--font-title); font-size: 1rem; font-weight: 800; color: #0f172a; margin: 0 0 12px 0;">
-      Décomposition par trimestre (pour déclaration Urssaf trimestrielle)
-    </h4>
     <div class="table-container">
       <table class="custom-table">
         <thead>
           <tr>
-            <th>Trimestre</th>
+            <th>{declarationFrequency === 'mensuelle' ? 'Mois' : 'Trimestre'}</th>
             <th>Période</th>
             <th style="text-align: right;">CA Encaissé</th>
-            <th style="text-align: right;">Cotisations Urssaf (21,2%)</th>
+            <th style="text-align: right;">Cotisations Urssaf ({microRatePct}%)</th>
             <th style="text-align: center;">Statut</th>
+            <th style="text-align: center;">Action</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td><strong>T1</strong></td>
-            <td>Janvier - Mars</td>
-            <td style="text-align: right; font-weight: 700; color: #0f172a;">{caTrimestriel.T1.toFixed(2)} €</td>
-            <td style="text-align: right; font-weight: 700; color: #15803d;">{(caTrimestriel.T1 * 0.212).toFixed(2)} €</td>
-            <td style="text-align: center;"><span class="badge {caTrimestriel.T1 > 0 ? 'badge-success' : 'badge-muted'}">{caTrimestriel.T1 > 0 ? 'Prêt à déclarer' : '0 €'}</span></td>
-          </tr>
-          <tr>
-            <td><strong>T2</strong></td>
-            <td>Avril - Juin</td>
-            <td style="text-align: right; font-weight: 700; color: #0f172a;">{caTrimestriel.T2.toFixed(2)} €</td>
-            <td style="text-align: right; font-weight: 700; color: #15803d;">{(caTrimestriel.T2 * 0.212).toFixed(2)} €</td>
-            <td style="text-align: center;"><span class="badge {caTrimestriel.T2 > 0 ? 'badge-success' : 'badge-muted'}">{caTrimestriel.T2 > 0 ? 'Prêt à déclarer' : '0 €'}</span></td>
-          </tr>
-          <tr>
-            <td><strong>T3</strong></td>
-            <td>Juillet - Septembre</td>
-            <td style="text-align: right; font-weight: 700; color: #0f172a;">{caTrimestriel.T3.toFixed(2)} €</td>
-            <td style="text-align: right; font-weight: 700; color: #15803d;">{(caTrimestriel.T3 * 0.212).toFixed(2)} €</td>
-            <td style="text-align: center;"><span class="badge {caTrimestriel.T3 > 0 ? 'badge-success' : 'badge-muted'}">{caTrimestriel.T3 > 0 ? 'Prêt à déclarer' : '0 €'}</span></td>
-          </tr>
-          <tr>
-            <td><strong>T4</strong></td>
-            <td>Octobre - Décembre</td>
-            <td style="text-align: right; font-weight: 700; color: #0f172a;">{caTrimestriel.T4.toFixed(2)} €</td>
-            <td style="text-align: right; font-weight: 700; color: #15803d;">{(caTrimestriel.T4 * 0.212).toFixed(2)} €</td>
-            <td style="text-align: center;"><span class="badge {caTrimestriel.T4 > 0 ? 'badge-success' : 'badge-muted'}">{caTrimestriel.T4 > 0 ? 'Prêt à déclarer' : '0 €'}</span></td>
-          </tr>
+          {#if declarationFrequency === 'mensuelle'}
+            {#each caMensuel as m}
+              <tr>
+                <td><strong>{m.code}</strong></td>
+                <td>{m.label}</td>
+                <td style="text-align: right; font-weight: 700; color: #0f172a;">{m.ca.toFixed(2)} €</td>
+                <td style="text-align: right; font-weight: 700; color: #15803d;">{(m.ca * microRate).toFixed(2)} €</td>
+                <td style="text-align: center;"><span class="badge {m.ca > 0 ? 'badge-success' : 'badge-muted'}">{m.ca > 0 ? 'Prêt à déclarer' : '0 €'}</span></td>
+                <td style="text-align: center;">
+                  <button 
+                    type="button"
+                    onclick={() => copierMontant(m.ca)}
+                    style="background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; padding: 5px 11px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;"
+                    title="Copier le montant pour urssaf.fr"
+                  >
+                    <i class="fa-regular fa-copy"></i> Copier CA
+                  </button>
+                </td>
+              </tr>
+            {/each}
+          {:else}
+            <tr>
+              <td><strong>T1</strong></td>
+              <td>Janvier - Mars</td>
+              <td style="text-align: right; font-weight: 700; color: #0f172a;">{caTrimestriel.T1.toFixed(2)} €</td>
+              <td style="text-align: right; font-weight: 700; color: #15803d;">{(caTrimestriel.T1 * microRate).toFixed(2)} €</td>
+              <td style="text-align: center;"><span class="badge {caTrimestriel.T1 > 0 ? 'badge-success' : 'badge-muted'}">{caTrimestriel.T1 > 0 ? 'Prêt à déclarer' : '0 €'}</span></td>
+              <td style="text-align: center;">
+                <button 
+                  type="button"
+                  onclick={() => copierMontant(caTrimestriel.T1)}
+                  style="background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; padding: 5px 11px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;"
+                  title="Copier le montant pour urssaf.fr"
+                >
+                  <i class="fa-regular fa-copy"></i> Copier CA
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>T2</strong></td>
+              <td>Avril - Juin</td>
+              <td style="text-align: right; font-weight: 700; color: #0f172a;">{caTrimestriel.T2.toFixed(2)} €</td>
+              <td style="text-align: right; font-weight: 700; color: #15803d;">{(caTrimestriel.T2 * microRate).toFixed(2)} €</td>
+              <td style="text-align: center;"><span class="badge {caTrimestriel.T2 > 0 ? 'badge-success' : 'badge-muted'}">{caTrimestriel.T2 > 0 ? 'Prêt à déclarer' : '0 €'}</span></td>
+              <td style="text-align: center;">
+                <button 
+                  type="button"
+                  onclick={() => copierMontant(caTrimestriel.T2)}
+                  style="background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; padding: 5px 11px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;"
+                  title="Copier le montant pour urssaf.fr"
+                >
+                  <i class="fa-regular fa-copy"></i> Copier CA
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>T3</strong></td>
+              <td>Juillet - Septembre</td>
+              <td style="text-align: right; font-weight: 700; color: #0f172a;">{caTrimestriel.T3.toFixed(2)} €</td>
+              <td style="text-align: right; font-weight: 700; color: #15803d;">{(caTrimestriel.T3 * microRate).toFixed(2)} €</td>
+              <td style="text-align: center;"><span class="badge {caTrimestriel.T3 > 0 ? 'badge-success' : 'badge-muted'}">{caTrimestriel.T3 > 0 ? 'Prêt à déclarer' : '0 €'}</span></td>
+              <td style="text-align: center;">
+                <button 
+                  type="button"
+                  onclick={() => copierMontant(caTrimestriel.T3)}
+                  style="background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; padding: 5px 11px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;"
+                  title="Copier le montant pour urssaf.fr"
+                >
+                  <i class="fa-regular fa-copy"></i> Copier CA
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>T4</strong></td>
+              <td>Octobre - Décembre</td>
+              <td style="text-align: right; font-weight: 700; color: #0f172a;">{caTrimestriel.T4.toFixed(2)} €</td>
+              <td style="text-align: right; font-weight: 700; color: #15803d;">{(caTrimestriel.T4 * microRate).toFixed(2)} €</td>
+              <td style="text-align: center;"><span class="badge {caTrimestriel.T4 > 0 ? 'badge-success' : 'badge-muted'}">{caTrimestriel.T4 > 0 ? 'Prêt à déclarer' : '0 €'}</span></td>
+              <td style="text-align: center;">
+                <button 
+                  type="button"
+                  onclick={() => copierMontant(caTrimestriel.T4)}
+                  style="background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; padding: 5px 11px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;"
+                  title="Copier le montant pour urssaf.fr"
+                >
+                  <i class="fa-regular fa-copy"></i> Copier CA
+                </button>
+              </td>
+            </tr>
+          {/if}
         </tbody>
       </table>
     </div>

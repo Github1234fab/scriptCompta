@@ -77,7 +77,7 @@
   function handleDeleteDictionaryRule(motCle) {
     Categorizer.supprimerRegle(motCle);
     selectedCategoryMap = {};
-    showToast(`🗑️ Règle "${motCle}" retirée du dictionnaire.`);
+    showToast(`Règle "${motCle}" retirée du dictionnaire.`);
   }
 
   // État et fonctions d'édition en ligne du dictionnaire d'attribution
@@ -101,7 +101,7 @@
 
   function saveEditRule() {
     if (!editingKeyword.trim()) {
-      showToast('⚠️ Le mot-clé ne peut pas être vide.');
+      showToast('Le mot-clé ne peut pas être vide.');
       return;
     }
     const cleanNew = Categorizer.normaliserTexte(editingKeyword);
@@ -163,7 +163,7 @@
       const rawText = /** @type {string} */ (evt.target?.result || "");
       const parsed = CSVParser.parse(rawText);
       if (!parsed || parsed.length === 0) {
-        showToast("⚠️ Fichier CSV vide ou format non reconnu.");
+        showToast("Fichier CSV vide ou format non reconnu.");
         return;
       }
 
@@ -244,11 +244,19 @@
   /** @type {any} */
   let selectedTxForCategorization = $state(null);
   let modalSearchQuery = $state("");
+  /** @type {'recettes' | 'depenses' | null} */
+  let activeAccordionSection = $state('depenses');
+  /** @type {string | null} */
+  let activeSubMenuKey = $state(null);
 
   /** @param {any} tx */
   function openCategorizeModal(tx) {
     selectedTxForCategorization = tx;
     modalSearchQuery = "";
+    activeAccordionSection = tx.credit > 0 ? 'recettes' : 'depenses';
+    const currentAcc = selectedCategoryMap[tx.id] || tx.compteAttribué || getSuggestionForTx(tx)?.compte;
+    const foundSub = findSubMenuForAccount(currentAcc, activeAccordionSection);
+    activeSubMenuKey = foundSub || (activeAccordionSection === 'recettes' ? 'rec_prestations' : 'dep_achats');
     showCategorizeModal = true;
   }
 
@@ -304,7 +312,7 @@
    * @param {number} linesCount 
    */
   function supprimerImport(importId, fileName, linesCount) {
-    if (confirm(`⚠️ Voulez-vous vraiment annuler l'import "${fileName}" ? Cela supprimera les ${linesCount} transactions associées.`)) {
+    if (confirm(`Voulez-vous vraiment annuler l'import "${fileName}" ? Cela supprimera les ${linesCount} transactions associées.`)) {
       const filteredTx = $transactions.filter(t => t.importId !== importId && (!t.entityId || t.entityId === $activeEntityId));
       const history = getImportsHistory().filter((/** @type {any} */ h) => h.id !== importId);
       saveImportsHistory(history);
@@ -312,7 +320,7 @@
       const recatted = Categorizer.categoriserTransactions(filteredTx);
       updateTransactions(recatted);
 
-      showToast(`🗑️ Import "${fileName}" annulé avec succès.`);
+      showToast(`Import "${fileName}" annulé avec succès.`);
     }
   }
 
@@ -321,10 +329,10 @@
    */
   function effacerToutesOperations() {
     if (currentStructureTx.length === 0) return;
-    if (confirm(`⚠️ Voulez-vous effacer l'ensemble des ${currentStructureTx.length} écritures bancaires de cet espace ?`)) {
+    if (confirm(`Voulez-vous effacer l'ensemble des ${currentStructureTx.length} écritures bancaires de cet espace ?`)) {
       updateTransactions([]);
       saveImportsHistory([]);
-      showToast('🗑️ Toutes les opérations de cet espace ont été effacées.');
+      showToast('Toutes les opérations de cet espace ont été effacées.');
     }
   }
 
@@ -413,31 +421,143 @@
     return parts.join(" • ");
   }
 
-  // 1. 🟢 ENTRÉES D'ARGENT
-  let groupEntrees = $derived(
-    $planComptable.filter(c => c.compte !== "699" && (c.group === 'entrees' || c.compte.startsWith("7") || c.type === "Produit"))
-  );
+  // Groupement des catégories en sous-menus accordéon épurés
+  let modalAccordionGroups = $derived((() => {
+    const plan = $planComptable.filter(c => c.compte !== '699');
 
-  // 2. 🔴 DÉPENSES COURANTES
-  let groupDepensesCourantes = $derived(
-    $planComptable.filter(c => c.compte !== "699" && (c.group === 'depenses_courantes' || ['606', '613', '6132', '615', '616', '625', '626', '627'].includes(c.compte)))
-  );
+    /** @param {string[]} codes */
+    const getAccounts = (codes) => codes.map(code => {
+      const found = plan.find(c => c.compte === code);
+      return found || { compte: code, libelle: Categorizer.obtenirLibelleCompte(code), desc: '' };
+    });
 
-  // 3. 👥 ÉQUIPE & INTERVENANTS
-  let groupEquipe = $derived(
-    $planComptable.filter(c => c.compte !== "699" && (c.group === 'equipe' || ['611', '641', '645', '6453', '658'].includes(c.compte)))
-  );
+    /** @param {any} c */
+    const isRecette = (c) => c.compte.startsWith('7') || c.group === 'entrees' || c.type === 'Produit';
+    /** @param {any} c */
+    const isDepense = (c) => c.compte.startsWith('6') || c.group === 'depenses_courantes' || c.group === 'equipe' || c.type === 'Charge';
 
-  // 4. 🔄 COMPTES & TRANSFERTS
-  let groupTransferts = $derived(
-    $planComptable.filter(c => c.compte !== "699" && (c.group === 'transferts' || c.compte.startsWith("4") || c.compte.startsWith("5")))
-  );
+    const recettesSubMenus = [
+      {
+        id: 'rec_prestations',
+        label: 'Prestations de services & Honoraires',
+        icon: 'fa-briefcase',
+        codes: ['706', '7061', '7062', '7063', '7064', '708']
+      },
+      {
+        id: 'rec_ventes',
+        label: 'Ventes de marchandises',
+        icon: 'fa-box-open',
+        codes: ['707']
+      },
+      {
+        id: 'rec_cotisations',
+        label: 'Cotisations, Adhésions & Mécénat',
+        icon: 'fa-hand-holding-heart',
+        codes: ['756', '758', '740']
+      },
+      {
+        id: 'rec_virements',
+        label: 'Virements reçus & Apports',
+        icon: 'fa-arrow-down-left',
+        codes: ['455', '512', '530', '411', '467']
+      }
+    ];
 
-  // Modal Category Filters
-  let filteredEntreesModal = $derived(groupEntrees.filter(c => !modalSearchQuery || c.libelle.toLowerCase().includes(modalSearchQuery.toLowerCase()) || c.compte.includes(modalSearchQuery)));
-  let filteredDepensesModal = $derived(groupDepensesCourantes.filter(c => !modalSearchQuery || c.libelle.toLowerCase().includes(modalSearchQuery.toLowerCase()) || c.compte.includes(modalSearchQuery)));
-  let filteredEquipeModal = $derived(groupEquipe.filter(c => !modalSearchQuery || c.libelle.toLowerCase().includes(modalSearchQuery.toLowerCase()) || c.compte.includes(modalSearchQuery)));
-  let filteredTransfertsModal = $derived(groupTransferts.filter(c => !modalSearchQuery || c.libelle.toLowerCase().includes(modalSearchQuery.toLowerCase()) || c.compte.includes(modalSearchQuery)));
+    const depensesSubMenus = [
+      {
+        id: 'dep_achats',
+        label: 'Achats, Logiciels & Fournitures',
+        icon: 'fa-cart-shopping',
+        codes: ['606', '6132', '615', '616', '626', '627']
+      },
+      {
+        id: 'dep_locaux',
+        label: 'Locaux, Loyers & Taxes',
+        icon: 'fa-building',
+        codes: ['613', '635', '661']
+      },
+      {
+        id: 'dep_missions',
+        label: 'Déplacements & Repas',
+        icon: 'fa-car',
+        codes: ['625']
+      },
+      {
+        id: 'dep_equipe',
+        label: 'Rémunérations & Équipe',
+        icon: 'fa-users',
+        codes: ['611', '641', '645', '6453', '658']
+      },
+      {
+        id: 'dep_transferts',
+        label: 'Virements émis & Prélèvements internes',
+        icon: 'fa-arrow-up-right',
+        codes: ['455', '512', '530', '401', '467']
+      }
+    ];
+
+    /** @param {any[]} subMenus @param {(c: any) => boolean} fallbackFilter */
+    const buildSection = (subMenus, fallbackFilter) => {
+      const handledCodes = new Set();
+      const list = subMenus.map(sub => {
+        const accs = getAccounts(sub.codes);
+        accs.forEach(a => handledCodes.add(a.compte));
+        return {
+          ...sub,
+          accounts: accs
+        };
+      });
+
+      const extras = plan.filter(c => fallbackFilter(c) && !handledCodes.has(c.compte));
+      if (extras.length > 0) {
+        list.push({
+          id: 'extras_custom',
+          label: 'Autres comptes personnalisés',
+          icon: 'fa-folder',
+          accounts: extras
+        });
+      }
+
+      return list;
+    };
+
+    return {
+      recettes: buildSection(recettesSubMenus, isRecette),
+      depenses: buildSection(depensesSubMenus, isDepense)
+    };
+  })());
+
+  /** @param {string|number|null} numCompte @param {'recettes'|'depenses'|null} section */
+  function findSubMenuForAccount(numCompte, section) {
+    if (!numCompte || !section) return null;
+    const subs = modalAccordionGroups[section] || [];
+    for (const sub of subs) {
+      if (sub.accounts.some((/** @type {any} */ a) => a.compte === String(numCompte))) {
+        return sub.id;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * @param {any} sub
+   * @param {string|number|null|undefined} selectedCompte
+   */
+  function subHasSelectedAccount(sub, selectedCompte) {
+    if (!sub || !sub.accounts || !selectedCompte) return false;
+    return sub.accounts.some((/** @type {any} */ a) => a.compte === String(selectedCompte));
+  }
+
+  // Résultats de recherche directe quand du texte est saisi
+  let modalSearchResults = $derived((() => {
+    const q = modalSearchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return $planComptable.filter(c => c.compte !== '699' && (
+      c.compte.toLowerCase().includes(q) ||
+      (c.libelle && c.libelle.toLowerCase().includes(q)) ||
+      (c.desc && c.desc.toLowerCase().includes(q))
+    ));
+  })());
 
   let listComptesTries = $derived(
     $planComptable
@@ -478,7 +598,7 @@
     });
 
     updateTransactions(updated);
-    showToast(`🎉 Succès : ${count} écritures attribuées automatiquement en 1 clic !`);
+    showToast(`Succès : ${count} écritures attribuées automatiquement en 1 clic !`);
   }
 
   // Helper to find similar pending transactions sharing vendor / label words
@@ -1129,37 +1249,45 @@
   </div>
 {/if}
 
-<!-- Modale Dédiée d'Attribution de Compte -->
+<!-- Modale Dédiée d'Attribution de Compte (Accordéon épuré) -->
 {#if showCategorizeModal && selectedTxForCategorization}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="modal-backdrop" onclick={() => showCategorizeModal = false} role="presentation" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 20px;">
+  <div class="modal-backdrop" onclick={() => showCategorizeModal = false} role="presentation" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 20px;">
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_interactive_supports_focus -->
-    <div class="modal-content" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1" style="max-width: 740px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; background: #ffffff !important; border: 1.5px solid #cbd5e1 !important; border-radius: 16px; padding: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.25); color: #0f172a !important;">
+    <div class="modal-content" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1" style="max-width: 580px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; background: #ffffff !important; border: 1px solid #cbd5e1 !important; border-radius: 14px; padding: 20px 22px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2); color: #0f172a !important;">
       
       <!-- Modal Header -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
         <div>
-          <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.25rem; color: #0f172a !important; display: flex; align-items: center; gap: 10px; font-weight: 800;">
-            <i class="fa-solid fa-tags" style="color: #6366f1;"></i> Attribuer un compte comptable
+          <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.15rem; color: #0f172a !important; display: flex; align-items: center; gap: 8px; font-weight: 800;">
+            <i class="fa-solid fa-tags" style="color: #2563eb; font-size: 0.95rem;"></i> Attribuer un compte comptable
           </h3>
-          <div style="font-size: 0.82rem; color: #475569 !important; margin-top: 4px;">
-            Sélectionnez la catégorie comptable exacte documentée ci-dessous
+          <div style="font-size: 0.8rem; color: #64748b !important; margin-top: 2px;">
+            Sélectionnez la catégorie comptable à associer à cette opération
           </div>
         </div>
-        <button type="button" onclick={() => showCategorizeModal = false} style="background: none; border: none; color: #64748b; font-size: 1.4rem; cursor: pointer;">✕</button>
+        <button 
+          type="button" 
+          aria-label="Fermer"
+          title="Fermer"
+          onclick={() => showCategorizeModal = false} 
+          style="background: none; border: none; color: #94a3b8; font-size: 1.25rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: color 0.15s ease;"
+        >✕</button>
       </div>
 
       <!-- Transaction Card Summary -->
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;">
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-          <div>
-            <div style="font-weight: 700; color: #0f172a !important; font-size: 1.05rem;">{selectedTxForCategorization.libelle}</div>
-            <div style="font-size: 0.78rem; color: #475569 !important; margin-top: 2px;">
+          <div style="min-width: 0; flex: 1;">
+            <div style="font-weight: 700; color: #0f172a !important; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={selectedTxForCategorization.libelle}>
+              {selectedTxForCategorization.libelle}
+            </div>
+            <div style="font-size: 0.76rem; color: #64748b !important; margin-top: 2px;">
               {selectedTxForCategorization.date ? new Date(selectedTxForCategorization.date).toLocaleDateString("fr-FR") : ''} &bull; {selectedTxForCategorization.debit > 0 ? "Dépense" : "Recette"}
               {selectedTxForCategorization.reference ? ` • Ref: ${selectedTxForCategorization.reference}` : ''}
             </div>
           </div>
-          <div style="font-weight: 800; font-size: 1.2rem; color: {selectedTxForCategorization.debit > 0 ? '#dc2626' : '#16a34a'};">
+          <div style="font-weight: 800; font-size: 1.1rem; color: {selectedTxForCategorization.debit > 0 ? '#b91c1c' : '#15803d'}; font-family: var(--font-title); white-space: nowrap;">
             {selectedTxForCategorization.debit > 0 ? "-" : "+"}
             {(Number(selectedTxForCategorization.debit || selectedTxForCategorization.credit || 0)).toFixed(2)} €
           </div>
@@ -1169,16 +1297,15 @@
         {#if getSuggestionForTx(selectedTxForCategorization)}
           {@const sug = getSuggestionForTx(selectedTxForCategorization)}
           {#if sug}
-            <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; background: #eeef4f3; border: 1px solid #c7d2fe; padding: 8px 12px; border-radius: 8px;">
-              <div style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
-                <i class="fa-solid fa-brain" style="color: #4f46e5;"></i>
-                <span style="color: #3730a3; font-weight: 700;">Suggestion IA :</span>
+            <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: 6px;">
+              <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem;">
+                <i class="fa-solid fa-wand-magic-sparkles" style="color: #2563eb; font-size: 0.78rem;"></i>
+                <span style="color: #64748b; font-weight: 600;">Suggestion :</span>
                 <strong style="color: #0f172a;">{sug?.label}</strong>
               </div>
               <button 
                 type="button" 
-                class="btn" 
-                style="padding: 4px 12px; font-size: 0.8rem; background: #4f46e5; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;"
+                style="padding: 3px 8px; font-size: 0.75rem; background: #0f172a; color: #ffffff; border: none; border-radius: 4px; font-weight: 700; cursor: pointer;"
                 onclick={() => {
                   if (sug && selectedTxForCategorization) {
                     selectAccount(selectedTxForCategorization.id, sug.compte);
@@ -1187,7 +1314,7 @@
                   }
                 }}
               >
-                Appliquer la suggestion
+                Appliquer
               </button>
             </div>
           {/if}
@@ -1195,193 +1322,248 @@
       </div>
 
       <!-- Search input inside modal -->
-      <div style="margin-bottom: 14px;">
+      <div style="position: relative; margin-bottom: 12px;">
+        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.8rem; pointer-events: none;"></i>
         <input 
           type="text" 
-          placeholder="🔍 Filtrer les catégories ou numéros (ex: 606, Cotisations, Logiciels, Repas...)" 
+          placeholder="Filtrer les comptes (ex: 606, Honoraires, Logiciels...)" 
           bind:value={modalSearchQuery}
-          style="width: 100%; padding: 10px 14px; background: #ffffff !important; border: 1.5px solid #cbd5e1 !important; border-radius: 8px; color: #0f172a !important; font-size: 0.9rem; box-sizing: border-box;"
+          style="width: 100%; padding: 8px 12px 8px 32px; background: #ffffff !important; border: 1.5px solid #e2e8f0 !important; border-radius: 8px; color: #0f172a !important; font-size: 0.85rem; box-sizing: border-box; transition: border-color 0.15s;"
         />
+        {#if modalSearchQuery}
+          <button 
+            type="button" 
+            aria-label="Effacer la recherche"
+            title="Effacer la recherche"
+            onclick={() => modalSearchQuery = ''} 
+            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.8rem; padding: 2px;"
+          >
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            <span style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;">Effacer la recherche</span>
+          </button>
+        {/if}
       </div>
 
-      <!-- Category Groups List -->
-      <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 4px; margin-bottom: 16px;">
+      <!-- Scrollable Body -->
+      <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 2px; margin-bottom: 14px;">
         
-        <!-- Group 1: ENTRÉES D'ARGENT -->
-        {#if filteredEntreesModal.length > 0}
-          <div>
-            <div style="color: #065f46 !important; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 12px; background: #ecfdf5; border-left: 3px solid #10b981; border-radius: 4px; margin-bottom: 8px; letter-spacing: 0.03em;">
-              🟢 ENTRÉES D'ARGENT (RECETTES)
+        {#if modalSearchQuery.trim().length > 0}
+          <!-- VUE RÉSULTATS DE RECHERCHE DIRECTE -->
+          {#if modalSearchResults.length === 0}
+            <div style="text-align: center; padding: 28px 16px; color: #64748b; font-size: 0.85rem;">
+              Aucune catégorie ne correspond à « {modalSearchQuery} »
             </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              {#each filteredEntreesModal as c}
+          {:else}
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              {#each modalSearchResults as c}
                 {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === c.compte}
                 <button 
                   type="button"
                   onclick={() => {
                     selectedCategoryMap[selectedTxForCategorization.id] = c.compte;
                   }}
-                  style="text-align: left; padding: 12px 16px; border-radius: 10px; cursor: pointer; border: 1.5px solid {isSelected ? '#10b981' : '#e2e8f0'}; background: {isSelected ? '#ecfdf5' : '#ffffff'}; color: #0f172a !important; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: all 0.15s; width: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+                  style="text-align: left; padding: 8px 12px; border-radius: 8px; cursor: pointer; border: 1.5px solid {isSelected ? '#2563eb' : '#e2e8f0'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: #0f172a; display: flex; justify-content: space-between; align-items: center; gap: 10px; transition: all 0.12s ease; width: 100%;"
                 >
-                  <div style="flex: 1;">
+                  <div style="flex: 1; min-width: 0;">
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a !important;">{formatAccountLabel(c.compte)}</span>
-                      <span style="font-size: 0.78rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: {isSelected ? '#10b981' : '#d1fae5'}; color: {isSelected ? '#ffffff' : '#065f46'}; border: 1px solid #a7f3d0;">
+                      <span style="font-weight: 700; font-size: 0.86rem; color: #0f172a;">{formatAccountLabel(c.compte)}</span>
+                      <span style="font-size: 0.72rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; background: {isSelected ? '#2563eb' : '#f1f5f9'}; color: {isSelected ? '#ffffff' : '#475569'}; border: 1px solid {isSelected ? '#2563eb' : '#e2e8f0'};">
                         Compte {c.compte}
                       </span>
                     </div>
                     {#if c.desc}
-                      <div style="font-size: 0.82rem; color: #475569 !important; margin-top: 4px; line-height: 1.4;">
+                      <div style="font-size: 0.76rem; color: #64748b; margin-top: 2px; line-height: 1.3;">
                         {c.desc}
                       </div>
                     {/if}
                   </div>
                   {#if isSelected}
-                    <i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 1.25rem; flex-shrink: 0;"></i>
+                    <i class="fa-solid fa-circle-check" style="color: #2563eb; font-size: 1.05rem; flex-shrink: 0;"></i>
                   {:else}
-                    <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 1.15rem; flex-shrink: 0;"></i>
+                    <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 0.95rem; flex-shrink: 0;"></i>
                   {/if}
                 </button>
               {/each}
             </div>
-          </div>
-        {/if}
+          {/if}
 
-        <!-- Group 2: DÉPENSES COURANTES -->
-        {#if filteredDepensesModal.length > 0}
-          <div>
-            <div style="color: #991b1b !important; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 12px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px; margin-bottom: 8px; letter-spacing: 0.03em;">
-              🔴 DÉPENSES COURANTES & FRAIS
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              {#each filteredDepensesModal as c}
-                {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === c.compte}
-                <button 
-                  type="button"
-                  onclick={() => {
-                    selectedCategoryMap[selectedTxForCategorization.id] = c.compte;
-                  }}
-                  style="text-align: left; padding: 12px 16px; border-radius: 10px; cursor: pointer; border: 1.5px solid {isSelected ? '#ef4444' : '#e2e8f0'}; background: {isSelected ? '#fef2f2' : '#ffffff'}; color: #0f172a !important; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: all 0.15s; width: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
-                >
-                  <div style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a !important;">{c.libelle}</span>
-                      <span style="font-size: 0.78rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: {isSelected ? '#ef4444' : '#fee2e2'}; color: {isSelected ? '#ffffff' : '#991b1b'}; border: 1px solid #fca5a5;">
-                        Compte {c.compte}
-                      </span>
-                    </div>
-                    {#if c.desc}
-                      <div style="font-size: 0.82rem; color: #475569 !important; margin-top: 4px; line-height: 1.4;">
-                        {c.desc}
-                      </div>
-                    {/if}
-                  </div>
-                  {#if isSelected}
-                    <i class="fa-solid fa-circle-check" style="color: #ef4444; font-size: 1.25rem; flex-shrink: 0;"></i>
-                  {:else}
-                    <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 1.15rem; flex-shrink: 0;"></i>
-                  {/if}
-                </button>
-              {/each}
-            </div>
-          </div>
-        {/if}
+        {:else}
+          <!-- VUE ACCORDÉON RECETTE / DÉPENSE -->
 
-        <!-- Group 3: ÉQUIPE & INTERVENANTS -->
-        {#if filteredEquipeModal.length > 0}
-          <div>
-            <div style="color: #6b21a8 !important; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 12px; background: #f3e8ff; border-left: 3px solid #a855f7; border-radius: 4px; margin-bottom: 8px; letter-spacing: 0.03em;">
-              👥 ÉQUIPE & INTERVENANTS
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              {#each filteredEquipeModal as c}
-                {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === c.compte}
-                <button 
-                  type="button"
-                  onclick={() => {
-                    selectedCategoryMap[selectedTxForCategorization.id] = c.compte;
-                  }}
-                  style="text-align: left; padding: 12px 16px; border-radius: 10px; cursor: pointer; border: 1.5px solid {isSelected ? '#a855f7' : '#e2e8f0'}; background: {isSelected ? '#f3e8ff' : '#ffffff'}; color: #0f172a !important; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: all 0.15s; width: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
-                >
-                  <div style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a !important;">{c.libelle}</span>
-                      <span style="font-size: 0.78rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: {isSelected ? '#a855f7' : '#f3e8ff'}; color: {isSelected ? '#ffffff' : '#6b21a8'}; border: 1px solid #e9d5ff;">
-                        Compte {c.compte}
-                      </span>
-                    </div>
-                    {#if c.desc}
-                      <div style="font-size: 0.82rem; color: #475569 !important; margin-top: 4px; line-height: 1.4;">
-                        {c.desc}
-                      </div>
-                    {/if}
-                  </div>
-                  {#if isSelected}
-                    <i class="fa-solid fa-circle-check" style="color: #a855f7; font-size: 1.25rem; flex-shrink: 0;"></i>
-                  {:else}
-                    <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 1.15rem; flex-shrink: 0;"></i>
-                  {/if}
-                </button>
-              {/each}
-            </div>
-          </div>
-        {/if}
+          <!-- 1. ACCORDÉON RECETTES -->
+          <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; background: #ffffff;">
+            <button 
+              type="button"
+              onclick={() => activeAccordionSection = activeAccordionSection === 'recettes' ? null : 'recettes'}
+              style="width: 100%; padding: 10px 14px; background: {activeAccordionSection === 'recettes' ? '#f8fafc' : '#ffffff'}; border: none; border-bottom: {activeAccordionSection === 'recettes' ? '1px solid #e2e8f0' : 'none'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; transition: background 0.15s ease;"
+            >
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-arrow-down-left" style="color: #2563eb; font-size: 0.85rem;"></i>
+                <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a;">Recettes</span>
+                <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Entrées d'argent)</span>
+              </div>
+              <i class="fa-solid fa-chevron-down" style="color: #64748b; font-size: 0.75rem; transform: {activeAccordionSection === 'recettes' ? 'rotate(180deg)' : 'none'}; transition: transform 0.2s ease;"></i>
+            </button>
 
-        <!-- Group 4: COMPTES & TRANSFERTS -->
-        {#if filteredTransfertsModal.length > 0}
-          <div>
-            <div style="color: #1e40af !important; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; padding: 6px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; margin-bottom: 8px; letter-spacing: 0.03em;">
-              🔄 COMPTES & TRANSFERTS
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              {#each filteredTransfertsModal as c}
-                {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === c.compte}
-                <button 
-                  type="button"
-                  onclick={() => {
-                    selectedCategoryMap[selectedTxForCategorization.id] = c.compte;
-                  }}
-                  style="text-align: left; padding: 12px 16px; border-radius: 10px; cursor: pointer; border: 1.5px solid {isSelected ? '#3b82f6' : '#e2e8f0'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: #0f172a !important; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: all 0.15s; width: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
-                >
-                  <div style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a !important;">{c.libelle}</span>
-                      <span style="font-size: 0.78rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: {isSelected ? '#3b82f6' : '#dbeafe'}; color: {isSelected ? '#ffffff' : '#1e40af'}; border: 1px solid #bfdbfe;">
-                        Compte {c.compte}
-                      </span>
-                    </div>
-                    {#if c.desc}
-                      <div style="font-size: 0.82rem; color: #475569 !important; margin-top: 4px; line-height: 1.4;">
-                        {c.desc}
+            {#if activeAccordionSection === 'recettes'}
+              <div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: #fafafa;">
+                {#each modalAccordionGroups.recettes as sub}
+                  {@const isSubOpen = activeSubMenuKey === sub.id}
+                  {@const hasSelectedInSub = subHasSelectedAccount(sub, selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué)}
+                  
+                  <div style="border: 1px solid {hasSelectedInSub ? '#93c5fd' : '#e2e8f0'}; border-radius: 8px; overflow: hidden; background: #ffffff;">
+                    <button 
+                      type="button"
+                      onclick={() => activeSubMenuKey = isSubOpen ? null : sub.id}
+                      style="width: 100%; padding: 8px 12px; background: {isSubOpen ? '#f1f5f9' : '#ffffff'}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left;"
+                    >
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid {sub.icon}" style="color: #2563eb; font-size: 0.8rem;"></i>
+                        <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a;">{sub.label}</span>
+                        {#if hasSelectedInSub}
+                          <span style="font-size: 0.68rem; font-weight: 800; color: #2563eb; background: #eff6ff; padding: 1px 5px; border-radius: 4px; border: 1px solid #bfdbfe;">Sélectionné</span>
+                        {/if}
+                      </div>
+                      <i class="fa-solid fa-chevron-right" style="color: #94a3b8; font-size: 0.7rem; transform: {isSubOpen ? 'rotate(90deg)' : 'none'}; transition: transform 0.15s ease;"></i>
+                    </button>
+
+                    {#if isSubOpen}
+                      <div style="padding: 6px 8px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px; background: #ffffff;">
+                        {#each sub.accounts as acc}
+                          {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === acc.compte}
+                          <button 
+                            type="button"
+                            onclick={() => {
+                              selectedCategoryMap[selectedTxForCategorization.id] = acc.compte;
+                            }}
+                            style="text-align: left; padding: 7px 10px; border-radius: 6px; cursor: pointer; border: 1px solid {isSelected ? '#2563eb' : '#f1f5f9'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: #0f172a; display: flex; justify-content: space-between; align-items: center; gap: 8px; transition: all 0.1s ease; width: 100%;"
+                          >
+                            <div style="flex: 1; min-width: 0;">
+                              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="font-weight: 600; font-size: 0.83rem; color: #0f172a;">{formatAccountLabel(acc.compte)}</span>
+                                <span style="font-size: 0.7rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: {isSelected ? '#2563eb' : '#f1f5f9'}; color: {isSelected ? '#ffffff' : '#475569'}; border: 1px solid {isSelected ? '#2563eb' : '#e2e8f0'};">
+                                  {acc.compte}
+                                </span>
+                              </div>
+                              {#if acc.desc}
+                                <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">
+                                  {acc.desc}
+                                </div>
+                              {/if}
+                            </div>
+                            {#if isSelected}
+                              <i class="fa-solid fa-circle-check" style="color: #2563eb; font-size: 0.95rem; flex-shrink: 0;"></i>
+                            {:else}
+                              <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 0.85rem; flex-shrink: 0;"></i>
+                            {/if}
+                          </button>
+                        {/each}
                       </div>
                     {/if}
                   </div>
-                  {#if isSelected}
-                    <i class="fa-solid fa-circle-check" style="color: #3b82f6; font-size: 1.25rem; flex-shrink: 0;"></i>
-                  {:else}
-                    <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 1.15rem; flex-shrink: 0;"></i>
-                  {/if}
-                </button>
-              {/each}
-            </div>
+                {/each}
+              </div>
+            {/if}
           </div>
+
+          <!-- 2. ACCORDÉON DÉPENSES -->
+          <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; background: #ffffff;">
+            <button 
+              type="button"
+              onclick={() => activeAccordionSection = activeAccordionSection === 'depenses' ? null : 'depenses'}
+              style="width: 100%; padding: 10px 14px; background: {activeAccordionSection === 'depenses' ? '#f8fafc' : '#ffffff'}; border: none; border-bottom: {activeAccordionSection === 'depenses' ? '1px solid #e2e8f0' : 'none'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; transition: background 0.15s ease;"
+            >
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-arrow-up-right" style="color: #2563eb; font-size: 0.85rem;"></i>
+                <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a;">Dépenses</span>
+                <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Sorties d'argent & frais)</span>
+              </div>
+              <i class="fa-solid fa-chevron-down" style="color: #64748b; font-size: 0.75rem; transform: {activeAccordionSection === 'depenses' ? 'rotate(180deg)' : 'none'}; transition: transform 0.2s ease;"></i>
+            </button>
+
+            {#if activeAccordionSection === 'depenses'}
+              <div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: #fafafa;">
+                {#each modalAccordionGroups.depenses as sub}
+                  {@const isSubOpen = activeSubMenuKey === sub.id}
+                  {@const hasSelectedInSub = subHasSelectedAccount(sub, selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué)}
+                  
+                  <div style="border: 1px solid {hasSelectedInSub ? '#93c5fd' : '#e2e8f0'}; border-radius: 8px; overflow: hidden; background: #ffffff;">
+                    <button 
+                      type="button"
+                      onclick={() => activeSubMenuKey = isSubOpen ? null : sub.id}
+                      style="width: 100%; padding: 8px 12px; background: {isSubOpen ? '#f1f5f9' : '#ffffff'}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left;"
+                    >
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid {sub.icon}" style="color: #2563eb; font-size: 0.8rem;"></i>
+                        <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a;">{sub.label}</span>
+                        {#if hasSelectedInSub}
+                          <span style="font-size: 0.68rem; font-weight: 800; color: #2563eb; background: #eff6ff; padding: 1px 5px; border-radius: 4px; border: 1px solid #bfdbfe;">Sélectionné</span>
+                        {/if}
+                      </div>
+                      <i class="fa-solid fa-chevron-right" style="color: #94a3b8; font-size: 0.7rem; transform: {isSubOpen ? 'rotate(90deg)' : 'none'}; transition: transform 0.15s ease;"></i>
+                    </button>
+
+                    {#if isSubOpen}
+                      <div style="padding: 6px 8px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px; background: #ffffff;">
+                        {#each sub.accounts as acc}
+                          {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === acc.compte}
+                          <button 
+                            type="button"
+                            onclick={() => {
+                              selectedCategoryMap[selectedTxForCategorization.id] = acc.compte;
+                            }}
+                            style="text-align: left; padding: 7px 10px; border-radius: 6px; cursor: pointer; border: 1px solid {isSelected ? '#2563eb' : '#f1f5f9'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: #0f172a; display: flex; justify-content: space-between; align-items: center; gap: 8px; transition: all 0.1s ease; width: 100%;"
+                          >
+                            <div style="flex: 1; min-width: 0;">
+                              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="font-weight: 600; font-size: 0.83rem; color: #0f172a;">{acc.libelle || formatAccountLabel(acc.compte)}</span>
+                                <span style="font-size: 0.7rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: {isSelected ? '#2563eb' : '#f1f5f9'}; color: {isSelected ? '#ffffff' : '#475569'}; border: 1px solid {isSelected ? '#2563eb' : '#e2e8f0'};">
+                                  {acc.compte}
+                                </span>
+                              </div>
+                              {#if acc.desc}
+                                <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">
+                                  {acc.desc}
+                                </div>
+                              {/if}
+                            </div>
+                            {#if isSelected}
+                              <i class="fa-solid fa-circle-check" style="color: #2563eb; font-size: 0.95rem; flex-shrink: 0;"></i>
+                            {:else}
+                              <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 0.85rem; flex-shrink: 0;"></i>
+                            {/if}
+                          </button>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+
         {/if}
 
       </div>
 
       <!-- Modal Footer Actions -->
-      <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-        <button type="button" class="btn btn-secondary" onclick={() => showCategorizeModal = false} style="padding: 10px 18px; border-radius: 8px; color: #475569 !important; background: #f1f5f9; border: 1px solid #cbd5e1;">Annuler</button>
+      <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
         <button 
           type="button" 
-          class="btn btn-primary" 
+          onclick={() => showCategorizeModal = false} 
+          style="padding: 8px 16px; border-radius: 7px; color: #475569 !important; background: #ffffff; border: 1px solid #cbd5e1; font-size: 0.84rem; font-weight: 600; cursor: pointer;"
+        >
+          Annuler
+        </button>
+        <button 
+          type="button" 
           onclick={() => {
             validerLigneSeule(selectedTxForCategorization);
             showCategorizeModal = false;
           }}
-          style="padding: 10px 22px; font-weight: 700; background: #0f172a; color: #ffffff; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;"
+          style="padding: 8px 18px; font-weight: 700; background: #0f172a; color: #ffffff; border: none; border-radius: 7px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.84rem;"
         >
-          <i class="fa-solid fa-check"></i> Valider l'attribution
+          <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i> Valider l'attribution
         </button>
       </div>
 
