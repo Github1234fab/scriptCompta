@@ -85,7 +85,7 @@ export const CSVParser = {
         ));
       }
 
-      indexInfo = entetes.findIndex(h => h.includes('inf') || h.includes('det') || h.includes('com'));
+      indexInfo = entetes.findIndex(h => !h.includes('dat') && (h.includes('inf') || h.includes('detail') || h.includes('complement') || h.includes('motif') || (h.includes('com') && !h.includes('compt'))));
       indexTypeOp = entetes.findIndex(h => h.includes('typ') || h.includes('mod') || h.includes('pai'));
       indexReference = entetes.findIndex(h => h.includes('ref') || h.includes('num') || h.includes('ide'));
 
@@ -170,6 +170,7 @@ export const CSVParser = {
         typeOperation: typeOperation,
         reference: reference,
         blocks: compositeBlocks,
+        rawCells: cellules,
         compteAttribué: null, // Sera défini par le catégoriseur
         regleAppliquee: null,
         statut: 'non_attribue', // 'attribue', 'non_attribue', 'suggere'
@@ -178,6 +179,19 @@ export const CSVParser = {
     }
 
     return transactions;
+  },
+
+  /**
+   * Extrait les en-têtes d'un fichier CSV
+   * @param {string} rawCsvText
+   * @returns {string[]}
+   */
+  extractHeaders(rawCsvText) {
+    if (!rawCsvText) return [];
+    const firstLine = rawCsvText.split(/\r\n|\r|\n/)[0];
+    if (!firstLine) return [];
+    const sep = firstLine.split(',').length > firstLine.split(';').length ? ',' : ';';
+    return this.splitLineRespectingQuotes(firstLine, sep).map(h => h.trim().replace(/^"|"$/g, ''));
   },
 
   /**

@@ -161,7 +161,10 @@
     const reader = new FileReader();
     reader.onload = (evt) => {
       const rawText = /** @type {string} */ (evt.target?.result || "");
-      const parsed = CSVParser.parse(rawText);
+      handleRawCsvUpload(rawText, file.name);
+
+      const mappingConfig = selectedComplementColIdx !== -1 ? { indexInfo: selectedComplementColIdx } : null;
+      const parsed = CSVParser.parse(rawText, mappingConfig);
       if (!parsed || parsed.length === 0) {
         showToast("Fichier CSV vide ou format non reconnu.");
         return;
@@ -183,7 +186,8 @@
         statut: "non_attribue",
         info: t.info || "",
         typeOperation: t.typeOperation || "",
-        reference: t.reference || ""
+        reference: t.reference || "",
+        rawCells: t.rawCells || []
       }));
 
       // Déduplication intelligente basée sur date + libelle + montant
@@ -281,6 +285,133 @@
   function saveImportsHistory(history) {
     localStorage.setItem(`saas_compta_imports_${$activeEntityId}`, JSON.stringify(history));
     importsHistory = history;
+  }
+
+  // États pour la modal de concaténation assistée
+  let showConcatModal = $state(false);
+  let concatRawText = $state('');
+  let concatFileName = $state('');
+  /** @type {HTMLInputElement | null} */
+  let concatFileInput = $state(null);
+  
+  /** @type {Array<string>} */
+  let availableCsvHeaders = $state((() => {
+    try {
+      const saved = localStorage.getItem(`saas_compta_csv_headers_${$activeEntityId}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  })());
+
+  /** @type {number} */
+  let selectedComplementColIdx = $state((() => {
+    try {
+      const saved = localStorage.getItem(`saas_compta_concat_col_idx_${$activeEntityId}`);
+      return saved !== null ? Number(saved) : -1;
+    } catch {
+      return -1;
+    }
+  })());
+
+  /** @type {Array<Array<string>>} */
+  let concatSampleRows = $state([]);
+
+  /** @param {string} rawText @param {string} [fileName] */
+  function handleRawCsvUpload(rawText, fileName = '') {
+    const lines = rawText.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) return;
+    const sep = lines[0].split(',').length > lines[0].split(';').length ? ',' : ';';
+    const headers = CSVParser.splitLineRespectingQuotes(lines[0], sep).map(h => h.trim().replace(/^"|"$/g, ''));
+    availableCsvHeaders = headers;
+    localStorage.setItem(`saas_compta_csv_headers_${$activeEntityId}`, JSON.stringify(headers));
+    concatRawText = rawText;
+    if (fileName) concatFileName = fileName;
+    concatSampleRows = lines.slice(1, 6).map(l => CSVParser.splitLineRespectingQuotes(l, sep));
+
+    if (selectedComplementColIdx === -1) {
+      const idx = headers.findIndex(h => {
+        const norm = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+        return !norm.includes('dat') && (norm.includes('inf') || norm.includes('complement') || norm.includes('detail') || norm.includes('motif'));
+      });
+      if (idx !== -1) selectedComplementColIdx = idx;
+    }
+  }
+
+  /** @param {Event} e */
+  function handleConcatFileChange(e) {
+    const target = /** @type {HTMLInputElement} */ (e.target);
+    if (target.files?.length) {
+      const file = target.files[0];
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const text = /** @type {string} */ (evt.target?.result || "");
+        handleRawCsvUpload(text, file.name);
+      };
+      reader.readAsText(file);
+    }
+  }
+
+  function appliquerConcatenationAssistee() {
+    if (selectedComplementColIdx === -1) {
+      showToast("Veuillez sélectionner la colonne à associer.");
+      return;
+    }
+
+    localStorage.setItem(`saas_compta_concat_col_idx_${$activeEntityId}`, String(selectedComplementColIdx));
+
+    // Si on a le rawText, on met à jour toutes les transactions actuelles
+    if (concatRawText) {
+      const mappingConfig = {
+        indexInfo: selectedComplementColIdx
+      };
+      const parsed = CSVParser.parse(concatRawText, mappingConfig);
+      if (parsed && parsed.length > 0) {
+        const currentTx = $transactions.filter(t => !t.entityId || t.entityId === $activeEntityId);
+        const otherTx = $transactions.filter(t => t.entityId && t.entityId !== $activeEntityId);
+
+        const updatedTxList = currentTx.map((tx, i) => {
+          const match = parsed[i] || parsed.find(p => p.date === tx.date && Math.abs((p.debit || 0) - (tx.debit || 0)) < 0.01 && Math.abs((p.credit || 0) - (tx.credit || 0)) < 0.01);
+          if (match && match.info) {
+            return {
+              ...tx,
+              info: match.info,
+              libelle: match.libelle || tx.libelle
+            };
+          }
+          return tx;
+        });
+
+        updateTransactions([...otherTx, ...updatedTxList]);
+        showToast("Complément d'information associé avec succès à tout le relevé.");
+        showConcatModal = false;
+        return;
+      }
+    }
+
+    // Sinon, si les transactions ont rawCells
+    const currentTx = $transactions.filter(t => !t.entityId || t.entityId === $activeEntityId);
+    const otherTx = $transactions.filter(t => t.entityId && t.entityId !== $activeEntityId);
+    let updatedCount = 0;
+    const updatedList = currentTx.map(tx => {
+      if (tx.rawCells && tx.rawCells[selectedComplementColIdx]) {
+        const comp = String(tx.rawCells[selectedComplementColIdx]).trim();
+        updatedCount++;
+        return {
+          ...tx,
+          info: comp
+        };
+      }
+      return tx;
+    });
+
+    if (updatedCount > 0) {
+      updateTransactions([...otherTx, ...updatedList]);
+      showToast(`Complément d'information appliqué à ${updatedCount} écritures.`);
+      showConcatModal = false;
+    } else {
+      showToast("Veuillez charger votre fichier CSV pour ré-associer les colonnes.");
+    }
   }
 
   function loadHistory() {
@@ -400,8 +531,20 @@
     const parts = fullLibelle.split('|').map((/** @type {string} */ s) => s.trim()).filter(Boolean);
     let main = parts[0] || fullLibelle;
 
-    // Détection de complément d'information (payeur, motif, etc.)
-    const complement = (tx?.info && String(tx.info).trim()) || (parts.length > 2 ? parts[2] : (parts.length === 2 && !/^[A-Z0-9]{5,20}$/.test(parts[1]) ? parts[1] : ''));
+    // Détection de complément d'information (payeur, motif, etc.) en ignorant formellement les dates
+    let rawComp = '';
+    if (tx?.rawCells && selectedComplementColIdx !== -1 && tx.rawCells[selectedComplementColIdx]) {
+      rawComp = String(tx.rawCells[selectedComplementColIdx]).trim();
+    } else if (tx?.info && String(tx.info).trim()) {
+      rawComp = String(tx.info).trim();
+    } else if (parts.length > 2) {
+      rawComp = parts[2];
+    } else if (parts.length === 2 && !/^[A-Z0-9]{5,20}$/.test(parts[1])) {
+      rawComp = parts[1];
+    }
+
+    const isDate = /^\d{2}[/\-.]\d{2}[/\-.]\d{2,4}$/.test(rawComp);
+    const complement = isDate ? '' : rawComp;
 
     // Vérifier si le libellé principal est un intitulé bancaire générique (Option 2 : REMISE EUROPRELEVEMENT — Nom)
     const isGeneric = /^(REMISE EUROPRELEVEMENT|REMISE SDD|PRLV SEPA|PRELEVEMENT SDD|VIREMENT SEPA|REMISE CHEQUE)$/i.test(main);
@@ -1006,7 +1149,22 @@
           <thead>
             <tr>
               <th style="width: 12%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Date</th>
-              <th style="width: 32%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Libellé</th>
+              <th style="width: 34%; padding: 10px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; letter-spacing: 0.04em;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <span style="text-transform: uppercase;">Libellé</span>
+                  <button
+                    type="button"
+                    onclick={() => showConcatModal = true}
+                    style="text-transform: none; font-size: 0.72rem; font-weight: 700; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 3px 9px; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;"
+                    onmouseenter={(e) => { e.currentTarget.style.background = '#dbeafe'; }}
+                    onmouseleave={(e) => { e.currentTarget.style.background = '#eff6ff'; }}
+                    title="Associer une colonne complémentaire (payeur, motif, référence...)"
+                  >
+                    <i class="fa-solid fa-link" style="font-size: 0.68rem;"></i>
+                    <span>Associer un complément</span>
+                  </button>
+                </div>
+              </th>
               <th style="width: 14%; padding: 12px 14px; text-align: right; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Montant</th>
               <th style="width: 30%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Catégorie / Attribution</th>
               <th style="width: 12%; padding: 12px 14px; text-align: right; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Action</th>
@@ -1916,6 +2074,162 @@
           style="padding: 8px 20px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 700; font-size: 0.86rem; color: #334155; cursor: pointer;"
         >
           Fermer
+        </button>
+      </div>
+
+    </div>
+  </div>
+{/if}
+
+<!-- ========================================== -->
+<!-- MODALE CONCATÉNATION ASSISTÉE DE COLONNE  -->
+<!-- ========================================== -->
+{#if showConcatModal}
+  <div 
+    class="modal-backdrop" 
+    style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px;"
+    onclick={(e) => { if (e.target === e.currentTarget) showConcatModal = false; }}
+    role="presentation"
+  >
+    <div 
+      class="modal-card" 
+      style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; width: 100%; max-width: 620px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;"
+    >
+      <!-- En-tête -->
+      <div style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; background: #ffffff;">
+        <div>
+          <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.1rem; color: #0f172a; display: flex; align-items: center; gap: 8px; font-weight: 800;">
+            <i class="fa-solid fa-link" style="color: #2563eb; font-size: 0.95rem;"></i>
+            Associer un complément d'information
+          </h3>
+          <div style="font-size: 0.78rem; color: #64748b; margin-top: 3px;">
+            Mixez le libellé avec la colonne de votre choix (nom du payeur, motif, détail...)
+          </div>
+        </div>
+        <button 
+          type="button" 
+          aria-label="Fermer" 
+          onclick={() => showConcatModal = false}
+          style="background: none; border: none; color: #94a3b8; font-size: 1.25rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 6px;"
+        >✕</button>
+      </div>
+
+      <!-- Corps défilable -->
+      <div style="padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+        
+        {#if availableCsvHeaders.length === 0}
+          <!-- Si pas de colonnes en mémoire, invitation à charger le fichier CSV -->
+          <div style="text-align: center; padding: 28px 16px; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px;">
+            <i class="fa-solid fa-file-csv" style="font-size: 2.2rem; color: #2563eb; margin-bottom: 10px;"></i>
+            <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a; margin-bottom: 4px;">
+              Chargez votre fichier CSV bancaire
+            </div>
+            <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 14px; max-width: 380px; margin-left: auto; margin-right: auto;">
+              Sélectionnez votre relevé bancaire pour détecter automatiquement toutes ses colonnes et afficher le nom des payeurs.
+            </div>
+            <button 
+              type="button"
+              onclick={() => concatFileInput && concatFileInput.click()}
+              style="padding: 8px 18px; background: #2563eb; color: #ffffff; border: none; border-radius: 8px; font-weight: 700; font-size: 0.84rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"
+            >
+              <i class="fa-solid fa-upload"></i> Choisir le fichier CSV
+            </button>
+            <input 
+              type="file" 
+              accept=".csv" 
+              bind:this={concatFileInput} 
+              onchange={handleConcatFileChange} 
+              style="display: none;" 
+            />
+          </div>
+        {:else}
+          <!-- Colonnes disponibles sous forme de pilules cliquables -->
+          <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+              <span style="font-size: 0.82rem; font-weight: 700; color: #0f172a;">
+                Sélectionnez la colonne à ajouter au libellé :
+              </span>
+              <button 
+                type="button"
+                onclick={() => concatFileInput && concatFileInput.click()}
+                style="background: none; border: none; color: #2563eb; font-size: 0.74rem; font-weight: 700; cursor: pointer; text-decoration: underline;"
+              >
+                {concatFileName ? `Fichier : ${concatFileName} (Changer)` : 'Changer de fichier CSV'}
+              </button>
+              <input 
+                type="file" 
+                accept=".csv" 
+                bind:this={concatFileInput} 
+                onchange={handleConcatFileChange} 
+                style="display: none;" 
+              />
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              {#each availableCsvHeaders as header, idx}
+                {@const isSelected = selectedComplementColIdx === idx}
+                {@const isLibelleCol = header.toLowerCase().includes('libelle')}
+                <button
+                  type="button"
+                  onclick={() => selectedComplementColIdx = idx}
+                  style="padding: 7px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.12s ease; border: 1.5px solid {isSelected ? '#2563eb' : '#e2e8f0'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: {isSelected ? '#1d4ed8' : '#334155'}; display: inline-flex; align-items: center; gap: 6px;"
+                >
+                  {#if isSelected}
+                    <i class="fa-solid fa-circle-check" style="color: #2563eb; font-size: 0.85rem;"></i>
+                  {:else}
+                    <i class="fa-regular fa-circle" style="color: #94a3b8; font-size: 0.85rem;"></i>
+                  {/if}
+                  <span>{header}</span>
+                  {#if isLibelleCol}
+                    <span style="font-size: 0.65rem; color: #64748b; background: #f1f5f9; padding: 1px 4px; border-radius: 3px;">(base)</span>
+                  {/if}
+                </button>
+              {/each}
+            </div>
+          </div>
+
+          <!-- Live Preview Box -->
+          {#if concatSampleRows.length > 0 && selectedComplementColIdx !== -1}
+            {@const colName = availableCsvHeaders[selectedComplementColIdx] || ''}
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-wand-magic-sparkles" style="color: #2563eb;"></i>
+                Aperçu du résultat en direct ({colName})
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                {#each concatSampleRows.slice(0, 3) as row}
+                  {@const lib = row[1] || 'REMISE EUROPRELEVEMENT'}
+                  {@const comp = row[selectedComplementColIdx] || ''}
+                  <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; background: #ffffff; padding: 7px 10px; border-radius: 6px; border: 1px solid #e2e8f0; gap: 8px;">
+                    <span style="color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%;">{lib}</span>
+                    <i class="fa-solid fa-arrow-right" style="color: #94a3b8; font-size: 0.7rem; flex-shrink: 0;"></i>
+                    <strong style="color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%;">{lib}{comp ? ` — ${comp}` : ''}</strong>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        {/if}
+
+      </div>
+
+      <!-- Pied de page -->
+      <div style="padding: 12px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; background: #f8fafc;">
+        <button 
+          type="button" 
+          onclick={() => showConcatModal = false}
+          style="padding: 8px 16px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 700; font-size: 0.84rem; color: #475569; cursor: pointer;"
+        >
+          Annuler
+        </button>
+        <button 
+          type="button" 
+          onclick={appliquerConcatenationAssistee}
+          disabled={selectedComplementColIdx === -1}
+          style="padding: 8px 20px; background: #2563eb; border: none; border-radius: 8px; font-weight: 700; font-size: 0.84rem; color: #ffffff; cursor: {selectedComplementColIdx === -1 ? 'not-allowed' : 'pointer'}; opacity: {selectedComplementColIdx === -1 ? 0.6 : 1}; display: inline-flex; align-items: center; gap: 6px;"
+        >
+          <i class="fa-solid fa-check"></i>
+          Appliquer à tout le relevé
         </button>
       </div>
 
