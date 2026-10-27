@@ -338,6 +338,8 @@
   /** @type {Array<Array<string>>} */
   let concatSampleRows = $state((() => {
     try {
+      const savedSamples = localStorage.getItem(`saas_compta_concat_sample_rows_${$activeEntityId}`);
+      if (savedSamples) return JSON.parse(savedSamples);
       const raw = localStorage.getItem(`saas_compta_last_csv_text_${$activeEntityId}`);
       if (!raw) return [];
       const lines = raw.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
@@ -357,13 +359,16 @@
     const headers = CSVParser.splitLineRespectingQuotes(lines[0], sep).map(h => h.trim().replace(/^"|"$/g, ''));
     availableCsvHeaders = headers;
     concatRawText = rawText;
+    const sampleRows = lines.slice(1, 6).map(l => CSVParser.splitLineRespectingQuotes(l, sep));
+    concatSampleRows = sampleRows;
+
     localStorage.setItem(`saas_compta_csv_headers_${$activeEntityId}`, JSON.stringify(headers));
     localStorage.setItem(`saas_compta_last_csv_text_${$activeEntityId}`, rawText);
+    localStorage.setItem(`saas_compta_concat_sample_rows_${$activeEntityId}`, JSON.stringify(sampleRows));
     if (fileName) {
       concatFileName = fileName;
       localStorage.setItem(`saas_compta_last_csv_name_${$activeEntityId}`, fileName);
     }
-    concatSampleRows = lines.slice(1, 6).map(l => CSVParser.splitLineRespectingQuotes(l, sep));
 
     if (selectedComplementColIdx === -1) {
       const idx = headers.findIndex(h => {
@@ -2214,12 +2219,13 @@
             />
           </div>
         {:else}
-          <!-- Colonnes disponibles sous forme de pilules cliquables -->
-          <div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-              <span style="font-size: 0.82rem; font-weight: 700; color: #0f172a;">
-                Sélectionnez la colonne à ajouter au libellé :
-              </span>
+          <!-- Bloc de sélection des colonnes selon la charte graphique -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <div style="font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-table-columns" style="color: #2563eb;"></i>
+                Sélectionnez la colonne à ajouter au libellé
+              </div>
               <button 
                 type="button"
                 onclick={() => concatFileInput && concatFileInput.click()}
@@ -2243,7 +2249,7 @@
                 <button
                   type="button"
                   onclick={() => selectedComplementColIdx = idx}
-                  style="padding: 7px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.12s ease; border: 1.5px solid {isSelected ? '#2563eb' : '#e2e8f0'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: {isSelected ? '#1d4ed8' : '#334155'}; display: inline-flex; align-items: center; gap: 6px;"
+                  style="padding: 7px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.12s ease; border: 1.5px solid {isSelected ? '#2563eb' : '#cbd5e1'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: {isSelected ? '#1d4ed8' : '#334155'}; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
                 >
                   {#if isSelected}
                     <i class="fa-solid fa-circle-check" style="color: #2563eb; font-size: 0.85rem;"></i>
@@ -2261,26 +2267,48 @@
 
           <!-- Live Preview Box -->
           {#if concatSampleRows.length > 0 && selectedComplementColIdx !== -1}
-            {@const colName = availableCsvHeaders[selectedComplementColIdx] || ''}
             {@const libColIdx = availableCsvHeaders.findIndex(h => h.toLowerCase().includes('libelle')) !== -1 ? availableCsvHeaders.findIndex(h => h.toLowerCase().includes('libelle')) : 1}
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
               <div style="font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                <i class="fa-solid fa-wand-magic-sparkles" style="color: #2563eb;"></i>
-                Aperçu du résultat en direct ({colName})
+                <i class="fa-solid fa-eye" style="color: #2563eb;"></i>
+                Aperçu
               </div>
-              <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; flex-direction: column; gap: 8px;">
                 {#each concatSampleRows.slice(0, 3) as row}
                   {@const lib = row[libColIdx] || 'Libellé'}
                   {@const comp = row[selectedComplementColIdx] || ''}
-                  <div style="display: flex; align-items: center; font-size: 0.82rem; background: #ffffff; padding: 7px 10px; border-radius: 6px; border: 1px solid #e2e8f0; gap: 10px;">
-                    <span style="color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;" title="{lib}">{lib}</span>
-                    <span style="color: #2563eb; font-weight: 800; font-size: 1rem; flex-shrink: 0; line-height: 1;">+</span>
-                    <strong style="color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; background: #eff6ff; padding: 2px 8px; border-radius: 4px; border: 1px solid #dbeafe;" title="{comp || '(vide)'}">
-                      {comp || '(vide)'}
-                    </strong>
+                  <div style="background: #ffffff; padding: 9px 12px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 6px;">
+                    <!-- Ligne 1 : Ce qui est concaténé -->
+                    <div style="display: flex; align-items: center; font-size: 0.8rem; gap: 8px;">
+                      <span style="color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{lib}">{lib}</span>
+                      <span style="color: #2563eb; font-weight: 800; font-size: 0.95rem; flex-shrink: 0; line-height: 1;">+</span>
+                      <span style="color: #1d4ed8; font-weight: 700; background: #eff6ff; padding: 1px 7px; border-radius: 4px; border: 1px solid #bfdbfe; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{comp || '(vide)'}">
+                        {comp || '(vide)'}
+                      </span>
+                    </div>
+                    <!-- Ligne 2 : Visualisation du résultat final -->
+                    <div style="display: flex; align-items: baseline; gap: 6px; font-size: 0.82rem; padding-top: 5px; border-top: 1px dashed #f1f5f9;">
+                      <span style="color: #94a3b8; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; flex-shrink: 0;">Affichage :</span>
+                      <strong style="color: #0f172a; word-break: break-word;">
+                        {comp ? `${lib} — ${comp}` : lib}
+                      </strong>
+                    </div>
                   </div>
                 {/each}
               </div>
+            </div>
+          {:else if selectedComplementColIdx !== -1}
+            <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 10px; padding: 14px 16px; text-align: center;">
+              <div style="font-size: 0.82rem; color: #475569; margin-bottom: 8px;">
+                Rechargez votre relevé bancaire pour afficher l'aperçu du résultat en direct :
+              </div>
+              <button 
+                type="button" 
+                onclick={() => concatFileInput && concatFileInput.click()}
+                style="padding: 6px 14px; background: #2563eb; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"
+              >
+                <i class="fa-solid fa-file-csv"></i> Charger l'aperçu en direct
+              </button>
             </div>
           {/if}
         {/if}
