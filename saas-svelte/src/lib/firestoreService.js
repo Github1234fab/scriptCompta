@@ -8,6 +8,23 @@ import {
 } from 'firebase/firestore';
 
 /**
+ * Liste des adresses e-mails disposant des droits Administrateur / Fondateur (accès complet sans barrière)
+ */
+export const ADMIN_EMAILS = [
+  'fabien.marceau@gmail.com'
+];
+
+/**
+ * Vérifie si une adresse e-mail appartient à la liste des administrateurs
+ * @param {string} [email]
+ * @returns {boolean}
+ */
+export function isUserAdmin(email) {
+  if (!email) return false;
+  return ADMIN_EMAILS.some(e => e.toLowerCase() === email.trim().toLowerCase());
+}
+
+/**
  * Charge ou initialise le profil utilisateur dans Firestore
  * @param {string} uid
  * @param {string} email
@@ -18,20 +35,38 @@ export async function ensureUserProfile(uid, email, name = '') {
   try {
     const userRef = doc(db, 'users', uid);
     const snap = await getDoc(userRef);
+    const isAdmin = isUserAdmin(email);
 
     if (!snap.exists()) {
       const initialProfile = {
-        email,
+        email: email || '',
         name: name || '',
         createdAt: new Date().toISOString(),
-        plan: 'free', // 'free' (limité à 60 écritures) ou 'premium'
-        subscriptionStatus: 'inactive',
+        plan: isAdmin ? 'premium' : 'free',
+        role: isAdmin ? 'admin' : 'user',
+        subscriptionStatus: isAdmin ? 'active' : 'inactive',
         structuresCount: 0
       };
       await setDoc(userRef, initialProfile);
       return initialProfile;
     }
-    return snap.data();
+
+    const existing = snap.data();
+    // Si c'est un compte administrateur identifié par son email mais pas encore promu dans Firestore
+    if (isAdmin && (existing.plan !== 'premium' || existing.role !== 'admin' || existing.subscriptionStatus !== 'active')) {
+      const updated = {
+        ...existing,
+        email: email || existing.email || '',
+        plan: 'premium',
+        role: 'admin',
+        subscriptionStatus: 'active',
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(userRef, updated, { merge: true });
+      return updated;
+    }
+
+    return existing;
   } catch (err) {
     console.warn("Notice: ensureUserProfile offline or restricted:", err);
     return null;

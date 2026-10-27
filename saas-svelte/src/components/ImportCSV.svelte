@@ -330,7 +330,7 @@
     showPreview = true;
     showMappingStep = false;
 
-    showToast(`✅ ${newTransactions.length} nouvelles écritures importées avec succès !`);
+    showToast(`${newTransactions.length} nouvelles écritures importées avec succès !`);
 
     setTimeout(() => {
       activeView.set('categorize');
@@ -366,7 +366,7 @@
       saveImportsHistory(history);
     }
 
-    showToast('✅ Relevé bancaire de démonstration chargé !');
+    showToast('Relevé bancaire de démonstration chargé !');
     activeView.set('categorize');
   }
 

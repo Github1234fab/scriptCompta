@@ -1,6 +1,12 @@
 import { writable, get, derived } from 'svelte/store';
 import { auth } from './firebase.js';
-import { saveTransactions, saveStructureKey, saveEntityData } from './firestoreService.js';
+import { 
+  saveTransactions, 
+  saveStructureKey, 
+  saveEntityData,
+  ADMIN_EMAILS,
+  isUserAdmin
+} from './firestoreService.js';
 import { 
   INITIAL_PLAN_COMPTABLE,
   INITIAL_RULES_LYON,
@@ -13,14 +19,25 @@ import {
 // Quota Freemium
 export const FREE_TIER_MAX_TRANSACTIONS = 60;
 
-// User Profile (Plan, Subscription, etc.)
+// User Profile (Plan, Subscription, Role, etc.)
 export const userProfile = writable({
   plan: 'free', // 'free' | 'premium'
+  role: 'user', // 'user' | 'admin'
   subscriptionStatus: 'inactive',
   structuresCount: 0
 });
 
-export const isPremium = derived(userProfile, ($p) => $p?.plan === 'premium');
+export const isAdmin = derived(userProfile, ($p) => {
+  if ($p?.role === 'admin') return true;
+  if ($p?.email && isUserAdmin($p.email)) return true;
+  return false;
+});
+
+export const isPremium = derived([userProfile, isAdmin], ([$p, $admin]) => {
+  if ($admin) return true;
+  return $p?.plan === 'premium';
+});
+
 export const showUpgradeModal = writable(false);
 
 // Visual states

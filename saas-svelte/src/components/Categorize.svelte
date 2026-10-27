@@ -130,7 +130,7 @@
     selectedCategoryMap = {};
 
     editingRuleOriginalMotCle = null;
-    showToast(`✅ Règle "${cleanNew}" mise à jour avec succès !`);
+    showToast(`Règle "${cleanNew}" mise à jour avec succès !`);
   }
 
   // CSV Dropzone state
@@ -530,7 +530,7 @@
         return t;
       });
       updateTransactions(updated);
-      showToast(`✅ Écriture attribuée au compte ${targetCategory} !`);
+      showToast(`Écriture attribuée au compte ${targetCategory} !`);
     }
   }
 
@@ -553,7 +553,7 @@
     });
 
     updateTransactions(updated);
-    showToast(`✅ ${idsToAssign.size} opérations attribuées au compte ${targetSimilarCategory} !`);
+    showToast(`${idsToAssign.size} opérations attribuées au compte ${targetSimilarCategory} !`);
     
     showSimilarTxModal = false;
     pendingPrimaryTx = null;
@@ -1114,7 +1114,7 @@
           if (!pendingPrimaryTx) return;
           const updated = $transactions.map(t => t.id === pendingPrimaryTx.id ? { ...t, compteAttribué: targetSimilarCategory, statut: 'attribue' } : t);
           updateTransactions(updated);
-          showToast(`✅ Écriture seule attribuée au compte ${targetSimilarCategory} !`);
+          showToast(`Écriture seule attribuée au compte ${targetSimilarCategory} !`);
           showSimilarTxModal = false;
         }} style="padding: 10px 16px;">
           Valider uniquement cette écriture

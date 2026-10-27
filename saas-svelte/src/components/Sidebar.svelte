@@ -8,6 +8,7 @@
     updateActiveEntityId, 
     transactions, 
     isPremium, 
+    isAdmin,
     showUpgradeModal, 
     FREE_TIER_MAX_TRANSACTIONS,
     MANAGEMENT_MODELS,
@@ -284,7 +285,20 @@
   <!-- PIED DE BARRE LATÉRALE ÉPURÉ : UNIQUE CARTE QUOTA / UPGRADE -->
   <div class="sidebar-bottom-panel" style="padding: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: #0c1220; box-sizing: border-box;">
     
-    {#if $isPremium}
+    {#if $isAdmin}
+      <div style="background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(59, 130, 246, 0.28); border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div style="font-size: 0.78rem; font-weight: 800; color: #60a5fa; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-shield-halved" style="font-size: 0.75rem;"></i>
+            Compte Administrateur
+          </div>
+          <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 2px;">Accès illimité sans quota</div>
+        </div>
+        <span style="font-size: 0.65rem; font-weight: 800; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.35); padding: 2px 7px; border-radius: 4px; letter-spacing: 0.04em;">
+          ADMIN
+        </span>
+      </div>
+    {:else if $isPremium}
       <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.22); border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
         <div>
           <div 

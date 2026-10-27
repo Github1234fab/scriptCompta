@@ -222,7 +222,7 @@ body {
 }
 
 .menu-item i {
-  color: #e2e8f0;
+  color: #60a5fa !important;
   width: 20px;
   font-size: 0.95rem;
   text-align: center;
@@ -236,7 +236,7 @@ body {
 }
 
 .menu-item:hover i {
-  color: #ffffff !important;
+  color: #60a5fa !important;
 }
 
 .menu-item.active {
