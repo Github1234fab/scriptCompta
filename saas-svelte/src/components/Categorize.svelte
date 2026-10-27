@@ -401,12 +401,14 @@
 
     localStorage.setItem(`saas_compta_concat_col_idx_${$activeEntityId}`, String(selectedComplementColIdx));
 
+    const rawTextToUse = concatRawText || localStorage.getItem(`saas_compta_last_csv_text_${$activeEntityId}`) || '';
+
     // Si on a le rawText, on met à jour toutes les transactions actuelles
-    if (concatRawText) {
+    if (rawTextToUse) {
       const mappingConfig = {
         indexInfo: selectedComplementColIdx
       };
-      const parsed = CSVParser.parse(concatRawText, mappingConfig);
+      const parsed = CSVParser.parse(rawTextToUse, mappingConfig);
       if (parsed && parsed.length > 0) {
         const currentTx = $transactions.filter(t => !t.entityId || t.entityId === $activeEntityId);
         const otherTx = $transactions.filter(t => t.entityId && t.entityId !== $activeEntityId);
@@ -432,14 +434,15 @@
             }
           }
 
-          if (match && match.info) {
+          const complement = (match?.info || (match?.rawCells && match.rawCells[selectedComplementColIdx]) || '').trim();
+          if (match && complement) {
             const baseLib = match.rawLibelle || tx.rawLibelle || tx.libelle.split('—')[0].split('|')[0].trim();
             const isGeneric = /^(REMISE EUROPRELEVEMENT|REMISE SDD|PRLV SEPA|PRELEVEMENT SDD|VIREMENT SEPA|REMISE CHEQUE)$/i.test(baseLib);
             return {
               ...tx,
-              info: match.info,
+              info: complement,
               rawLibelle: baseLib,
-              libelle: isGeneric ? `${baseLib} — ${match.info}` : (match.libelle || tx.libelle),
+              libelle: isGeneric ? `${baseLib} — ${complement}` : tx.libelle,
               rawCells: match.rawCells || tx.rawCells
             };
           }

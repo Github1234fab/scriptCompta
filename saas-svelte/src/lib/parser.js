@@ -31,68 +31,69 @@ export const CSVParser = {
     let selectedConcatBlocks = null;
     let modeMontant = 'double';
 
-    if (mappingConfig) {
-      separateur = mappingConfig.separateur || separateur;
-      indexDate = mappingConfig.indexDate;
-      indexLibelle = mappingConfig.indexLibelle;
-      indexDebit = mappingConfig.indexDebit;
-      indexCredit = mappingConfig.indexCredit;
-      indexMontant = mappingConfig.indexMontant;
-      indexInfo = mappingConfig.indexInfo;
-      indexTypeOp = mappingConfig.indexTypeOp;
-      indexReference = mappingConfig.indexReference;
-      selectedConcatBlocks = mappingConfig.selectedConcatBlocks || null;
-      modeMontant = mappingConfig.modeMontant || 'double';
-    } else {
-      // Extraction et normalisation des en-têtes
-      const entetes = premiereLigne.split(separateur).map(h => {
-        return h.toLowerCase()
-          .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Enlève les accents
-          .replace(/[^a-z0-9]/g, '') // Conserve uniquement l'alphanumérique
-          .trim();
-      });
-      
-      // Colonnes d'informations textuelles ou de métadonnées qui ne doivent JAMAIS être considérées comme Débit, Crédit ou Montant
-      const isTextOrMetaHeader = (h) => (
-        h.includes('inf') || h.includes('det') || h.includes('com') || 
-        h.includes('lib') || h.includes('ref') || h.includes('typ') || 
-        h.includes('mod') || h.includes('poi') || h.includes('cat') ||
-        h.includes('tex') || h.includes('des') || h.includes('num') ||
-        h.includes('rem') || h.includes('obs') || h.includes('noti')
-      );
+    // Extraction et normalisation des en-têtes
+    const entetes = premiereLigne.split(separateur).map(h => {
+      return h.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Enlève les accents
+        .replace(/[^a-z0-9]/g, '') // Conserve uniquement l'alphanumérique
+        .trim();
+    });
+    
+    // Colonnes d'informations textuelles ou de métadonnées qui ne doivent JAMAIS être considérées comme Débit, Crédit ou Montant
+    const isTextOrMetaHeader = (h) => (
+      h.includes('inf') || h.includes('det') || h.includes('com') || 
+      h.includes('lib') || h.includes('ref') || h.includes('typ') || 
+      h.includes('mod') || h.includes('poi') || h.includes('cat') ||
+      h.includes('tex') || h.includes('des') || h.includes('num') ||
+      h.includes('rem') || h.includes('obs') || h.includes('noti')
+    );
 
-      // Détection des en-têtes avec priorité stricte pour éviter les collisions (ex: "date de valeur" ne doit JAMAIS matcher le montant)
-      indexDate = entetes.findIndex(h => h.includes('dat') && !h.includes('val'));
-      if (indexDate === -1) indexDate = entetes.findIndex(h => h.includes('dat'));
+    // Détection des en-têtes avec priorité stricte pour éviter les collisions (ex: "date de valeur" ne doit JAMAIS matcher le montant)
+    indexDate = entetes.findIndex(h => h.includes('dat') && !h.includes('val'));
+    if (indexDate === -1) indexDate = entetes.findIndex(h => h.includes('dat'));
 
-      indexLibelle = entetes.findIndex(h => !h.includes('dat') && (h.includes('lib') || h.includes('tex') || h.includes('des') || h.includes('mot') || h.includes('nom')));
-      
-      // Débit et Crédit : Détection stricte, ne doivent JAMAIS matcher une colonne informative (comme 'informationscomplementaires')
-      indexDebit = entetes.findIndex(h => !h.includes('dat') && !isTextOrMetaHeader(h) && (
-        h === 'debit' || h === 'debits' || h === 'depense' || h === 'depenses' || h === 'sortie' || h === 'sorties' ||
-        h.startsWith('deb') || h.startsWith('dep') || h.startsWith('sort')
-      ));
+    indexLibelle = entetes.findIndex(h => !h.includes('dat') && (h.includes('lib') || h.includes('tex') || h.includes('des') || h.includes('mot') || h.includes('nom')));
+    
+    // Débit et Crédit : Détection stricte, ne doivent JAMAIS matcher une colonne informative (comme 'informationscomplementaires')
+    indexDebit = entetes.findIndex(h => !h.includes('dat') && !isTextOrMetaHeader(h) && (
+      h === 'debit' || h === 'debits' || h === 'depense' || h === 'depenses' || h === 'sortie' || h === 'sorties' ||
+      h.startsWith('deb') || h.startsWith('dep') || h.startsWith('sort')
+    ));
 
-      indexCredit = entetes.findIndex(h => !h.includes('dat') && !isTextOrMetaHeader(h) && (
-        h === 'credit' || h === 'credits' || h === 'recette' || h === 'recettes' || h === 'entree' || h === 'entrees' ||
-        h.startsWith('cred') || h.startsWith('recett') || h.startsWith('entr')
-      ));
-      
-      // Montant : priorité absolue à "montant", "amount", "somme". Exclure formellement toute colonne contenant "dat" (comme "date valeur")
+    indexCredit = entetes.findIndex(h => !h.includes('dat') && !isTextOrMetaHeader(h) && (
+      h === 'credit' || h === 'credits' || h === 'recette' || h === 'recettes' || h === 'entree' || h === 'entrees' ||
+      h.startsWith('cred') || h.startsWith('recett') || h.startsWith('entr')
+    ));
+    
+    // Montant : priorité absolue à "montant", "amount", "somme". Exclure formellement toute colonne contenant "dat" (comme "date valeur")
+    indexMontant = entetes.findIndex(h => !h.includes('dat') && !isTextOrMetaHeader(h) && (
+      h === 'montant' || h === 'amount' || h === 'somme' || h.startsWith('mont') || h.startsWith('amoun') || h.startsWith('somm')
+    ));
+    if (indexMontant === -1) {
       indexMontant = entetes.findIndex(h => !h.includes('dat') && !isTextOrMetaHeader(h) && (
-        h === 'montant' || h === 'amount' || h === 'somme' || h.startsWith('mont') || h.startsWith('amoun') || h.startsWith('somm')
+        h === 'valeur' || h === 'total' || h === 'solde'
       ));
-      if (indexMontant === -1) {
-        indexMontant = entetes.findIndex(h => !h.includes('dat') && !isTextOrMetaHeader(h) && (
-          h === 'valeur' || h === 'total' || h === 'solde'
-        ));
-      }
+    }
 
-      indexInfo = entetes.findIndex(h => !h.includes('dat') && (h.includes('inf') || h.includes('detail') || h.includes('complement') || h.includes('motif') || (h.includes('com') && !h.includes('compt'))));
-      indexTypeOp = entetes.findIndex(h => h.includes('typ') || h.includes('mod') || h.includes('pai'));
-      indexReference = entetes.findIndex(h => h.includes('ref') || h.includes('num') || h.includes('ide'));
+    indexInfo = entetes.findIndex(h => !h.includes('dat') && (h.includes('inf') || h.includes('detail') || h.includes('complement') || h.includes('motif') || (h.includes('com') && !h.includes('compt'))));
+    indexTypeOp = entetes.findIndex(h => h.includes('typ') || h.includes('mod') || h.includes('pai'));
+    indexReference = entetes.findIndex(h => h.includes('ref') || h.includes('num') || h.includes('ide'));
 
-      modeMontant = (indexDebit !== -1 || indexCredit !== -1) ? 'double' : 'single';
+    modeMontant = (indexDebit !== -1 || indexCredit !== -1) ? 'double' : 'single';
+
+    // Si une configuration personnalisée ou partielle est fournie, elle surcharge les index spécifiés
+    if (mappingConfig) {
+      if (mappingConfig.separateur) separateur = mappingConfig.separateur;
+      if (mappingConfig.indexDate !== undefined && mappingConfig.indexDate !== -1) indexDate = mappingConfig.indexDate;
+      if (mappingConfig.indexLibelle !== undefined && mappingConfig.indexLibelle !== -1) indexLibelle = mappingConfig.indexLibelle;
+      if (mappingConfig.indexDebit !== undefined && mappingConfig.indexDebit !== -1) indexDebit = mappingConfig.indexDebit;
+      if (mappingConfig.indexCredit !== undefined && mappingConfig.indexCredit !== -1) indexCredit = mappingConfig.indexCredit;
+      if (mappingConfig.indexMontant !== undefined && mappingConfig.indexMontant !== -1) indexMontant = mappingConfig.indexMontant;
+      if (mappingConfig.indexInfo !== undefined && mappingConfig.indexInfo !== -1) indexInfo = mappingConfig.indexInfo;
+      if (mappingConfig.indexTypeOp !== undefined && mappingConfig.indexTypeOp !== -1) indexTypeOp = mappingConfig.indexTypeOp;
+      if (mappingConfig.indexReference !== undefined && mappingConfig.indexReference !== -1) indexReference = mappingConfig.indexReference;
+      if (mappingConfig.selectedConcatBlocks) selectedConcatBlocks = mappingConfig.selectedConcatBlocks;
+      if (mappingConfig.modeMontant) modeMontant = mappingConfig.modeMontant;
     }
 
     const transactions = [];
