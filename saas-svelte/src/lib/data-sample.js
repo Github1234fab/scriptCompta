@@ -11,6 +11,7 @@ export const INITIAL_PLAN_COMPTABLE = [
   { compte: "401", libelle: "Paiement fournisseur en attente", type: "Transfert", group: "transferts", desc: "Dettes envers vos fournisseurs réguliers." },
   { compte: "467", libelle: "Autre transfert ou avance", type: "Transfert", group: "transferts", desc: "Personnes ou structures tierces en compte." },
   { compte: "455", libelle: "Compte courant d'associé (Apport / Avance CCA)", type: "Transfert", group: "transferts", desc: "Avances de trésorerie ou apports des associés (SCI / SASU / SARL)." },
+  { compte: "487", libelle: "Produits constatés d'avance (Inscriptions saison future / Reports)", type: "Transfert", group: "transferts", desc: "Inscriptions et cotisations perçues par avance pour le prochain exercice ou la saison suivante." },
   
   { compte: "606", libelle: "Achats & Fournitures", type: "Charge", group: "depenses_courantes", desc: "Matériel, papeterie, petits équipements, alimentation." },
   { compte: "613", libelle: "Loyers & Locations de salles", type: "Charge", group: "depenses_courantes", desc: "Locations de salles et locaux." },

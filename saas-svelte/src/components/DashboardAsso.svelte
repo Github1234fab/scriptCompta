@@ -165,9 +165,6 @@
   <PageHeader 
     title="Accueil · Trésorerie Associative" 
     subtitle="Suivi des adhésions, cotisations et trésorerie disponible." 
-    buttonLabel="Gérer les adhérents"
-    buttonIcon="fa-user-group"
-    onButtonClick={() => activeView.set('activity')}
   />
 
   <!-- 1. VOTRE ASSOCIATION (Indicateurs clés) -->
@@ -287,7 +284,7 @@
             onclick={() => activeView.set('activity')}
             style="background: #0f172a; color: #ffffff; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; flex-shrink: 0;"
           >
-            Gérer les adhérents
+            Gérer les recettes
           </button>
         </div>
       {/if}

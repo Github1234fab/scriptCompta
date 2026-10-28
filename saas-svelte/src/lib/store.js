@@ -180,7 +180,7 @@ export const MANAGEMENT_MODELS = {
     accentColor: '#c084fc',
     accentBg: 'rgba(192, 132, 252, 0.12)',
     desc: 'Cotisations adhérents, subventions CERFA 15059, reçus fiscaux dons CERFA 11580.',
-    activityMenu: { label: 'Adhérents, Dons & Ventes', icon: 'fa-user-group' },
+    activityMenu: { label: 'Gestion des Recettes', icon: 'fa-piggy-bank' },
     booksMenu: { label: 'Obligation', icon: 'fa-scale-balanced' },
     dashboardTitle: 'Accueil · Association',
     legalBadge: 'Association Loi 1901',
@@ -297,6 +297,9 @@ export function loadEntityData(entityId) {
   }
   if (!resolvedPlan.some(p => p.compte === '661')) {
     resolvedPlan.push({ compte: "661", libelle: "Intérêts d'emprunt & Charges financières", type: "Charge", group: "depenses_courantes", desc: "Intérêts des crédits bancaires et emprunts immobiliers." });
+  }
+  if (!resolvedPlan.some(p => p.compte === '487')) {
+    resolvedPlan.push({ compte: "487", libelle: "Produits constatés d'avance (Inscriptions saison future / Reports)", type: "Transfert", group: "transferts", desc: "Inscriptions et cotisations perçues par avance pour le prochain exercice ou la saison suivante." });
   }
   const extraSubAccounts = [
     { compte: "7061", libelle: "Honoraires au temps passé (Taux horaire)", type: "Produit", group: "entrees", desc: "Facturation au temps passé selon le taux horaire." },

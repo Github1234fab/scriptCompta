@@ -2,48 +2,108 @@
   import { 
     members, 
     updateMembers, 
-    transactions,
-    updateTransactions,
-    showToast,
+    transactions, 
+    updateTransactions, 
+    showToast, 
     formatDateFr 
   } from "../lib/store.js";
 
-  let currentSubView = $state("tableau_gestion");
-  let activeTab = $state("a_attribuer");
+  // Deux modes : 'releve' (Journal des recettes bancaires réelles) ou 'pointage' (Suivi individuel des impayés avec forfaits)
+  let displayMode = $state("releve");
 
-  let memberFilter = $state("tous");
+  // Filtres
+  let txFilter = $state("tous"); // 'tous', '756', '706', '487'
+  let memberFilter = $state("tous"); // 'tous', 'payes', 'impayes'
   let searchQuery = $state("");
 
-  let showModal = $state(false);
+  // Modales
   let showImportModal = $state(false);
   let showDrawerModal = $state(false);
   /** @type {any} */
   let selectedMemberForDrawer = $state(null);
 
-  /** @type {any} */
-  let selectedTx = $state(null);
-  let nomEleve = $state("");
-  let montantVerse = $state(0);
-  /** @type {string | number} */
-  let montantTotalPercevoir = $state("");
+  // Pagination & Vue
+  let currentPage = $state(1);
+  let pageSize = $state(12);
+  let viewMode = $state("pagination"); // 'pagination' (Feuillets) ou 'scroll' (Vue globale)
 
-  /** @type {Array<any>} */
-  const sampleAssoTx = [
-    { id: "tx-asso-1", date: "2026-09-15", libelle: "REMISE EUROPRELEVEMENT | 009GUGN | AytasCilhanDeniz", credit: 305.3, compteAttribué: "756", account: "756", memberAssociated: false, datePaiement: "15/09/2026" },
-    { id: "tx-asso-2", date: "2026-09-14", libelle: "REMISE EUROPRELEVEMENT | OG80UYZ | leger", credit: 269.33, compteAttribué: "756", account: "756", memberAssociated: false, datePaiement: "14/09/2026" },
-    { id: "tx-asso-3", date: "2026-09-10", libelle: "REMISE EUROPRELEVEMENT | OGI1N24 | Hennequin", credit: 297, compteAttribué: "706", account: "706", memberAssociated: false, datePaiement: "10/09/2026" }
-  ];
-
+  // 1. EXTRACTION DE TOUTES LES RECETTES ASSOCIATIVES (756, 706, 487)
   let allAssoTransactions = $derived.by(() => {
-    return $transactions.filter((/** @type {any} */ t) => 
-      (t.compteAttribué === "756" || t.compteAttribué === "706" || (t.compteAttribué && t.compteAttribué.startsWith("706")) || t.compteCredit === "756" || t.compteCredit === "706" || (t.compteCredit && t.compteCredit.startsWith("706")) || t.compte === "756" || t.compte === "706") && t.credit > 0
-    );
+    return $transactions
+      .filter((/** @type {any} */ t) => {
+        const cpt = String(t.compteAttribué || t.compteCredit || t.compte || t.account || "").trim();
+        const isEligible = cpt === "756" || cpt === "706" || cpt.startsWith("706") || cpt === "487";
+        return isEligible && Number(t.credit) > 0;
+      })
+      .slice()
+      .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
   });
 
-  let filteredOperations = $derived(
-    allAssoTransactions.filter((/** @type {any} */ t) => activeTab === "a_attribuer" ? !t.memberAssociated : t.memberAssociated)
+  // Métriques financières réelles de la banque
+  let totalRecettes756 = $derived(
+    allAssoTransactions
+      .filter(t => (t.compteAttribué || t.compteCredit || t.compte || t.account) === "756")
+      .reduce((sum, t) => sum + (parseFloat(t.credit) || 0), 0)
   );
 
+  let totalRecettes706 = $derived(
+    allAssoTransactions
+      .filter(t => {
+        const c = String(t.compteAttribué || t.compteCredit || t.compte || t.account || "");
+        return c === "706" || c.startsWith("706");
+      })
+      .reduce((sum, t) => sum + (parseFloat(t.credit) || 0), 0)
+  );
+
+  let totalRecettes487 = $derived(
+    allAssoTransactions
+      .filter(t => (t.compteAttribué || t.compteCredit || t.compte || t.account) === "487")
+      .reduce((sum, t) => sum + (parseFloat(t.credit) || 0), 0)
+  );
+
+  let totalGlobalRecettes = $derived(totalRecettes756 + totalRecettes706);
+
+  let countTx756 = $derived(
+    allAssoTransactions.filter(t => (t.compteAttribué || t.compteCredit || t.compte || t.account) === "756").length
+  );
+  let countTx706 = $derived(
+    allAssoTransactions.filter(t => {
+      const c = String(t.compteAttribué || t.compteCredit || t.compte || t.account || "");
+      return c === "706" || c.startsWith("706");
+    }).length
+  );
+  let countTx487 = $derived(
+    allAssoTransactions.filter(t => (t.compteAttribué || t.compteCredit || t.compte || t.account) === "487").length
+  );
+
+  // Filtrage du relevé bancaire
+  let filteredTransactions = $derived.by(() => {
+    return allAssoTransactions.filter(t => {
+      const cpt = String(t.compteAttribué || t.compteCredit || t.compte || t.account || "");
+      if (txFilter === "756" && cpt !== "756") return false;
+      if (txFilter === "706" && !(cpt === "706" || cpt.startsWith("706"))) return false;
+      if (txFilter === "487" && cpt !== "487") return false;
+
+      if (searchQuery.trim() !== "") {
+        const q = searchQuery.toLowerCase().trim();
+        const libelle = String(t.libelle || "").toLowerCase();
+        const emetteur = String(t.associatedMember || "").toLowerCase();
+        return libelle.includes(q) || emetteur.includes(q);
+      }
+      return true;
+    });
+  });
+
+  // Pagination des transactions
+  let totalTxPages = $derived(Math.ceil(filteredTransactions.length / pageSize) || 1);
+  let paginatedTransactions = $derived(
+    filteredTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  );
+  let displayedTransactions = $derived(
+    viewMode === "pagination" ? paginatedTransactions : filteredTransactions
+  );
+
+  // 2. NETTOYAGE DES NOMS ET LOGIQUE POINTAGE INDIVIDUEL (SI ACTIVÉ)
   const GENERIC_BANK_WORDS = new Set([
     "remise", "europrelevement", "virement", "vir", "inst", "prlvt", "cotisation", 
     "cours", "stage", "inscription", "adherent", "melle", "madame", "monsieur", 
@@ -78,110 +138,9 @@
     return text || rawName;
   }
 
-  /**
-   * @param {string} rawName
-   * @returns {string[]}
-   */
-  function getSignificantNameTokens(rawName) {
-    if (!rawName) return [];
-    const cleaned = cleanMemberName(rawName);
-    const normalized = cleaned.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    return normalized
-      .split(/[^a-z0-9]+/)
-      .filter(w => w.length >= 3 && !GENERIC_BANK_WORDS.has(w) && !/^\d+$/.test(w));
-  }
-
-  /**
-   * Fuzzy name matching helper for reconciling bank libellés and CSV names
-   * @param {string} name1
-   * @param {string} name2
-   */
-  function isFuzzyMatch(name1, name2) {
-    if (!name1 || !name2) return false;
-
-    const tokens1 = getSignificantNameTokens(name1);
-    const tokens2 = getSignificantNameTokens(name2);
-
-    if (tokens1.length === 0 || tokens2.length === 0) return false;
-
-    const key1 = tokens1.join("");
-    const key2 = tokens2.join("");
-
-    if (key1 === key2) return true;
-
-    const common = tokens1.filter(t => tokens2.includes(t));
-
-    if (common.length >= 2) return true;
-
-    if (common.length === 1) {
-      const matchedToken = common[0];
-      if (matchedToken.length >= 4 && tokens1.length <= 3 && tokens2.length <= 3) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Deduplicate and reconcile member list entries
-   * @param {any[]} list
-   * @returns {any[]}
-   */
-  function deduplicateMembersList(list) {
-    if (!Array.isArray(list) || list.length === 0) return [];
-
-    /** @type {any[]} */
-    const merged = [];
-
-    list.forEach(m => {
-      const idx = merged.findIndex(existing => isFuzzyMatch(existing.nom, m.nom));
-      if (idx >= 0) {
-        const existing = merged[idx];
-        const forfait = Math.max(existing.forfait || 0, m.forfait || 0);
-        const dejaPaye = (existing.id === m.id) 
-          ? existing.dejaPaye 
-          : ((existing.dejaPaye || 0) + (m.dejaPaye || 0));
-
-        const name1 = cleanMemberName(existing.nom);
-        const name2 = cleanMemberName(m.nom);
-        const cleanestNom = name2.length > name1.length ? name2 : name1;
-
-        merged[idx] = {
-          ...existing,
-          ...m,
-          id: existing.id || m.id,
-          nom: cleanestNom,
-          forfait,
-          dejaPaye,
-          payeLe: existing.payeLe || m.payeLe,
-          email: existing.email || m.email,
-          rawRef: existing.rawRef || m.rawRef
-        };
-      } else {
-        merged.push({
-          ...m,
-          nom: cleanMemberName(m.nom)
-        });
-      }
-    });
-
-    return merged;
-  }
-
-  /** @param {string} [rawNameOrLabel] */
-  function extractCleanMemberInfo(rawNameOrLabel) {
-    if (!rawNameOrLabel) return { cleanName: "Adhérent Inconnu", rawRef: "" };
-    const clean = cleanMemberName(rawNameOrLabel);
-    let str = rawNameOrLabel.trim();
-    let parts = str.split("|").map((/** @type {string} */ p) => p.trim());
-    let rawRef = parts.length > 1 ? parts.slice(0, -1).join(" | ") : (str !== clean ? str : "");
-    return { cleanName: clean, rawRef };
-  }
-
+  // KPIs et liste pour le mode Pointage adhérents
   let report = $derived.by(() => {
-    const cleanMembers = deduplicateMembersList($members);
-    return cleanMembers.map((/** @type {any} */ m) => {
+    return ($members || []).map((/** @type {any} */ m) => {
       const resteAPayer = Math.max(0, (m.forfait || 0) - (m.dejaPaye || 0));
       let statut = "PAYÉ";
       let badgeClass = "badge-success";
@@ -194,12 +153,9 @@
         badgeClass = "badge-muted";
       }
 
-      const { cleanName, rawRef } = extractCleanMemberInfo(m.nom);
-
       return {
         ...m,
-        cleanName: cleanName || m.nom,
-        rawRef: rawRef || m.rawRef || m.nom,
+        cleanName: cleanMemberName(m.nom),
         resteAPayer,
         statut,
         badgeClass
@@ -208,183 +164,141 @@
   });
 
   let kpiTotalAttendu = $derived(report.reduce((sum, m) => sum + (m.forfait || 0), 0));
-  let kpiTotalEncaisse = $derived(report.reduce((sum, m) => sum + (m.dejaPaye || 0), 0));
+  let kpiTotalEncaissePointage = $derived(report.reduce((sum, m) => sum + (m.dejaPaye || 0), 0));
   let kpiRestant = $derived(report.reduce((sum, m) => sum + (m.resteAPayer || 0), 0));
   let kpiImpayesCount = $derived(report.filter(m => m.resteAPayer > 0).length);
-  let kpiPercentEncaisse = $derived(kpiTotalAttendu > 0 ? Math.round((kpiTotalEncaisse / kpiTotalAttendu) * 100) : 100);
 
   let filteredMembers = $derived(report.filter((/** @type {any} */ m) => {
     const matchesSearch = searchQuery.trim() === "" || 
       m.cleanName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      m.rawRef.toLowerCase().includes(searchQuery.toLowerCase());
+      String(m.nom).toLowerCase().includes(searchQuery.toLowerCase());
 
     if (!matchesSearch) return false;
-
     if (memberFilter === "payes") return m.resteAPayer === 0;
     if (memberFilter === "impayes") return m.resteAPayer > 0;
     return true;
   }));
 
-  let currentPage = $state(1);
-  let pageSize = $state(12);
-  let viewMode = $state("pagination"); // "pagination" (Feuillets) or "scroll" (Vue globale)
-
-  $effect(() => {
-    searchQuery;
-    memberFilter;
-    currentPage = 1;
-  });
-
-  let totalPages = $derived(Math.ceil(filteredMembers.length / pageSize) || 1);
+  let totalMemberPages = $derived(Math.ceil(filteredMembers.length / pageSize) || 1);
   let paginatedMembers = $derived(
     filteredMembers.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   );
-
   let displayedMembers = $derived(
     viewMode === "pagination" ? paginatedMembers : filteredMembers
   );
 
-  /** @param {any} tx */
-  function openAssociationModal(tx) {
-    selectedTx = tx;
-    const info = extractCleanMemberInfo(tx.libelle);
-    nomEleve = info.cleanName;
-    montantVerse = tx.credit || 0;
-    montantTotalPercevoir = String(tx.credit || 350);
-    showModal = true;
-  }
+  // Réinitialisation de la page lors du changement de filtre
+  $effect(() => {
+    searchQuery;
+    txFilter;
+    memberFilter;
+    displayMode;
+    currentPage = 1;
+  });
 
-  function closeModal() {
-    showModal = false;
-    selectedTx = null;
-    nomEleve = "";
-    montantVerse = 0;
-    montantTotalPercevoir = "";
-  }
-
-  /** @param {any} m */
-  function openDrawerModal(m) {
-    selectedMemberForDrawer = m;
-    showDrawerModal = true;
-  }
-
-  /** @param {any} e */
-  function validerAssociation(e) {
-    e.preventDefault();
-    if (!nomEleve || !montantTotalPercevoir) return;
-
-    const totalExpected = parseFloat(String(montantTotalPercevoir)) || 0;
-    const paidAmount = parseFloat(String(montantVerse)) || 0;
-
-    const existingIndex = $members.findIndex(m => isFuzzyMatch(m.nom, nomEleve.trim()));
-    
-    if (existingIndex >= 0) {
-      const updated = [...$members];
-      updated[existingIndex] = {
-        ...updated[existingIndex],
-        nom: nomEleve.trim().length > updated[existingIndex].nom.length ? nomEleve.trim() : updated[existingIndex].nom,
-        dejaPaye: updated[existingIndex].dejaPaye + paidAmount,
-        forfait: Math.max(totalExpected, updated[existingIndex].forfait || 0),
-        payeLe: selectedTx?.date || selectedTx?.datePaiement || new Date().toLocaleDateString("fr-FR")
+  // 3. ACTIONS DE REPORT EN COMPTE 487 (PRODUITS CONSTATÉS D'AVANCE)
+  /** @param {string} txId */
+  function basculerVers487(txId) {
+    const txList = [...$transactions];
+    const idx = txList.findIndex(t => t.id === txId);
+    if (idx >= 0) {
+      const currentCpt = txList[idx].compteAttribué || txList[idx].compteCredit || txList[idx].compte || txList[idx].account || "706";
+      txList[idx] = {
+        ...txList[idx],
+        originalCompteRecette: currentCpt,
+        compteAttribué: "487",
+        compteCredit: "487",
+        compte: "487",
+        account: "487"
       };
-      updateMembers(deduplicateMembersList(updated));
+      updateTransactions(txList);
+      showToast("Opération reportée sur l'exercice suivant (Compte 487) !");
+    }
+  }
+
+  /** @param {string} txId */
+  function retablirCompteRecette(txId) {
+    const txList = [...$transactions];
+    const idx = txList.findIndex(t => t.id === txId);
+    if (idx >= 0) {
+      const restored = txList[idx].originalCompteRecette || "706";
+      txList[idx] = {
+        ...txList[idx],
+        compteAttribué: restored,
+        compteCredit: restored,
+        compte: restored,
+        account: restored
+      };
+      delete txList[idx].originalCompteRecette;
+      updateTransactions(txList);
+      showToast(`Opération rétablie en compte ${restored} !`);
+    }
+  }
+
+  // 4. EXPORT CSV DU RELEVÉ OU DU REGISTRE
+  function exporterCSV() {
+    let csvContent = "";
+    let fileName = "";
+
+    if (displayMode === "releve") {
+      fileName = `releve_recettes_756_706_${new Date().toISOString().slice(0, 10)}.csv`;
+      const header = ["Date", "Compte", "Libelle", "Emetteur_Detecte", "Montant_Credit_EUR", "Statut_Exercice"].join(";");
+      const rows = filteredTransactions.map(t => {
+        const cpt = t.compteAttribué || t.compteCredit || t.compte || t.account || "706";
+        const statut = cpt === "487" ? "Reporté exercice suivant (487)" : "Recette exercice courant";
+        const cleanName = cleanMemberName(t.libelle);
+        return [
+          t.date || "",
+          cpt,
+          `"${(t.libelle || "").replace(/"/g, '""')}"`,
+          `"${cleanName.replace(/"/g, '""')}"`,
+          Number(t.credit || 0).toFixed(2).replace(".", ","),
+          statut
+        ].join(";");
+      });
+      csvContent = "\uFEFF" + [header, ...rows].join("\r\n");
     } else {
-      const newMember = {
-        id: Date.now(),
-        nom: nomEleve.trim(),
-        forfait: totalExpected,
-        dejaPaye: paidAmount,
-        payeLe: selectedTx?.date || selectedTx?.datePaiement || new Date().toLocaleDateString("fr-FR"),
-        email: nomEleve.trim().toLowerCase().replace(/\s+/g, ".") + "@email.com"
-      };
-      updateMembers(deduplicateMembersList([...$members, newMember]));
+      fileName = `suivi_adherents_${new Date().toISOString().slice(0, 10)}.csv`;
+      const header = ["Nom_Adherent", "Forfait_Attendu_EUR", "Deja_Verse_EUR", "Reste_A_Payer_EUR", "Statut"].join(";");
+      const rows = filteredMembers.map(m => {
+        return [
+          `"${m.cleanName.replace(/"/g, '""')}"`,
+          Number(m.forfait || 0).toFixed(2).replace(".", ","),
+          Number(m.dejaPaye || 0).toFixed(2).replace(".", ","),
+          Number(m.resteAPayer || 0).toFixed(2).replace(".", ","),
+          m.statut
+        ].join(";");
+      });
+      csvContent = "\uFEFF" + [header, ...rows].join("\r\n");
     }
 
-    if (selectedTx) {
-      selectedTx.memberAssociated = true;
-      selectedTx.associatedMember = nomEleve.trim();
-
-      const txIndex = $transactions.findIndex(t => t.id === selectedTx.id);
-      if (txIndex >= 0) {
-        const updatedTx = [...$transactions];
-        updatedTx[txIndex] = { ...updatedTx[txIndex], memberAssociated: true, associatedMember: nomEleve.trim() };
-        updateTransactions(updatedTx);
-      }
-    }
-
-    showToast("✅ Association validée !");
-    closeModal();
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(`Export CSV téléchargé (${fileName}) !`);
   }
 
-  function toutAssocier() {
-    const toAssociate = filteredOperations;
-    if (toAssociate.length === 0) return;
-
-    let updatedMembers = [...$members];
-    /** @type {any[]} */
-    let currentTxList = []; transactions.subscribe(v => currentTxList = v)();
-    let updatedTx = [...currentTxList];
-    let count = 0;
-
-    toAssociate.forEach((/** @type {any} */ tx) => {
-      const info = extractCleanMemberInfo(tx.libelle);
-      const nom = info.cleanName;
-      const paidAmount = parseFloat(tx.credit) || 0;
-
-      const existingIndex = updatedMembers.findIndex(m => isFuzzyMatch(m.nom, nom.trim()));
-      if (existingIndex >= 0) {
-        updatedMembers[existingIndex] = {
-          ...updatedMembers[existingIndex],
-          dejaPaye: updatedMembers[existingIndex].dejaPaye + paidAmount
-        };
-      } else {
-        updatedMembers.push({
-          id: Date.now() + Math.random(),
-          nom: nom.trim(),
-          rawRef: tx.libelle,
-          forfait: paidAmount,
-          dejaPaye: paidAmount,
-          payeLe: tx.date || tx.datePaiement || new Date().toLocaleDateString("fr-FR"),
-          email: nom.trim().toLowerCase().replace(/\s+/g, ".") + "@email.com"
-        });
-      }
-
-      tx.memberAssociated = true;
-      tx.associatedMember = nom.trim();
-
-      const txIndex = updatedTx.findIndex(t => t.id === tx.id);
-      if (txIndex >= 0) {
-        updatedTx[txIndex] = { ...updatedTx[txIndex], memberAssociated: true, associatedMember: nom.trim() };
-      }
-      count++;
-    });
-
-    updateMembers(deduplicateMembersList(updatedMembers));
-    if (updatedTx.length > 0) updateTransactions(updatedTx);
-
-    showToast(`✅ ${count} opérations associées avec succès !`);
-  }
-
-  // --- CSV IMPORT DE DONNÉES DE GESTION ---
+  // 5. IMPORT CSV POUR LE SUIVI DES TARIFS ANNUELS
   let importFileName = $state("");
-  /** @type {any} */
-  let fileInputEl = $state(null);
   let rawPasteText = $state("");
-  let activeImportTab = $state("file"); // 'file' vs 'paste'
+  let activeImportTab = $state("file");
   /** @type {Array<{nom: string, forfait: number}>} */
   let importedRows = $state([]);
 
   function telechargerModeleCSV() {
-    const csvContent = "Nom_Eleve_ou_Client;Montant_Total_Du\nDupont Marc;350.00\nMartin Sophie;420.00\nPetit Thomas;280.00\n";
+    const csvContent = "Nom_Eleve_ou_Adherent;Tarif_Annuel_Contractuel\nDupont Marc;450.00\nMartin Sophie;600.00\nPetit Thomas;320.00\n";
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "modele_donnees_de_gestion.csv");
+    link.href = URL.createObjectURL(blob);
+    link.download = "modele_tarifs_inscrits.csv";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("📥 Modèle de tableau exemple téléchargé !");
+    showToast("Modèle CSV téléchargé !");
   }
 
   /** @param {any} e */
@@ -392,23 +306,11 @@
     const file = e.target?.files?.[0] || e.dataTransfer?.files?.[0];
     if (!file) return;
     importFileName = file.name;
-
     const reader = new FileReader();
     reader.onload = (evt) => {
-      let text = /** @type {string} */ (evt.target?.result || "");
-      if (text.includes("\uFFFD")) {
-        // Encoding fallback for French ISO-8859-1 / Windows-1252
-        const reader2 = new FileReader();
-        reader2.onload = (evt2) => {
-          parseCSVMembers(/** @type {string} */ (evt2.target?.result || ""));
-        };
-        reader2.readAsText(file, "ISO-8859-1");
-      } else {
-        parseCSVMembers(text);
-      }
+      parseCSVMembers(/** @type {string} */ (evt.target?.result || ""));
     };
     reader.readAsText(file, "UTF-8");
-
     if (e.target) e.target.value = "";
   }
 
@@ -419,338 +321,398 @@
       importedRows = [];
       return;
     }
-
-    // 0. Detect binary Excel files (.xlsx / .xls / ZIP)
-    if (csvText.startsWith("PK\x03\x04") || csvText.includes("Content_Types].xml") || csvText.includes("[Content_Types]")) {
-      showToast("⚠️ Fichier Excel binaire (.xlsx) détecté. Veuillez l'enregistrer au format CSV ou utiliser l'onglet Copier-Coller.");
-      importedRows = [];
-      return;
-    }
-
     const cleanText = csvText.replace(/^\uFEFF/, "").trim();
-    if (!cleanText) {
-      importedRows = [];
-      return;
-    }
-
     const lines = cleanText.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
     if (lines.length === 0) {
       importedRows = [];
       return;
     }
 
-    // Helper: Split a single line respecting quoted string tokens
-    /**
-     * @param {string} line
-     * @param {string} sep
-     */
-    function splitLineSmart(line, sep) {
-      /** @type {string[]} */
-      const result = [];
-      let current = "";
-      let inQuotes = false;
-      let quoteChar = "";
+    const firstLine = lines[0];
+    const sep = firstLine.includes(";") ? ";" : (firstLine.includes("\t") ? "\t" : ",");
+    const startIndex = (firstLine.toLowerCase().includes("nom") || firstLine.toLowerCase().includes("adherent")) ? 1 : 0;
 
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if ((char === '"' || char === "'") && !inQuotes) {
-          inQuotes = true;
-          quoteChar = char;
-        } else if (char === quoteChar && inQuotes) {
-          inQuotes = false;
-          quoteChar = "";
-        } else if (char === sep && !inQuotes) {
-          result.push(current.trim().replace(/^["']|["']$/g, ''));
-          current = "";
-        } else {
-          current += char;
-        }
-      }
-      result.push(current.trim().replace(/^["']|["']$/g, ''));
-      return result;
-    }
-
-    // Auto-detect delimiter
-    const delimiters = [';', '\t', ',', '|'];
-    let bestDelimiter = ';';
-    let maxCount = -1;
-    const sampleText = lines.slice(0, 5).join('\n');
-    for (const d of delimiters) {
-      const count = (sampleText.split(d).length - 1);
-      if (count > maxCount) {
-        maxCount = count;
-        bestDelimiter = d;
+    const rows = [];
+    for (let i = startIndex; i < lines.length; i++) {
+      const parts = lines[i].split(sep).map(p => p.trim().replace(/^["']|["']$/g, ''));
+      if (parts.length >= 2) {
+        const nom = parts[0];
+        const forfaitRaw = parts[1].replace(/\s/g, '').replace(',', '.').replace('€', '');
+        const forfait = parseFloat(forfaitRaw) || 0;
+        if (nom) rows.push({ nom, forfait });
       }
     }
-
-    const allRows = lines.map(line => splitLineSmart(line, bestDelimiter));
-
-    // Helper to extract numeric amount from string
-    /** @param {any} str */
-    function extractNumeric(str) {
-      if (!str) return null;
-      let s = String(str).trim();
-      s = s.replace(/€|EUR|euros?/gi, '').trim();
-      s = s.replace(/\s+/g, '');
-      if (s.includes(',') && s.includes('.')) {
-        if (s.indexOf('.') < s.indexOf(',')) {
-          s = s.replace(/\./g, '').replace(',', '.');
-        } else {
-          s = s.replace(/,/g, '');
-        }
-      } else if (s.includes(',')) {
-        s = s.replace(',', '.');
-      }
-      s = s.replace(/[^0-9.-]/g, '');
-      if (!s || isNaN(parseFloat(s))) return null;
-      return parseFloat(s);
-    }
-
-    // Helper to test if row 0 is header
-    /** @param {string[]} rowCells */
-    function isHeaderRow(rowCells) {
-      const joined = rowCells.join(' ').toLowerCase();
-      const hasNumber = rowCells.some(cell => extractNumeric(cell) !== null);
-      if (hasNumber) return false;
-      return /nom|client|eleve|élève|adhérent|adherent|prenom|prénom|personne|membre|forfait|montant|du|dû|total|prix|tarif|somme|cotisation|inscription|valeur|euro|€|solde/.test(joined);
-    }
-
-    const hasHeader = isHeaderRow(allRows[0]);
-    const startIdx = hasHeader ? 1 : 0;
-    
-    /** @type {number[]} */
-    let nameIndices = [];
-    let amountIdx = -1;
-
-    if (hasHeader) {
-      const headers = allRows[0].map(h => h.toLowerCase());
-      headers.forEach((h, idx) => {
-        if (/nom|client|eleve|élève|adhérent|adherent|prenom|prénom|personne|membre|libelle|intitule/.test(h)) {
-          nameIndices.push(idx);
-        }
-        if (amountIdx === -1 && /montant|forfait|du|dû|total|prix|tarif|somme|cotisation|inscription|valeur|euro|€|solde/.test(h)) {
-          amountIdx = idx;
-        }
-      });
-    }
-
-    /** @type {Array<{nom: string, forfait: number}>} */
-    const parsed = [];
-
-    for (let i = startIdx; i < allRows.length; i++) {
-      const row = allRows[i];
-      if (!row || row.length === 0) continue;
-
-      let extractedNom = "";
-      /** @type {number | null} */
-      let extractedAmount = null;
-
-      // 1. Column mapping from header
-      if (hasHeader && (nameIndices.length > 0 || amountIdx !== -1)) {
-        if (nameIndices.length > 0) {
-          extractedNom = nameIndices.map(idx => row[idx] || '').filter(Boolean).join(' ');
-        }
-        if (amountIdx !== -1 && row[amountIdx] !== undefined) {
-          extractedAmount = extractNumeric(row[amountIdx]);
-        }
-      }
-
-      // 2. Per-row heuristic search if mapping incomplete
-      if (!extractedNom || extractedAmount === null) {
-        let foundNumIdx = -1;
-        /** @type {number | null} */
-        let numVal = null;
-        for (let c = 0; c < row.length; c++) {
-          const num = extractNumeric(row[c]);
-          if (num !== null) {
-            foundNumIdx = c;
-            numVal = num;
-            break;
-          }
-        }
-
-        if (foundNumIdx !== -1) {
-          extractedAmount = numVal;
-          if (!extractedNom) {
-            extractedNom = row.filter((_, idx) => idx !== foundNumIdx).join(' ').trim();
-          }
-        }
-      }
-
-      // 3. Single-column Regex fallback (space separated or text paste)
-      if ((!extractedNom || extractedAmount === null) && row.length === 1) {
-        const lineText = row[0];
-        const trailingMatch = lineText.match(/^(.*?)\s+([-+]?\d+(?:[\s,.]\d{3})*(?:[,.]\d{1,2})?)\s*(?:€|EUR|euros?)?$/i);
-        if (trailingMatch) {
-          extractedNom = trailingMatch[1].trim();
-          extractedAmount = extractNumeric(trailingMatch[2]);
-        } else {
-          const leadingMatch = lineText.match(/^\s*(?:€|EUR)?\s*([-+]?\d+(?:[\s,.]\d{3})*(?:[,.]\d{1,2})?)\s*(?:€|EUR)?\s*[-:\s]?\s*(.*)$/i);
-          if (leadingMatch) {
-            extractedAmount = extractNumeric(leadingMatch[1]);
-            extractedNom = leadingMatch[2].trim();
-          }
-        }
-      }
-
-      extractedNom = (extractedNom || "").trim().replace(/^[-:\s]+|[-:\s]+$/g, '').trim();
-
-      if (extractedNom && extractedNom.toLowerCase() !== 'undefined' && extractedAmount !== null) {
-        parsed.push({
-          nom: extractedNom,
-          forfait: Math.max(0, extractedAmount)
-        });
-      }
-    }
-
-    importedRows = parsed;
+    importedRows = rows;
   }
 
-  function validerImportCSV() {
+  function validerImportTarifs() {
     if (importedRows.length === 0) {
-      showToast("⚠️ Aucun résultat valide trouvé dans le fichier.");
+      showToast("Veuillez sélectionner ou coller une liste valide.");
       return;
     }
 
-    let updated = [...$members];
-    let addedCount = 0;
-    let updatedCount = 0;
-
-    importedRows.forEach(row => {
-      const idx = updated.findIndex(m => isFuzzyMatch(m.nom, row.nom));
-      if (idx >= 0) {
-        updated[idx] = {
-          ...updated[idx],
-          nom: row.nom.length > updated[idx].nom.length ? row.nom : updated[idx].nom,
-          forfait: row.forfait
-        };
-        updatedCount++;
-      } else {
-        updated.push({
-          id: Date.now() + Math.random(),
-          nom: row.nom,
-          forfait: row.forfait,
-          dejaPaye: 0,
-          payeLe: "",
-          email: row.nom.toLowerCase().replace(/\s+/g, ".") + "@email.com"
-        });
-        addedCount++;
-      }
+    // Fusionner avec les règlements bancaires réels détectés
+    const newMembers = importedRows.map(row => {
+      // Trouver tous les règlements bancaires correspondants
+      const matchingTx = allAssoTransactions.filter(t => {
+        const cleanTx = cleanMemberName(t.libelle).toLowerCase();
+        const cleanRow = row.nom.toLowerCase();
+        return cleanTx.includes(cleanRow) || cleanRow.includes(cleanTx);
+      });
+      const dejaPaye = matchingTx.reduce((sum, t) => sum + (parseFloat(t.credit) || 0), 0);
+      return {
+        id: Date.now() + Math.random(),
+        nom: row.nom,
+        forfait: row.forfait,
+        dejaPaye,
+        email: row.nom.toLowerCase().replace(/\s+/g, ".") + "@email.com"
+      };
     });
 
-    updated = deduplicateMembersList(updated);
-    updateMembers(updated);
-    showToast(`Import réussi : ${addedCount} adhérent(s) créé(s), ${updatedCount} mis à jour.`);
+    updateMembers(newMembers);
     showImportModal = false;
-    importedRows = [];
-    importFileName = "";
-    rawPasteText = "";
+    displayMode = "pointage";
+    showToast(`${newMembers.length} adhérents importés avec succès ! Pointage activé.`);
   }
 </script>
-<!-- BARRE DE NAVIGATION ENTRE LE REGISTRE DES ÉLÈVES ET LE RAPPROCHEMENT BANCAIRE -->
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-  <div style="display: flex; background: #e2e8f0; padding: 4px; border-radius: 10px; gap: 4px;">
-    <button 
-      class="sub-tab-btn"
-      style="padding: 8px 18px; font-size: 0.88rem; font-weight: 700; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; {currentSubView === 'tableau_gestion' ? 'background: #0f172a; color: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #475569;'}"
-      onclick={() => currentSubView = 'tableau_gestion'}
-    >
-      <i class="fa-solid fa-users"></i> Registre & Suivi des adhérents
-    </button>
-    <button 
-      class="sub-tab-btn"
-      style="padding: 8px 18px; font-size: 0.88rem; font-weight: 700; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; {currentSubView === 'operations' ? 'background: #0f172a; color: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #475569;'}"
-      onclick={() => currentSubView = 'operations'}
-    >
-      <i class="fa-solid fa-link"></i> Rapprochement des règlements bancaires ({allAssoTransactions.filter(t => !t.memberAssociated).length} en attente)
-    </button>
-  </div>
-</div>
 
-{#if currentSubView === "operations"}
-  <!-- Bandeau explicatif du Rapprochement Adhérents -->
-  <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 12px;">
-    <i class="fa-solid fa-circle-info" style="color: #2563eb; font-size: 1.1rem; margin-top: 2px;"></i>
-    <div style="font-size: 0.86rem; color: #1e3a8a; line-height: 1.5;">
-      <strong>Vos opérations sont déjà classées en comptabilité (comptes 706 & 756).</strong><br />
-      Cette section facultative sert à <strong>relier chaque virement bancaire reçu à la fiche d'un adhérent</strong> du registre, afin de constater automatiquement que sa cotisation ou adhésion est payée et de suivre les éventuels impayés.
-    </div>
-  </div>
+<style>
+  .kpi-box {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .table-row-hover:hover {
+    background: #f8fafc !important;
+  }
+</style>
 
-  <div class="glass-card" style="margin-top: 10px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-      <h3 style="font-family: var(--font-title); margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; color: #0f172a;">
-        <i class="fa-solid fa-building-columns" style="color: #2563eb;"></i> Règlements bancaires des adhésions & cotisations
-      </h3>
-
-      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-        {#if activeTab === "a_attribuer" && filteredOperations.length > 0}
-          <button 
-            class="btn btn-cta-magic"
-            onclick={toutAssocier}
-            title="Associer automatiquement les virements aux adhérents dont le nom est reconnu dans le libellé bancaire"
-          >
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Associer automatiquement ({filteredOperations.length})
-          </button>
-        {/if}
-        <div style="display: flex; background: #e2e8f0; padding: 4px; border-radius: 8px;">
-          <button 
-            class="tab-btn"
-            style="padding: 7px 14px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 700; transition: all 0.2s; {activeTab === 'a_attribuer' ? 'background: #0f172a; color: #ffffff;' : 'background: transparent; color: #475569;'}"
-            onclick={() => activeTab = "a_attribuer"}
-          >
-            À associer à un adhérent ({allAssoTransactions.filter(t => !t.memberAssociated).length})
-          </button>
-          <button 
-            class="tab-btn"
-            style="padding: 7px 14px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 700; transition: all 0.2s; {activeTab === 'attribuees' ? 'background: #0f172a; color: #ffffff;' : 'background: transparent; color: #475569;'}"
-            onclick={() => activeTab = "attribuees"}
-          >
-            Déjà associés ({allAssoTransactions.filter(t => t.memberAssociated).length})
-          </button>
+<!-- KPI CARDS SUPÉRIEURES -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+  
+  {#if displayMode === "releve"}
+    <!-- KPI 1 : Total Encaissé en 756 & 706 -->
+    <div class="kpi-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+        <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; white-space: nowrap;">TOTAL ENCAISSÉ (756 & 706)</span>
+        <span style="font-size: 0.72rem; font-weight: 700; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 8px; white-space: nowrap; flex-shrink: 0;">
+          En banque
+        </span>
+      </div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+          {totalGlobalRecettes.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
         </div>
       </div>
     </div>
 
-    <div class="table-container">
-      <table class="custom-table">
+    <!-- KPI 2 : Cotisations 756 -->
+    <div class="kpi-box">
+      <div>
+        <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">COTISATIONS & ADHÉSIONS (756)</span>
+      </div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+          {totalRecettes756.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+        </div>
+        <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">{countTx756} règlements</div>
+      </div>
+    </div>
+
+    <!-- KPI 3 : Cours & Activités 706 -->
+    <div class="kpi-box">
+      <div>
+        <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">COURS & FORFAITS (706)</span>
+      </div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+          {totalRecettes706.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+        </div>
+        <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">{countTx706} règlements</div>
+      </div>
+    </div>
+
+    <!-- KPI 4 : Reports saison future 487 -->
+    <div class="kpi-box">
+      <div>
+        <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">REPORTS SAISON SUIVANTE (487)</span>
+      </div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 800; color: {totalRecettes487 > 0 ? '#b45309' : '#0f172a'}; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+          {totalRecettes487.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+        </div>
+        <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">
+          {countTx487} règlement{countTx487 > 1 ? 's' : ''} neutralisé{countTx487 > 1 ? 's' : ''}
+        </div>
+      </div>
+    </div>
+
+  {:else}
+    <!-- KPIs DU MODE POINTAGE INDIVIDUEL (SANS ICÔNES) -->
+    <div class="kpi-box">
+      <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">TOTAL ATTENDU FACTURÉ</span>
+      <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, monospace;">
+        {kpiTotalAttendu.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+      </div>
+    </div>
+
+    <div class="kpi-box">
+      <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">DÉJÀ ENCAISSÉ</span>
+      <div style="font-size: 1.75rem; font-weight: 800; color: #166534; font-family: ui-monospace, monospace;">
+        {kpiTotalEncaissePointage.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+      </div>
+    </div>
+
+    <div class="kpi-box">
+      <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">RESTE À RECOUVRER</span>
+      <div style="font-size: 1.75rem; font-weight: 800; color: {kpiRestant > 0 ? '#dc2626' : '#0f172a'}; font-family: ui-monospace, monospace;">
+        {kpiRestant.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+      </div>
+    </div>
+
+    <div class="kpi-box">
+      <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">PAYEURS EN RETARD</span>
+      <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, monospace;">
+        {kpiImpayesCount} <span style="font-size: 1rem; color: #64748b;">personne{kpiImpayesCount > 1 ? 's' : ''}</span>
+      </div>
+    </div>
+  {/if}
+
+</div>
+
+<!-- BANDEAU D'EXPLICATION & IMPORT -->
+{#if displayMode === "releve"}
+  <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 12px; padding: 14px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+    <div style="flex: 1; min-width: 300px;">
+      <p style="margin: 0; font-size: 0.86rem; color: #1e40af; line-height: 1.45;">
+        Par défaut, ce tableau affiche tous vos encaissements bancaires réels. Vous pouvez également importer un fichier CSV simple comprenant deux colonnes (<strong>colonne A :</strong> nom des payeurs, <strong>colonne B :</strong> montant facturé). Notre système calculera alors automatiquement vos restes dus et indicateurs de suivi.
+      </p>
+    </div>
+    <div>
+      <button 
+        type="button" 
+        onclick={() => showImportModal = true}
+        style="background: #2563eb; color: #ffffff; border: none; padding: 9px 20px; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; box-shadow: 0 2px 6px rgba(37,99,235,0.25);"
+      >
+        Importer
+      </button>
+    </div>
+  </div>
+{:else}
+  <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 12px 18px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div style="font-size: 0.88rem; font-weight: 700; color: #0f172a;">
+      Suivi individuel actif ({$members.length} payeurs importés)
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button 
+        type="button"
+        onclick={() => showImportModal = true}
+        style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; cursor: pointer;"
+      >
+        Mettre à jour le fichier
+      </button>
+      <button 
+        type="button"
+        onclick={() => displayMode = "releve"}
+        style="background: #0f172a; color: #ffffff; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.82rem; cursor: pointer;"
+      >
+        Revenir au relevé bancaire
+      </button>
+    </div>
+  </div>
+{/if}
+
+<!-- CONTENEUR DU TABLEAU DE GESTION -->
+<div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+  
+  <!-- BARRE D'OUTILS -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 16px;">
+    
+    <!-- Filtres par pastilles -->
+    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+      {#if displayMode === "releve"}
+        <button 
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.15s; {txFilter === 'tous' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          onclick={() => txFilter = 'tous'}
+        >
+          Tous <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({allAssoTransactions.length})</span>
+        </button>
+
+        <button 
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.15s; {txFilter === '756' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          onclick={() => txFilter = '756'}
+        >
+          756 · Cotisations <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({countTx756})</span>
+        </button>
+
+        <button 
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.15s; {txFilter === '706' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          onclick={() => txFilter = '706'}
+        >
+          706 · Cours <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({countTx706})</span>
+        </button>
+
+        <button 
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.15s; {txFilter === '487' ? 'background: #b45309; color: white; border: 1px solid #b45309;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          onclick={() => txFilter = '487'}
+        >
+          487 · Reports <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({countTx487})</span>
+        </button>
+      {:else}
+        <button 
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; {memberFilter === 'tous' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          onclick={() => memberFilter = 'tous'}
+        >
+          Tous ({report.length})
+        </button>
+        <button 
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; {memberFilter === 'payes' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          onclick={() => memberFilter = 'payes'}
+        >
+          À jour ({report.filter(m => m.resteAPayer === 0).length})
+        </button>
+        <button 
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; {memberFilter === 'impayes' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          onclick={() => memberFilter = 'impayes'}
+        >
+          Impayés ({kpiImpayesCount})
+        </button>
+      {/if}
+
+      <!-- Switcher Feuillets / Scroll -->
+      <div style="display: flex; background: #f1f5f9; padding: 2px; border-radius: 18px; border: 1px solid #e2e8f0; margin-left: 8px;">
+        <button 
+          type="button"
+          style="padding: 5px 11px; font-size: 0.78rem; font-weight: 600; border-radius: 14px; border: none; cursor: pointer; {viewMode === 'pagination' ? 'background: #ffffff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+          onclick={() => viewMode = 'pagination'}
+        >
+          <i class="fa-solid fa-file-lines"></i> Feuillets
+        </button>
+        <button 
+          type="button"
+          style="padding: 5px 11px; font-size: 0.78rem; font-weight: 600; border-radius: 14px; border: none; cursor: pointer; {viewMode === 'scroll' ? 'background: #ffffff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+          onclick={() => viewMode = 'scroll'}
+        >
+          <i class="fa-solid fa-scroll"></i> Scroll
+        </button>
+      </div>
+    </div>
+
+    <!-- Recherche & Export CSV -->
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <div style="position: relative; display: flex; align-items: center;">
+        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; color: #94a3b8; font-size: 0.85rem; pointer-events: none;"></i>
+        <input 
+          type="text" 
+          placeholder="Rechercher par nom / libellé..." 
+          bind:value={searchQuery}
+          style="padding: 9px 14px 9px 38px; border-radius: 8px; background: #ffffff; border: 1.5px solid #cbd5e1; color: #0f172a; font-size: 0.88rem; width: 250px; outline: none;"
+        />
+      </div>
+
+      <button 
+        type="button"
+        onclick={exporterCSV}
+        style="padding: 9px 16px; font-weight: 700; font-size: 0.88rem; background: #ffffff; border: 1.5px solid #cbd5e1; color: #0f172a; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
+        title="Exporter en fichier CSV Excel"
+      >
+        <i class="fa-solid fa-file-export" style="color: #2563eb;"></i> Exporter CSV
+      </button>
+    </div>
+  </div>
+
+  <!-- TABLEAU (MODE RELEVÉ BANCAIRE PAR DÉFAUT) -->
+  {#if displayMode === "releve"}
+    <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
         <thead>
-          <tr>
-            <th>Date</th>
-            <th>Libellé bancaire</th>
-            <th>Montant</th>
-            <th>Action</th>
+          <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; text-transform: uppercase; font-size: 0.76rem; letter-spacing: 0.6px; color: #475569;">
+            <th style="padding: 12px 18px; text-align: left; width: 120px;">Date</th>
+            <th style="padding: 12px 18px; text-align: left;">Émetteur / Libellé bancaire</th>
+            <th style="padding: 12px 18px; text-align: center; width: 170px;">Compte Comptable</th>
+            <th style="padding: 12px 18px; text-align: right; width: 150px;">Montant Encaissé</th>
+            <th style="padding: 12px 18px; text-align: right; width: 230px;">Action / Période</th>
           </tr>
         </thead>
         <tbody>
-          {#if filteredOperations.length === 0}
+          {#if displayedTransactions.length === 0}
             <tr>
-              <td colspan="4" style="text-align: center; color: #64748b; padding: 40px 10px;">
-                {#if activeTab === "a_attribuer"}
-                  Tous les règlements bancaires sont associés à des adhérents.
-                {:else}
-                  Aucun règlement n'a encore été associé à un adhérent.
-                {/if}
+              <td colspan="5" style="text-align: center; color: #64748b; padding: 45px 10px;">
+                Aucun encaissement ne correspond aux critères sélectionnés.
               </td>
             </tr>
           {:else}
-            {#each filteredOperations as tx}
-              <tr style="border-bottom: 1px solid #f1f5f9; background: #ffffff;">
-                <td style="font-size: 0.88rem; color: #64748b; white-space: nowrap; font-weight: 600;">{formatDateFr(tx.date || tx.datePaiement)}</td>
-                <td style="color: #0f172a; font-weight: 700; font-size: 0.92rem;">
-                  {tx.libelle}
-                  <div style="font-size: 0.76rem; color: #4338ca; font-weight: 600; margin-top: 2px;">Compte comptable {tx.compteAttribué || tx.compteCredit || tx.account || "706"}</div>
+            {#each displayedTransactions as t, index}
+              {@const cpt = String(t.compteAttribué || t.compteCredit || t.compte || t.account || '706')}
+              {@const is487 = cpt === '487'}
+              {@const cleanName = cleanMemberName(t.libelle)}
+              <tr 
+                class="table-row-hover"
+                style="border-bottom: 1px solid #f1f5f9; background: {index % 2 === 0 ? '#ffffff' : '#fcfdfe'}; transition: background 0.15s ease;"
+              >
+                <!-- Date -->
+                <td style="padding: 13px 18px; text-align: left; color: #64748b; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">
+                  {t.date ? formatDateFr(t.date) : (t.datePaiement || '—')}
                 </td>
-                <td class="amount credit" style="font-weight: 800; font-size: 1rem; color: #15803d; white-space: nowrap;">+{tx.credit.toFixed(2)} €</td>
-                <td>
-                  {#if !tx.memberAssociated}
-                    <button class="btn btn-cta-members btn-sm" onclick={() => openAssociationModal(tx)} style="white-space: nowrap; background: #0f172a; color: #ffffff; font-weight: 700; border-radius: 6px; padding: 6px 14px; border: none; cursor: pointer;">
-                      <i class="fa-solid fa-user-check"></i> Associer à un adhérent
+
+                <!-- Libellé & Émetteur -->
+                <td style="padding: 13px 18px; text-align: left;">
+                  <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">
+                    {cleanName}
+                  </div>
+                  <div style="font-size: 0.76rem; color: #64748b; margin-top: 2px; word-break: break-all;">
+                    {t.libelle || ''}
+                  </div>
+                </td>
+
+                <!-- Compte Comptable -->
+                <td style="padding: 13px 18px; text-align: center; white-space: nowrap;">
+                  {#if is487}
+                    <span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 6px;">
+                      487 · Saison suivante
+                    </span>
+                  {:else if cpt === "756"}
+                    <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 6px;">
+                      756 · Cotisations
+                    </span>
+                  {:else}
+                    <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 6px;">
+                      706 · Cours & Forfaits
+                    </span>
+                  {/if}
+                </td>
+
+                <!-- Montant Encaissé -->
+                <td style="padding: 13px 18px; text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 800; color: #15803d; font-size: 0.98rem; white-space: nowrap;">
+                  + {Number(t.credit || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                </td>
+
+                <!-- Action / Report saison suivante (Compte 487) -->
+                <td style="padding: 13px 18px; text-align: right; white-space: nowrap;">
+                  {#if is487}
+                    <button 
+                      type="button"
+                      onclick={() => retablirCompteRecette(t.id)}
+                      style="background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; padding: 5px 11px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; cursor: pointer;"
+                      title="Rétablir cette opération dans les recettes de l'exercice courant"
+                    >
+                      <i class="fa-solid fa-rotate-left"></i> Rétablir en recette
                     </button>
                   {:else}
-                    <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 0.82rem; padding: 5px 10px; font-weight: 700;">
-                      <i class="fa-solid fa-check"></i> Relié à {tx.associatedMember || "Adhérent"}
-                    </span>
+                    <button 
+                      type="button"
+                      onclick={() => basculerVers487(t.id)}
+                      style="background: #ffffff; border: 1px solid #e2e8f0; color: #475569; padding: 5px 11px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; cursor: pointer; transition: all 0.15s ease;"
+                      title="Reporter ce paiement en compte 487 pour l'exercice / saison suivante"
+                    >
+                      <i class="fa-solid fa-clock-rotate-left" style="color: #f59e0b;"></i> Reporter en 487
+                    </button>
                   {/if}
                 </td>
               </tr>
@@ -759,260 +721,95 @@
         </tbody>
       </table>
     </div>
-  </div>
-{/if}
 
-{#if currentSubView === "tableau_gestion"}
-  <!-- BLOC B : MÉTÉO FINANCIÈRE / TABLEAU DE BORD INSTRUMENTÉ (Cockpit Style) -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
-    
-    <!-- Card 1: Total attendu -->
-    <div style="background: #0f172a; border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">TOTAL ATTENDU (FORFAITS)</span>
-        <i class="fa-solid fa-calculator" style="color: #64748b; font-size: 0.85rem;"></i>
-      </div>
-      <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
-          {kpiTotalAttendu.toFixed(2)} €
+    <!-- Pagination du relevé -->
+    {#if filteredTransactions.length > 0 && viewMode === 'pagination'}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; font-size: 0.86rem; color: #64748b;">
+        <div>
+          Affichage <strong>{Math.min((currentPage - 1) * pageSize + 1, filteredTransactions.length)}</strong> à <strong>{Math.min(currentPage * pageSize, filteredTransactions.length)}</strong> sur <strong>{filteredTransactions.length}</strong> règlements
         </div>
-      </div>
-    </div>
-
-    <!-- Card 2: Déjà encaissé -->
-    <div style="background: #0f172a; border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">DÉJÀ ENCAISSÉ</span>
-        <span style="font-size: 0.78rem; font-weight: 700; color: #cbd5e1; background: #1e293b; padding: 2px 8px; border-radius: 12px; font-family: ui-monospace, monospace;">{kpiPercentEncaisse}%</span>
-      </div>
-      <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px; margin-bottom: 8px;">
-          {kpiTotalEncaisse.toFixed(2)} €
-        </div>
-        <!-- Mini dashboard progress gauge -->
-        <div style="width: 100%; height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden;">
-          <div style="width: {kpiPercentEncaisse}%; height: 100%; background: #94a3b8; border-radius: 2px;"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Card 3: Reste à recouvrer -->
-    <div style="background: #0f172a; border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">RESTE À RECOUVRER</span>
-        <i class="fa-solid fa-clock-rotate-left" style="color: #64748b; font-size: 0.85rem;"></i>
-      </div>
-      <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
-          {kpiRestant.toFixed(2)} €
-        </div>
-      </div>
-    </div>
-
-    <!-- Card 4: Adhérents en retard / cotisations dues -->
-    <div style="background: #0f172a; border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;">ADHÉRENTS EN RETARD / COTISATIONS DUES</span>
-        <i class="fa-solid fa-user-clock" style="color: #64748b; font-size: 0.85rem;"></i>
-      </div>
-      <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
-          {kpiImpayesCount} <span style="font-size: 1rem; font-weight: 600; color: #94a3b8;">adhérent{kpiImpayesCount > 1 ? 's' : ''}</span>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- BLOC C : REGISTRE DE L'ESPACE DE TRAVAIL (Conteneur principal en boîte Slate-900) -->
-  <div style="background: #0f172a; border: 1px solid rgba(51, 65, 85, 0.6); border-radius: 14px; padding: 24px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);">
-    
-    {#if $members.length === 0}
-      <!-- Bandeau universel d'initialisation du registre -->
-      <div style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(15, 23, 42, 0.7)); border: 1.5px solid rgba(59, 130, 246, 0.4); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);">
-        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
-          <div style="max-width: 640px;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-              <i class="fa-solid fa-users-viewfinder" style="color: #60a5fa; font-size: 1.25rem;"></i>
-              <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: #ffffff;">
-                Initialiser votre registre d'adhérents / élèves
-              </h3>
-            </div>
-            <p style="margin: 0; font-size: 0.88rem; color: #cbd5e1; line-height: 1.5;">
-              Votre registre est actuellement vide. Choisissez la méthode qui convient à votre fonctionnement :
-            </p>
-            <ul style="margin: 10px 0 0 0; padding-left: 20px; font-size: 0.84rem; color: #94a3b8; line-height: 1.55;">
-              <li><strong style="color: #f1f5f9;">Génération automatique depuis la banque :</strong> crée directement vos fiches adhérents à partir des règlements bancaires détectés (virements et cotisations).</li>
-              <li><strong style="color: #f1f5f9;">Import d'un fichier Excel / CSV :</strong> charge votre grille de rentrée avec les forfaits/cotisations annuels attendus.</li>
-            </ul>
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: 10px; align-self: center;">
-            {#if allAssoTransactions.length > 0}
-              <button 
-                type="button"
-                onclick={toutAssocier}
-                style="background: #2563eb; color: #ffffff; border: none; padding: 11px 20px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(37,99,235,0.4);"
-              >
-                <i class="fa-solid fa-bolt"></i> Générer depuis la banque ({allAssoTransactions.length} règlements)
-              </button>
-            {/if}
+        {#if totalTxPages > 1}
+          <div style="display: flex; gap: 6px; align-items: center;">
             <button 
-              type="button"
-              onclick={() => showImportModal = true}
-              style="background: rgba(255, 255, 255, 0.08); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.22); padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 8px;"
+              class="btn btn-secondary btn-sm"
+              disabled={currentPage === 1}
+              onclick={() => currentPage--}
+              style="padding: 5px 11px; font-size: 0.8rem; background: #ffffff; border: 1px solid #cbd5e1;"
             >
-              <i class="fa-solid fa-file-import"></i> Importer un fichier Excel / CSV
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            {#each Array.from({ length: totalTxPages }) as _, i}
+              {#if i < 7 || i === totalTxPages - 1}
+                <button 
+                  onclick={() => currentPage = i + 1}
+                  style="width: 30px; height: 30px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: 1px solid {currentPage === i + 1 ? '#0f172a' : '#cbd5e1'}; background: {currentPage === i + 1 ? '#0f172a' : '#ffffff'}; color: {currentPage === i + 1 ? '#ffffff' : '#0f172a'};"
+                >
+                  {i + 1}
+                </button>
+              {/if}
+            {/each}
+            <button 
+              class="btn btn-secondary btn-sm"
+              disabled={currentPage === totalTxPages}
+              onclick={() => currentPage++}
+              style="padding: 5px 11px; font-size: 0.8rem; background: #ffffff; border: 1px solid #cbd5e1;"
+            >
+              <i class="fa-solid fa-chevron-right"></i>
             </button>
           </div>
-        </div>
+        {/if}
       </div>
     {/if}
-    
-    <!-- Barre d'outils supérieure avec respiration et alignement parfait -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; padding-bottom: 6px;">
-      <!-- Côté Gauche (Filtrer & Trouver) : Filtres de statut -->
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <button 
-          class="chip-filter-btn"
-          style="padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; {memberFilter === 'tous' ? 'background: rgba(255, 255, 255, 0.12); color: white; border: 1px solid rgba(255, 255, 255, 0.3);' : 'background: rgba(0, 0, 0, 0.4); color: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255, 255, 255, 0.08);'}"
-          onclick={() => memberFilter = 'tous'}
-        >
-          Tous <span style="background: rgba(255,255,255,0.15); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">{report.length}</span>
-        </button>
 
-        <button 
-          class="chip-filter-btn"
-          style="padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; {memberFilter === 'payes' ? 'background: rgba(255, 255, 255, 0.12); color: white; border: 1px solid rgba(255, 255, 255, 0.3);' : 'background: rgba(0, 0, 0, 0.4); color: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255, 255, 255, 0.08);'}"
-          onclick={() => memberFilter = 'payes'}
-        >
-          À jour <span style="background: rgba(255, 255, 255, 0.15); color: #e2e8f0; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">{report.filter(m => m.resteAPayer === 0).length}</span>
-        </button>
-
-        <button 
-          class="chip-filter-btn"
-          style="padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; {memberFilter === 'impayes' ? 'background: rgba(255, 255, 255, 0.12); color: white; border: 1px solid rgba(255, 255, 255, 0.3);' : 'background: rgba(0, 0, 0, 0.4); color: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255, 255, 255, 0.08);'}"
-          onclick={() => memberFilter = 'impayes'}
-        >
-          Impayés <span style="background: rgba(255, 255, 255, 0.15); color: #e2e8f0; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">{kpiImpayesCount}</span>
-        </button>
-
-        <!-- Display Mode Switcher (Feuillets vs Scroll) -->
-        <div style="display: flex; background: rgba(0, 0, 0, 0.4); padding: 3px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); margin-left: 8px;">
-          <button 
-            type="button"
-            class="view-mode-btn"
-            style="padding: 5px 12px; font-size: 0.8rem; font-weight: 600; border-radius: 16px; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; {viewMode === 'pagination' ? 'background: #334155; color: white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);' : 'background: transparent; color: rgba(255, 255, 255, 0.5);'}"
-            onclick={() => viewMode = 'pagination'}
-            title="Affichage page par page (Feuillets)"
-          >
-            <i class="fa-solid fa-file-lines"></i> Feuillets
-          </button>
-
-          <button 
-            type="button"
-            class="view-mode-btn"
-            style="padding: 5px 12px; font-size: 0.8rem; font-weight: 600; border-radius: 16px; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; {viewMode === 'scroll' ? 'background: #334155; color: white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);' : 'background: transparent; color: rgba(255, 255, 255, 0.5);'}"
-            onclick={() => viewMode = 'scroll'}
-            title="Vue globale en défilement continu"
-          >
-            <i class="fa-solid fa-scroll"></i> Vue globale (Scroll)
-          </button>
-        </div>
-      </div>
-
-      <!-- Côté Droit : Search Input + Ghost Button + Primary CTA -->
-      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <!-- Search Input with Loupe Icon -->
-        <div style="position: relative; display: flex; align-items: center;">
-          <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; color: rgba(255, 255, 255, 0.4); font-size: 0.85rem; pointer-events: none;"></i>
-          <input 
-            type="text" 
-            placeholder="Rechercher par nom..." 
-            bind:value={searchQuery}
-            style="padding: 9px 14px 9px 38px; border-radius: 8px; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.15); color: white; font-size: 0.88rem; width: 230px; outline: none; transition: border-color 0.2s;"
-          />
-        </div>
-
-        <!-- Ghost Action button -->
-        <button 
-          class="btn btn-secondary" 
-          onclick={() => currentSubView = "operations"}
-          style="padding: 9px 16px; font-weight: 600; font-size: 0.88rem; background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); color: white; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
-        >
-          <i class="fa-solid fa-university" style="color: var(--text-secondary);"></i> Voir les opérations bancaires
-        </button>
-
-        <!-- Primary CTA Action button -->
-        <button 
-          class="btn btn-cta-import"
-          onclick={() => showImportModal = true}
-          style="padding: 9px 18px; font-weight: 700; font-size: 0.88rem; border-radius: 8px; display: flex; align-items: center; gap: 8px;"
-        >
-          <i class="fa-solid fa-file-import"></i> + Importer la liste des adhérents
-        </button>
-      </div>
-    </div>
-
-    <!-- Table Container with Elevation Shadow and Alternating Rows -->
-    <div style="border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2); border-radius: 10px; overflow: hidden; background: rgba(15, 23, 42, 0.6); {viewMode === 'scroll' ? 'max-height: 530px; overflow-y: auto;' : ''}">
-      <table class="custom-table" style="width: 100%; border-collapse: collapse;">
+  {:else}
+    <!-- TABLEAU (MODE POINTAGE INDIVIDUEL PAR ÉLÈVE) -->
+    <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
         <thead>
-          <tr style="background: #1e293b; border-bottom: 2px solid #334155; {viewMode === 'scroll' ? 'position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.3);' : ''}">
-            <th style="padding: 14px 18px; text-align: left; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Nom de l'adhérent</th>
-            <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Cotisation / Forfait</th>
-            <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Déjà versé</th>
-            <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Reste à régler</th>
-            <th style="padding: 14px 18px; text-align: center; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Statut</th>
-            <th style="padding: 14px 18px; text-align: right; font-size: 0.85rem; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">Actions</th>
+          <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; text-transform: uppercase; font-size: 0.76rem; letter-spacing: 0.6px; color: #475569;">
+            <th style="padding: 12px 18px; text-align: left;">Nom de l'adhérent / élève</th>
+            <th style="padding: 12px 18px; text-align: right; width: 170px;">Tarif annuel dû</th>
+            <th style="padding: 12px 18px; text-align: right; width: 170px;">Déjà versé</th>
+            <th style="padding: 12px 18px; text-align: right; width: 170px;">Reste à régler</th>
+            <th style="padding: 12px 18px; text-align: center; width: 130px;">Statut</th>
+            <th style="padding: 12px 18px; text-align: right; width: 110px;">Détails</th>
           </tr>
         </thead>
         <tbody>
           {#if displayedMembers.length === 0}
             <tr>
-              <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 45px 10px;">
-                {#if $members.length === 0}
-                  Aucun adhérent enregistré. Cliquez sur le bouton ci-dessus pour générer les adhérents depuis les règlements bancaires ou importer votre fichier.
-                {:else}
-                  Aucun adhérent ne correspond aux critères de recherche.
-                {/if}
+              <td colspan="6" style="text-align: center; color: #64748b; padding: 45px 10px;">
+                Aucun adhérent ne correspond aux critères.
               </td>
             </tr>
           {:else}
             {#each displayedMembers as m, index}
               <tr 
-                class="student-row"
-                style="border-bottom: 1px solid #334155; background: {index % 2 === 0 ? '#0f172a' : '#1e293b'}; transition: all 0.15s ease;"
+                class="table-row-hover"
+                style="border-bottom: 1px solid #f1f5f9; background: {index % 2 === 0 ? '#ffffff' : '#fcfdfe'}; transition: background 0.15s ease;"
               >
-                <td style="padding: 14px 18px; text-align: left;">
-                  <div style="font-weight: 700; color: white; font-size: 0.98rem;">{m.cleanName}</div>
-                  {#if m.rawRef}
-                    <div style="font-size: 0.76rem; color: rgba(255, 255, 255, 0.45); margin-top: 2px;">
-                      └ {m.rawRef}
-                    </div>
-                  {/if}
+                <td style="padding: 13px 18px; text-align: left; font-weight: 700; color: #0f172a;">
+                  {m.cleanName}
                 </td>
-                
-                <!-- Financial Columns Right Aligned with Monospace tabular-nums in crisp monochrome -->
-                <td style="padding: 14px 18px; text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 600; color: #f8fafc; font-size: 0.95rem;">
-                  {m.forfait.toFixed(2)} €
+                <td style="padding: 13px 18px; text-align: right; font-family: ui-monospace, monospace; font-weight: 700;">
+                  {Number(m.forfait || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </td>
-
-                <td style="padding: 14px 18px; text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 600; color: {m.dejaPaye > 0 ? '#f8fafc' : '#64748b'}; font-size: 0.95rem;">
-                  {m.dejaPaye > 0 ? `${m.dejaPaye.toFixed(2)} €` : '0,00 €'}
+                <td style="padding: 13px 18px; text-align: right; font-family: ui-monospace, monospace; font-weight: 700; color: {m.dejaPaye > 0 ? '#15803d' : '#64748b'};">
+                  {Number(m.dejaPaye || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </td>
-
-                <td style="padding: 14px 18px; text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 600; color: {m.resteAPayer > 0 ? '#f8fafc' : '#64748b'}; font-size: 0.95rem;">
-                  {m.resteAPayer > 0 ? `${m.resteAPayer.toFixed(2)} €` : '0,00 €'}
+                <td style="padding: 13px 18px; text-align: right; font-family: ui-monospace, monospace; font-weight: 700; color: {m.resteAPayer > 0 ? '#dc2626' : '#15803d'};">
+                  {Number(m.resteAPayer || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </td>
-
-                <td style="padding: 14px 18px; text-align: center;">
-                  <span class="badge {m.badgeClass}" style="font-weight: 700; padding: 5px 12px; font-size: 0.78rem;">{m.statut}</span>
+                <td style="padding: 13px 18px; text-align: center;">
+                  <span class="badge {m.badgeClass}" style="font-weight: 700; padding: 4px 10px; font-size: 0.76rem;">{m.statut}</span>
                 </td>
-
-                <td style="padding: 14px 18px; text-align: right; white-space: nowrap;">
-                  <button class="btn btn-secondary btn-sm" onclick={() => openDrawerModal(m)} title="Voir le détail des règlements" style="padding: 5px 12px; font-size: 0.8rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);">
-                    <i class="fa-solid fa-list-check"></i> Détails
+                <td style="padding: 13px 18px; text-align: right;">
+                  <button 
+                    class="btn btn-secondary btn-sm" 
+                    onclick={() => { selectedMemberForDrawer = m; showDrawerModal = true; }}
+                    style="padding: 5px 11px; font-size: 0.78rem; background: #ffffff; border: 1.5px solid #cbd5e1;"
+                  >
+                    <i class="fa-solid fa-list-check"></i>
                   </button>
                 </td>
               </tr>
@@ -1022,277 +819,201 @@
       </table>
     </div>
 
-    <!-- Footer Controls (Pagination when in 'pagination' mode, or Scroll info when in 'scroll' mode) -->
-    {#if filteredMembers.length > 0}
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(51, 65, 85, 0.5); font-size: 0.88rem; color: rgba(255, 255, 255, 0.6);">
-        {#if viewMode === 'pagination'}
-          <div>
-            Affichage <strong>{Math.min((currentPage - 1) * pageSize + 1, filteredMembers.length)}</strong> à <strong>{Math.min(currentPage * pageSize, filteredMembers.length)}</strong> sur <strong>{filteredMembers.length}</strong> adhérents
-          </div>
-
-          {#if totalPages > 1}
-            <div style="display: flex; gap: 6px; align-items: center;">
-              <button 
-                class="btn btn-secondary btn-sm"
-                disabled={currentPage === 1}
-                onclick={() => currentPage--}
-                style="padding: 5px 12px; font-size: 0.82rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: white;"
-              >
-                <i class="fa-solid fa-chevron-left"></i> Précédent
-              </button>
-
-              {#each Array.from({ length: totalPages }) as _, i}
+    <!-- Pagination du pointage -->
+    {#if filteredMembers.length > 0 && viewMode === 'pagination'}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; font-size: 0.86rem; color: #64748b;">
+        <div>
+          Affichage <strong>{Math.min((currentPage - 1) * pageSize + 1, filteredMembers.length)}</strong> à <strong>{Math.min(currentPage * pageSize, filteredMembers.length)}</strong> sur <strong>{filteredMembers.length}</strong> inscrits
+        </div>
+        {#if totalMemberPages > 1}
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button 
+              class="btn btn-secondary btn-sm"
+              disabled={currentPage === 1}
+              onclick={() => currentPage--}
+              style="padding: 5px 11px; font-size: 0.8rem; background: #ffffff; border: 1px solid #cbd5e1;"
+            >
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            {#each Array.from({ length: totalMemberPages }) as _, i}
+              {#if i < 7 || i === totalMemberPages - 1}
                 <button 
                   onclick={() => currentPage = i + 1}
-                  style="width: 32px; height: 32px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: 1px solid {currentPage === i + 1 ? '#6366f1' : 'rgba(255,255,255,0.12)'}; background: {currentPage === i + 1 ? '#6366f1' : 'rgba(255,255,255,0.05)'}; color: white; transition: all 0.2s;"
+                  style="width: 30px; height: 30px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: 1px solid {currentPage === i + 1 ? '#0f172a' : '#cbd5e1'}; background: {currentPage === i + 1 ? '#0f172a' : '#ffffff'}; color: {currentPage === i + 1 ? '#ffffff' : '#0f172a'};"
                 >
                   {i + 1}
                 </button>
-              {/each}
-
-              <button 
-                class="btn btn-secondary btn-sm"
-                disabled={currentPage === totalPages}
-                onclick={() => currentPage++}
-                style="padding: 5px 12px; font-size: 0.82rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: white;"
-              >
-                Suivant <i class="fa-solid fa-chevron-right"></i>
-              </button>
-            </div>
-          {/if}
-        {:else}
-          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <div>
-              📜 <strong>{filteredMembers.length}</strong> adhérents affichés en défilement continu
-            </div>
+              {/if}
+            {/each}
             <button 
               class="btn btn-secondary btn-sm"
-              onclick={() => viewMode = 'pagination'}
-              style="padding: 5px 12px; font-size: 0.82rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: white;"
+              disabled={currentPage === totalMemberPages}
+              onclick={() => currentPage++}
+              style="padding: 5px 11px; font-size: 0.8rem; background: #ffffff; border: 1px solid #cbd5e1;"
             >
-              <i class="fa-solid fa-file-lines"></i> Passer en mode Feuillets
+              <i class="fa-solid fa-chevron-right"></i>
             </button>
           </div>
         {/if}
       </div>
     {/if}
+  {/if}
 
-  </div>
-{/if}
+</div>
 
-<!-- Import Modal -->
+<!-- MODALE D'IMPORT CSV DES TARIFS ANNUELS CONTRACTUELS -->
 {#if showImportModal}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="modal-backdrop" onclick={() => showImportModal = false} role="presentation" style="position: fixed; inset: 0; background: rgba(5, 7, 15, 0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 20px;">
-    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_interactive_supports_focus -->
-    <div class="glass-card modal-content" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1" style="max-width: 620px; padding: 28px; width: 100%; max-height: 90vh; overflow-y: auto;">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
-        <h3 style="font-family: var(--font-title); margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 10px; color: white;">
-          <i class="fa-solid fa-file-import" style="color: #818cf8;"></i> Import des données de gestion
-        </h3>
-        <button type="button" onclick={() => showImportModal = false} style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.4rem; cursor: pointer;">✕</button>
-      </div>
-
-      <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; font-size: 0.9rem; color: rgba(255, 255, 255, 0.9); line-height: 1.5;">
-        <p style="margin: 0 0 10px 0;">
-          Déposez votre tableau (Excel ou CSV). Nous avons seulement besoin de deux informations : <strong>le nom de l'adhérent ou du membre</strong> et <strong>le montant total de sa cotisation ou de son dû</strong> (adhésion annuelle, abonnement, forfait...).
-        </p>
+  <div 
+    class="modal-backdrop" 
+    tabindex="-1"
+    role="dialog"
+    aria-modal="true"
+    onkeydown={(e) => { if (e.key === 'Escape') showImportModal = false; }}
+    style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px;"
+  >
+    <div style="background: #ffffff; border-radius: 16px; width: 100%; max-width: 600px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden; display: flex; flex-direction: column;">
+      
+      <!-- En-tête -->
+      <div style="padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #0f172a;">
+            <i class="fa-solid fa-file-import" style="color: #2563eb; margin-right: 8px;"></i> Importer les tarifs annuels des inscrits
+          </h3>
+          <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: #64748b;">
+            Permet de calculer les restes à payer en comparant avec les virements reçus.
+          </p>
+        </div>
         <button 
-          type="button" 
-          onclick={telechargerModeleCSV}
-          style="background: transparent; border: 1px solid rgba(129, 140, 248, 0.5); color: #a5b4fc; padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;"
+          onclick={() => showImportModal = false}
+          style="background: none; border: none; font-size: 1.25rem; color: #64748b; cursor: pointer; padding: 4px;"
         >
-          <i class="fa-solid fa-download"></i> Télécharger un modèle exemple (CSV)
+          &times;
         </button>
       </div>
 
-      <!-- Tabs : Fichier vs Copier-Coller -->
-      <div style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 10px;">
-        <button 
-          type="button"
-          style="background: {activeImportTab === 'file' ? '#6366f1' : 'transparent'}; color: {activeImportTab === 'file' ? 'white' : 'rgba(255,255,255,0.6)'}; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.88rem; cursor: pointer;"
-          onclick={() => activeImportTab = 'file'}
-        >
-          📁 Importer un fichier CSV/Excel
-        </button>
-        <button 
-          type="button"
-          style="background: {activeImportTab === 'paste' ? '#6366f1' : 'transparent'}; color: {activeImportTab === 'paste' ? 'white' : 'rgba(255,255,255,0.6)'}; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.88rem; cursor: pointer;"
-          onclick={() => activeImportTab = 'paste'}
-        >
-          📋 Copier / Coller le texte directement
-        </button>
-      </div>
+      <!-- Corps -->
+      <div style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; gap: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+          <button 
+            type="button"
+            onclick={() => activeImportTab = 'file'}
+            style="padding: 7px 14px; border-radius: 6px; font-weight: 700; font-size: 0.84rem; border: none; cursor: pointer; {activeImportTab === 'file' ? 'background: #0f172a; color: white;' : 'background: #f1f5f9; color: #475569;'}"
+          >
+            Fichier CSV / Excel
+          </button>
+          <button 
+            type="button"
+            onclick={() => activeImportTab = 'paste'}
+            style="padding: 7px 14px; border-radius: 6px; font-weight: 700; font-size: 0.84rem; border: none; cursor: pointer; {activeImportTab === 'paste' ? 'background: #0f172a; color: white;' : 'background: #f1f5f9; color: #475569;'}"
+          >
+            Copier-Coller depuis Excel
+          </button>
+          <button 
+            type="button"
+            onclick={telechargerModeleCSV}
+            style="margin-left: auto; background: none; border: none; color: #2563eb; font-weight: 700; font-size: 0.82rem; cursor: pointer; text-decoration: underline;"
+          >
+            Télécharger modèle exemple
+          </button>
+        </div>
 
-      {#if activeImportTab === 'file'}
-        <!-- Zone de dépôt / sélection de fichier -->
-        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-        <div 
-          class="file-upload-zone" 
-          onclick={() => fileInputEl && fileInputEl.click()}
-          ondragover={(e) => e.preventDefault()}
-          ondrop={(e) => { e.preventDefault(); handleFileSelect(e); }}
-          style="border: 2px dashed rgba(99, 102, 241, 0.4); background: rgba(99, 102, 241, 0.05); padding: 24px 16px; border-radius: 12px; text-align: center; cursor: pointer; margin-bottom: 16px; transition: all 0.2s;"
-        >
-          <input 
-            bind:this={fileInputEl}
-            type="file" 
-            accept=".csv, .txt, .tsv" 
-            onchange={handleFileSelect} 
-            style="display: none;" 
-          />
-          <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.2rem; color: #818cf8; margin-bottom: 10px;"></i>
-          <div style="font-weight: 700; color: white; font-size: 1rem;">
-            {importFileName ? `Fichier sélectionné : ${importFileName}` : "Déposez votre fichier CSV ou cliquez ici"}
-          </div>
-          <div style="font-size: 0.8rem; color: rgba(255, 255, 255, 0.5); margin-top: 4px;">
-            Formats acceptés : CSV, TXT, TSV (séparateur point-virgule, virgule ou tabulation)
-          </div>
-        </div>
-      {:else}
-        <!-- Zone de Copier-Coller texte brute -->
-        <div style="margin-bottom: 16px;">
-          <textarea
-            placeholder="Collez ici les lignes de votre tableau Excel ou CSV (ex: Dupont Marc;350.00)"
-            rows="5"
-            bind:value={rawPasteText}
-            oninput={(e) => parseCSVMembers(/** @type {HTMLTextAreaElement} */ (e.target).value)}
-            style="width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: white; font-family: monospace; font-size: 0.85rem;"
-          ></textarea>
-        </div>
-      {/if}
-
-      <!-- Aperçu en direct des lignes extraites -->
-      {#if importedRows.length > 0}
-        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
-          <div style="font-weight: 700; color: #34d399; font-size: 0.9rem; margin-bottom: 8px;">
-            ✅ {importedRows.length} adhérent(s) identifié(s) prêt(s) à l'import :
-          </div>
-          <div style="max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
-            {#each importedRows.slice(0, 5) as row}
-              <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: rgba(255,255,255,0.9); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px;">
-                <span>👤 {row.nom}</span>
-                <span style="font-weight: 700; color: #a5b4fc;">{row.forfait.toFixed(2)} €</span>
-              </div>
-            {/each}
-            {#if importedRows.length > 5}
-              <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 2px;">...et {importedRows.length - 5} autre(s) entrée(s)</div>
-            {/if}
-          </div>
-        </div>
-      {:else if importFileName || rawPasteText}
-        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; color: #f87171; font-size: 0.85rem;">
-          ⚠️ Aucun nom et montant lisibles n'ont pu être extraits de ces données. Vérifiez que votre tableau contient au moins le nom et un montant numérique.
-        </div>
-      {/if}
-
-      <div style="display: flex; justify-content: flex-end; gap: 12px;">
-        <button type="button" class="btn btn-secondary" onclick={() => showImportModal = false}>Annuler</button>
-        <button 
-          type="button" 
-          class="btn btn-cta-import" 
-          onclick={validerImportCSV}
-          disabled={importedRows.length === 0}
-        >
-          <i class="fa-solid fa-check"></i> Lancer l'import ({importedRows.length})
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-<!-- Drawer Modal pour le détail des règlements -->
-{#if showDrawerModal && selectedMemberForDrawer}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="modal-backdrop" onclick={() => showDrawerModal = false} role="presentation" style="position: fixed; inset: 0; background: rgba(5, 7, 15, 0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 20px;">
-    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_interactive_supports_focus -->
-    <div class="glass-card modal-content" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1" style="max-width: 540px; width: 100%; max-height: 90vh; overflow-y: auto;">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-        <div>
-          <h3 style="font-family: var(--font-title); margin: 0;">{selectedMemberForDrawer.cleanName}</h3>
-          <div style="font-size: 0.8rem; color: rgba(255, 255, 255, 0.5); margin-top: 2px;">Réf : {selectedMemberForDrawer.rawRef}</div>
-        </div>
-        <span class="badge {selectedMemberForDrawer.badgeClass}">{selectedMemberForDrawer.statut}</span>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: rgba(0,0,0,0.25); padding: 14px; border-radius: 10px; margin-bottom: 20px;">
-        <div>
-          <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Forfait total</div>
-          <div style="font-weight: 700; font-size: 1.1rem; color: white;">{selectedMemberForDrawer.forfait.toFixed(2)} €</div>
-        </div>
-        <div>
-          <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Déjà versé</div>
-          <div style="font-weight: 700; font-size: 1.1rem; color: #34d399;">{selectedMemberForDrawer.dejaPaye.toFixed(2)} €</div>
-        </div>
-        <div>
-          <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Reste dû</div>
-          <div style="font-weight: 700; font-size: 1.1rem; color: {selectedMemberForDrawer.resteAPayer > 0 ? '#f87171' : 'white'};">{selectedMemberForDrawer.resteAPayer.toFixed(2)} €</div>
-        </div>
-      </div>
-
-      <h4 style="font-size: 0.95rem; margin-bottom: 10px; color: rgba(255,255,255,0.9);">Historique des règlements & échéances</h4>
-      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
-        <div style="display: flex; justify-content: space-between; padding: 10px 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px;">
-          <div>
-            <div style="font-weight: 600; font-size: 0.88rem; color: white;">Règlement virement bancaire</div>
-            <div style="font-size: 0.78rem; color: rgba(255,255,255,0.5);">{selectedMemberForDrawer.payeLe || 'Reçu'}</div>
-          </div>
-          <div style="font-weight: 700; color: #34d399;">+{selectedMemberForDrawer.dejaPaye.toFixed(2)} €</div>
-        </div>
-        {#if selectedMemberForDrawer.resteAPayer > 0}
-          <div style="display: flex; justify-content: space-between; padding: 10px 14px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px;">
-            <div>
-              <div style="font-weight: 600; font-size: 0.88rem; color: #f87171;">Échéance en attente</div>
-              <div style="font-size: 0.78rem; color: rgba(255,255,255,0.5);">Solde à régler</div>
+        {#if activeImportTab === 'file'}
+          <label style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 32px 20px; text-align: center; cursor: pointer; background: #f8fafc; display: block;">
+            <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: #2563eb; margin-bottom: 10px;"></i>
+            <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">
+              {importFileName ? `Fichier : ${importFileName}` : "Cliquez ou glissez-déposez votre fichier CSV"}
             </div>
-            <div style="font-weight: 700; color: #f87171;">{selectedMemberForDrawer.resteAPayer.toFixed(2)} €</div>
+            <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">
+              2 colonnes attendues : Nom de l'élève / adhérent et Tarif annuel
+            </div>
+            <input type="file" accept=".csv,text/csv" onchange={handleFileSelect} style="display: none;" />
+          </label>
+        {:else}
+          <textarea 
+            rows="6"
+            placeholder="Collez ici vos deux colonnes depuis Excel (ex: Dupont Marc [Tabulation] 450.00)..."
+            bind:value={rawPasteText}
+            oninput={(e) => parseCSVMembers(/** @type {any} */ (e.target).value)}
+            style="width: 100%; box-sizing: border-box; padding: 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-family: ui-monospace, monospace; font-size: 0.85rem; outline: none;"
+          ></textarea>
+        {/if}
+
+        {#if importedRows.length > 0}
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; font-size: 0.86rem; color: #166534; font-weight: 600;">
+            <i class="fa-solid fa-check"></i> {importedRows.length} adhérents détectés avec leurs forfaits annuels.
           </div>
         {/if}
       </div>
 
-      <div style="display: flex; justify-content: flex-end; gap: 12px;">
-        <button type="button" class="btn btn-secondary" onclick={() => showDrawerModal = false}>Fermer</button>
+      <!-- Pied de modale -->
+      <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; background: #f8fafc;">
+        <button 
+          type="button" 
+          onclick={() => showImportModal = false}
+          style="padding: 9px 16px; border-radius: 8px; background: #ffffff; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; cursor: pointer;"
+        >
+          Annuler
+        </button>
+        <button 
+          type="button" 
+          onclick={validerImportTarifs}
+          disabled={importedRows.length === 0}
+          style="padding: 9px 18px; border-radius: 8px; background: #2563eb; color: #ffffff; border: none; font-weight: 700; cursor: pointer; opacity: {importedRows.length === 0 ? 0.5 : 1};"
+        >
+          Valider et activer le pointage
+        </button>
       </div>
+
     </div>
   </div>
 {/if}
 
-{#if showModal}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="modal-backdrop" onclick={closeModal} role="presentation" style="position: fixed; inset: 0; background: rgba(5, 7, 15, 0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 20px;">
-    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_interactive_supports_focus -->
-    <div class="glass-card modal-content" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1" style="max-width: 540px; width: 100%; max-height: 90vh; overflow-y: auto;">
-      <h3 style="font-family: var(--font-title); margin-bottom: 16px;">
-        <i class="fa-solid fa-link" style="color: #818cf8;"></i> Associer le règlement à un adhérent
-      </h3>
-      
-      <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); margin-bottom: 20px;">
-        Opération : <strong style="color: white;">{selectedTx?.libelle}</strong>
-      </p>
-
-      <form onsubmit={validerAssociation}>
-        <div class="form-group" style="margin-bottom: 16px;">
-          <label class="form-label" for="modal-nom">Nom de l'adhérent / membre</label>
-          <input id="modal-nom" type="text" class="input-field" bind:value={nomEleve} required />
+<!-- MODALE DÉTAIL D'UN ADHÉRENT (DRAWER) -->
+{#if showDrawerModal && selectedMemberForDrawer}
+  <div 
+    class="modal-backdrop" 
+    tabindex="-1"
+    role="dialog"
+    aria-modal="true"
+    onkeydown={(e) => { if (e.key === 'Escape') showDrawerModal = false; }}
+    style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px;"
+  >
+    <div style="background: #ffffff; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden;">
+      <div style="padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: #0f172a;">
+            Fiche élève : {selectedMemberForDrawer.cleanName}
+          </h3>
+          <span style="font-size: 0.8rem; color: #64748b;">Statut : {selectedMemberForDrawer.statut}</span>
         </div>
+        <button onclick={() => showDrawerModal = false} style="background: none; border: none; font-size: 1.25rem; color: #64748b; cursor: pointer;">&times;</button>
+      </div>
 
-        <div class="form-group" style="margin-bottom: 16px;">
-          <label class="form-label" for="modal-montant-verse">Montant versé (€)</label>
-          <div id="modal-montant-verse" style="padding: 10px 14px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; font-weight: 700; font-size: 1.1rem;">
-            {montantVerse.toFixed(2)} € (Récupéré de la banque)
-          </div>
+      <div style="padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9;">
+          <span style="color: #64748b;">Tarif annuel contractuel :</span>
+          <strong style="color: #0f172a; font-family: monospace;">{Number(selectedMemberForDrawer.forfait || 0).toFixed(2)} €</strong>
         </div>
+        <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9;">
+          <span style="color: #64748b;">Total déjà réglé :</span>
+          <strong style="color: #15803d; font-family: monospace;">{Number(selectedMemberForDrawer.dejaPaye || 0).toFixed(2)} €</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 10px 0;">
+          <span style="color: #64748b;">Reste à recouvrer :</span>
+          <strong style="color: {selectedMemberForDrawer.resteAPayer > 0 ? '#dc2626' : '#15803d'}; font-family: monospace;">
+            {Number(selectedMemberForDrawer.resteAPayer || 0).toFixed(2)} €
+          </strong>
+        </div>
+      </div>
 
-        <div class="form-group" style="margin-bottom: 24px;">
-          <label class="form-label" for="modal-montant-forfait">Montant de la cotisation / adhésion annuelle (€)</label>
-          <input id="modal-montant-forfait" type="number" class="input-field" placeholder="ex: 350" bind:value={montantTotalPercevoir} required />
-        </div>
-
-        <div style="display: flex; justify-content: flex-end; gap: 12px;">
-          <button type="button" class="btn btn-secondary" onclick={closeModal}>Annuler</button>
-          <button type="submit" class="btn btn-cta-members">Valider l'association</button>
-        </div>
-      </form>
+      <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; background: #f8fafc;">
+        <button 
+          onclick={() => showDrawerModal = false}
+          style="padding: 8px 16px; border-radius: 8px; background: #0f172a; color: #ffffff; border: none; font-weight: 700; cursor: pointer;"
+        >
+          Fermer
+        </button>
+      </div>
     </div>
   </div>
 {/if}
