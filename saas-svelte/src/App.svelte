@@ -36,6 +36,7 @@
   import WelcomeScreen from './components/WelcomeScreen.svelte';
   import AuthScreen from './components/AuthScreen.svelte';
   import UpgradeModal from './components/UpgradeModal.svelte';
+  import HelpGuideModal from './components/HelpGuideModal.svelte';
   import Header from './components/Header.svelte';
   import Sidebar from './components/Sidebar.svelte';
   import { currentUser, authInitialized } from './lib/auth.js';
@@ -88,6 +89,10 @@
     }
   });
 
+  // Active entity details
+  let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { id: 'default', name: 'Ma Structure', model: 'all' });
+  let accountingModel = $derived(activeEntity ? (activeEntity.model || 'all') : 'all');
+
   // Tour Guide states
   let tourActive = $state(false);
   let tourStep = $state(0);
@@ -95,37 +100,32 @@
   let popoverLeft = $state(0);
   let popoverAbove = $state(false);
 
-  const tourSteps = [
+  let tourSteps = $derived([
     {
-      targetId: 'start-tour-btn',
-      title: 'Bienvenue sur ComptaSimples !',
-      text: "Nous allons vous faire découvrir l'application en 5 étapes rapides. Ici, pas de jargon comptable incompréhensible, tout est fait pour vous faire gagner du temps !"
-    },
-    {
-      targetId: 'menu-import',
-      title: 'Étape 1 : Importer vos relevés',
-      text: "C'est par ici que tout commence. Téléchargez votre relevé bancaire au format CSV depuis votre compte bancaire et importez-le en 2 secondes par simple glisser-déposer."
+      targetId: 'menu-dashboard',
+      view: 'dashboard',
+      title: '1. Accueil · Panorama instantané',
+      text: "Votre tableau de bord en direct. Suivez votre solde de trésorerie au centime près et visualisez en un clin d'œil le résultat de votre exercice (excédent ou déficit)."
     },
     {
       targetId: 'menu-categorize',
-      title: 'Étape 2 : Attribution',
-      text: "Une fois importées, le système classe automatiquement la majorité des opérations. S'il reste des transactions inconnues, vous les attribuez manuellement ici. En quelques clics, tout est en ordre !"
+      view: 'categorize',
+      title: '2. Libellés & Attribution',
+      text: "Importez vos relevés bancaires en CSV. ScriptCompta classe automatiquement vos opérations dans les bons comptes comptables et mémorise vos choix dans un dictionnaire intelligent."
     },
-    {
-      targetId: 'menu-members',
-      title: 'Étape 3 : Vos modules de gestion',
-      text: "Ces onglets s'adaptent à votre activité. Suivez par exemple qui sont vos élèves ou adhérents, combien ils vous doivent pour l'année, et relancez les retards de paiements en 1 clic."
-    },
+    ...(accountingModel === 'asso' ? [{
+      targetId: 'menu-activity',
+      view: 'activity',
+      title: '3. Gestion des recettes',
+      text: "Pilotez vos adhésions, cotisations et forfaits : visualisez les encaissements sous les comptes 756/706 ou importez votre propre fichier CSV pour le suivi des paiements."
+    }] : []),
     {
       targetId: 'menu-books',
-      title: 'Étape 4 : Vos Obligations',
-      text: "Tous vos registres légaux, livres obligatoires et déclarations se génèrent d'eux-mêmes, prêts pour l'administration fiscale ou votre expert-comptable."
+      view: 'books',
+      title: `${accountingModel === 'asso' ? '4' : '3'}. Vos Obligations comptables`,
+      text: "Tous vos registres légaux (Grand Livre, Livre-Journal, Balance et Fichier FEC normé DGFiP) sont générés automatiquement, prêts pour votre expert-comptable ou l'AG."
     }
-  ];
-
-  // Active entity details
-  let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { id: 'default', name: 'Ma Structure', model: 'all' });
-  let accountingModel = $derived(activeEntity ? (activeEntity.model || 'all') : 'all');
+  ]);
 
   // Count pending transactions
   let pendingTxBadgeCount = $derived($transactions.filter(
@@ -200,8 +200,12 @@
   async function startTour() {
     tourStep = 0;
     tourActive = true;
+    const step = tourSteps[0];
+    if (step?.view) {
+      $activeView = step.view;
+    }
     await tick();
-    positionTourPopover();
+    setTimeout(() => positionTourPopover(), 50);
   }
 
   function stopTour() {
@@ -211,10 +215,13 @@
 
   async function nextTourStep() {
     if (tourStep < tourSteps.length - 1) {
-      // If we go to step 2/3/4, make sure to show correct views or highlights
       tourStep++;
+      const step = tourSteps[tourStep];
+      if (step?.view) {
+        $activeView = step.view;
+      }
       await tick();
-      positionTourPopover();
+      setTimeout(() => positionTourPopover(), 50);
     } else {
       stopTour();
     }
@@ -223,12 +230,17 @@
   async function prevTourStep() {
     if (tourStep > 0) {
       tourStep--;
+      const step = tourSteps[tourStep];
+      if (step?.view) {
+        $activeView = step.view;
+      }
       await tick();
-      positionTourPopover();
+      setTimeout(() => positionTourPopover(), 50);
     }
   }
 
   function positionTourPopover() {
+    if (!tourActive || !tourSteps[tourStep]) return;
     const step = tourSteps[tourStep];
     const target = document.getElementById(step.targetId);
 
@@ -236,22 +248,16 @@
     document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
 
     if (!target) {
-      // If target menu item is hidden due to current accountingModel, skip positioning
       return;
     }
 
     target.classList.add('tour-highlight');
     const rect = target.getBoundingClientRect();
 
-    if (rect.bottom + 200 < window.innerHeight) {
-      popoverTop = rect.bottom + window.scrollY + 10;
-      popoverLeft = rect.left + window.scrollX;
-      popoverAbove = false;
-    } else {
-      popoverTop = rect.top + window.scrollY - 180;
-      popoverLeft = rect.left + window.scrollX;
-      popoverAbove = true;
-    }
+    // Positionner l'infobulle à droite de l'onglet de la barre latérale
+    popoverLeft = Math.max(16, rect.right + 16);
+    popoverTop = Math.max(20, Math.min(window.innerHeight - 260, rect.top - 10)) + window.scrollY;
+    popoverAbove = false;
   }
 
   // Monitor resize for tour popover
@@ -404,3 +410,5 @@
     </div>
   </div>
 {/if}
+
+<HelpGuideModal {startTour} />

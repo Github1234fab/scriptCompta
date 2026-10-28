@@ -12,7 +12,8 @@
     showUpgradeModal, 
     FREE_TIER_MAX_TRANSACTIONS,
     MANAGEMENT_MODELS,
-    showToast
+    showToast,
+    openHelpGuide
   } from '../lib/store.js';
   import { currentUser } from '../lib/auth.js';
   import { updateUserPlan } from '../lib/firestoreService.js';
@@ -49,8 +50,9 @@
       }
     }
 
+    /** @param {any} e */
     function handleDocClick(e) {
-      if (!e.target.closest('#org-switcher-container')) {
+      if (!e.target?.closest?.('#org-switcher-container')) {
         showOrgDropdown = false;
       }
     }
@@ -215,6 +217,15 @@
            onclick={() => switchView('dashboard')}>
           <i class="fa-solid fa-house"></i>
           <span class="menu-label-text">Accueil</span>
+          <button 
+            type="button" 
+            class="sidebar-tab-help"
+            title="Aide sur l'Accueil" 
+            aria-label="Aide sur l'Accueil"
+            onclick={(e) => { e.stopPropagation(); openHelpGuide('accueil'); }}
+          >
+            ?
+          </button>
         </span>
       </li>
 
@@ -229,13 +240,25 @@
            onclick={() => switchView('categorize')}>
           <i class="fa-solid fa-arrows-split-up-and-left"></i>
           <span class="menu-label-text">Attribution</span>
-          {#if pendingTxBadgeCount > 0}
-            <span class="badge" id="pending-tx-badge" style="margin-left: auto; background: #f59e0b; color: #ffffff; font-size: 0.72rem; padding: 2px 7px; border-radius: 10px; font-weight: 800; min-width: 18px; text-align: center; flex-shrink: 0;">{pendingTxBadgeCount}</span>
-          {/if}
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
+            {#if pendingTxBadgeCount > 0}
+              <span class="badge" id="pending-tx-badge" style="background: #f59e0b; color: #ffffff; font-size: 0.72rem; padding: 2px 7px; border-radius: 10px; font-weight: 800; min-width: 18px; text-align: center; flex-shrink: 0;">{pendingTxBadgeCount}</span>
+            {/if}
+            <button 
+              type="button" 
+              class="sidebar-tab-help"
+              style="margin-left: 0;"
+              title="Aide sur l'Attribution" 
+              aria-label="Aide sur l'Attribution"
+              onclick={(e) => { e.stopPropagation(); openHelpGuide('attribution'); }}
+            >
+              ?
+            </button>
+          </div>
         </span>
       </li>
 
-      <!-- 3. GESTION DES ADHÉRENTS & DONS (Uniquement pour le modèle Association car il s'agit d'un registre d'adhérents et de reçus fiscaux CERFA ; masqué pour les structures professionnelles où tout est piloté depuis l'Accueil) -->
+      <!-- 3. GESTION DES ADHÉRENTS & DONS (Modèle Association) -->
       {#if accountingModel === 'asso'}
         <li style="margin-bottom: 6px;">
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -247,6 +270,15 @@
              onclick={() => switchView('activity')}>
             <i class="fa-solid {activityIcon}"></i>
             <span class="menu-label-text">{activityLabel}</span>
+            <button 
+              type="button" 
+              class="sidebar-tab-help"
+              title="Aide sur la Gestion des Recettes" 
+              aria-label="Aide sur la Gestion des Recettes"
+              onclick={(e) => { e.stopPropagation(); openHelpGuide('recettes'); }}
+            >
+              ?
+            </button>
           </span>
         </li>
       {/if}
@@ -262,20 +294,29 @@
            onclick={() => switchView('books')}>
           <i class="fa-solid fa-scale-balanced"></i>
           <span class="menu-label-text">{booksLabel || 'Obligation'}</span>
+          <button 
+            type="button" 
+            class="sidebar-tab-help"
+            title="Aide sur les Obligations" 
+            aria-label="Aide sur les Obligations"
+            onclick={(e) => { e.stopPropagation(); openHelpGuide('obligations'); }}
+          >
+            ?
+          </button>
         </span>
       </li>
 
-      <!-- 5. GUIDE D'UTILISATION (Tutoriel interactif) -->
+      <!-- 5. VISITE GUIDÉE (Tutoriel interactif pas à pas) -->
       <li style="margin-bottom: 6px; margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 12px;">
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <span 
            id="start-tour-btn" 
            class="menu-item" 
-           style="color: #60a5fa !important;" 
-           title="Guide d'utilisation"
-           onclick={() => startTour && startTour()}>
-          <i class="fa-solid fa-circle-play" style="color: #60a5fa !important;"></i>
-          <span class="menu-label-text" style="color: #60a5fa;">Guide d'utilisation</span>
+           style="color: #60a5fa !important; cursor: pointer;" 
+           title="Lancer la visite guidée interactive"
+           onclick={() => { if (startTour) startTour(); }}>
+          <i class="fa-solid fa-compass" style="color: #60a5fa !important;"></i>
+          <span class="menu-label-text" style="color: #60a5fa; font-weight: 600;">Visite guidée</span>
         </span>
       </li>
 
@@ -388,5 +429,33 @@
 <style>
   .sidebar-resizer:hover, .sidebar-resizer:active {
     background: rgba(59, 130, 246, 0.4);
+  }
+
+  .sidebar-tab-help {
+    margin-left: auto;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    line-height: 1;
+    padding: 0;
+  }
+
+  .sidebar-tab-help:hover {
+    background: #2563eb;
+    border-color: #3b82f6;
+    color: #ffffff;
+    transform: scale(1.15);
   }
 </style>

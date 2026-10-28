@@ -39,6 +39,18 @@ export const isPremium = derived([userProfile, isAdmin], ([$p, $admin]) => {
 });
 
 export const showUpgradeModal = writable(false);
+export const showHelpGuideModal = writable(false);
+export const helpGuideSection = writable('intro'); // 'intro' | 'accueil' | 'attribution' | 'recettes' | 'obligations'
+
+/** @param {'intro' | 'accueil' | 'attribution' | 'recettes' | 'obligations'} [section] */
+export function openHelpGuide(section = 'intro') {
+  helpGuideSection.set(section);
+  showHelpGuideModal.set(true);
+}
+
+export function closeHelpGuide() {
+  showHelpGuideModal.set(false);
+}
 
 // Visual states
 export const activeView = writable('dashboard');

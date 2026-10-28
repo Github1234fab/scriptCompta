@@ -1,5 +1,5 @@
 <script>
-  import { transactions, planComptable, activeEntityId, entities, activeView, showToast, formatDateFr, initialBankBalance, updateInitialBankBalance } from '../lib/store.js';
+  import { transactions, planComptable, activeEntityId, entities, activeView, showToast, formatDateFr, initialBankBalance, updateInitialBankBalance, openHelpGuide } from '../lib/store.js';
   import PageHeader from './PageHeader.svelte';
   import KpiCard from './KpiCard.svelte';
 
@@ -194,7 +194,19 @@
     buttonLabel={buttonLabel}
     buttonIcon={buttonIcon}
     onButtonClick={() => activeView.set('books')}
-  />
+  >
+    <button 
+      type="button" 
+      onclick={() => openHelpGuide('accueil')}
+      title="Guide d'utilisation pour l'accueil"
+      aria-label="Guide d'utilisation pour l'accueil"
+      style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #ffffff; border: 1.5px solid #cbd5e1; color: #2563eb; font-size: 0.95rem; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.04); flex-shrink: 0;"
+      onmouseenter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.background = '#eff6ff'; }}
+      onmouseleave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff'; }}
+    >
+      <i class="fa-solid fa-question"></i>
+    </button>
+  </PageHeader>
 
   <!-- 1. VOTRE ENTREPRISE / STRUCTURE (Indicateurs clés) -->
   <div style="margin-bottom: 30px;">

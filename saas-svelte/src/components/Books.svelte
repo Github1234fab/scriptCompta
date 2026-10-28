@@ -11,7 +11,8 @@
     showToast,
     activeEntityId,
     entities,
-    updateEntities
+    updateEntities,
+    openHelpGuide
   } from '../lib/store.js';
   import { Categorizer } from '../lib/categorizer.js';
 
@@ -742,8 +743,8 @@
 
 </script>
 
-<div class="page-title-section" style="margin-bottom: 24px;">
-  <div>
+<div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 24px; flex-wrap: wrap;">
+  <div style="flex: 1; min-width: 280px;">
     <h1 class="page-title" style="margin: 0 0 6px 0; font-family: var(--font-title); font-weight: 800; font-size: 1.6rem; color: #0f172a;">
       {#if accountingModel === 'micro'}
         Registres Obligatoires & Déclaration Urssaf
@@ -779,6 +780,18 @@
       {/if}
     </p>
   </div>
+
+  <button 
+    type="button" 
+    onclick={() => openHelpGuide('obligations')}
+    title="Guide d'utilisation pour vos obligations et registres"
+    aria-label="Guide d'utilisation pour vos obligations et registres"
+    style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #ffffff; border: 1.5px solid #cbd5e1; color: #2563eb; font-size: 0.95rem; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.04); flex-shrink: 0;"
+    onmouseenter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.background = '#eff6ff'; }}
+    onmouseleave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff'; }}
+  >
+    <i class="fa-solid fa-question"></i>
+  </button>
 </div>
 
 <!-- ========================================== -->

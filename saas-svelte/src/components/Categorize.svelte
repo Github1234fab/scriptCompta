@@ -14,7 +14,8 @@
     isPremium,
     showUpgradeModal,
     FREE_TIER_MAX_TRANSACTIONS,
-    formatDateFr
+    formatDateFr,
+    openHelpGuide
   } from "../lib/store.js";
   
   // Active tab filter: 'pending' vs 'categorized' vs null
@@ -991,17 +992,17 @@
   </div>
 
   <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-    <!-- Guide d'attribution bien en évidence tout en haut -->
+    <!-- Bouton Aide & Guide d'attribution -->
     <button 
       type="button" 
-      onclick={() => (showPedagogicalModal = true)}
-      title="Consulter les explications et le guide d'attribution"
-      style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.86rem; padding: 8px 16px; background: #ffffff; border: 1.5px solid #2563eb; color: #2563eb; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12);"
-      onmouseenter={(e) => { e.currentTarget.style.background = '#eff6ff'; }}
-      onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
+      onclick={() => openHelpGuide('attribution')}
+      title="Guide d'utilisation pour l'attribution"
+      aria-label="Guide d'utilisation pour l'attribution"
+      style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #ffffff; border: 1.5px solid #cbd5e1; color: #2563eb; font-size: 0.95rem; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.04);"
+      onmouseenter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.background = '#eff6ff'; }}
+      onmouseleave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff'; }}
     >
-      <i class="fa-regular fa-circle-question" style="font-size: 0.95rem; color: #2563eb;"></i>
-      Guide d'attribution
+      <i class="fa-solid fa-question"></i>
     </button>
 
     {#if lastStateTransactions}

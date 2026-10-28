@@ -2,6 +2,7 @@
   import Members from './Members.svelte';
   import Donations from './Donations.svelte';
   import Sales from './Sales.svelte';
+  import { openHelpGuide } from '../lib/store.js';
 
   // Carte actuellement survolée / sélectionnée
   let selectedCard = $state('members'); // 'members', 'donations', or 'sales'
@@ -71,6 +72,29 @@
     background: #1d4ed8;
   }
 </style>
+
+<div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 24px; flex-wrap: wrap;">
+  <div>
+    <h1 class="page-title" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main, #0f172a); font-family: var(--font-title, sans-serif);">
+      Gestion des Recettes
+    </h1>
+    <p class="page-subtitle" style="margin: 4px 0 0 0; font-size: 0.86rem; color: var(--text-muted, #64748b);">
+      Suivez vos encaissements par type d'activité : cotisations, cours, forfaits, dons et ventes.
+    </p>
+  </div>
+
+  <button 
+    type="button" 
+    onclick={() => openHelpGuide('recettes')}
+    title="Guide d'utilisation pour la gestion des recettes"
+    aria-label="Guide d'utilisation pour la gestion des recettes"
+    style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #ffffff; border: 1.5px solid #cbd5e1; color: #2563eb; font-size: 0.95rem; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.04); flex-shrink: 0;"
+    onmouseenter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.background = '#eff6ff'; }}
+    onmouseleave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff'; }}
+  >
+    <i class="fa-solid fa-question"></i>
+  </button>
+</div>
 
 <!-- BLOCS DE GESTION DES RECETTES PAR COMPTE COMPTABLE -->
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px;">
