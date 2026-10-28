@@ -17,7 +17,8 @@
     formatDateFr
   } from "../lib/store.js";
   
-  // Active tab filter: 'pending' vs 'categorized'
+  // Active tab filter: 'pending' vs 'categorized' vs null
+  /** @type {'pending' | 'categorized' | null} */
   let activeTab = $state('pending');
 
   // Similar transactions modal state
@@ -239,6 +240,7 @@
       // Categorize using rules & dictionary
       const recatted = Categorizer.categoriserTransactions([...newTxList, ...currentStructureTx]);
       updateTransactions(recatted);
+      activeTab = 'pending';
       showToast(`${newTxList.length} opération(s) importée(s) avec succès depuis "${file.name}".`);
     };
     reader.readAsText(file);
@@ -1012,13 +1014,15 @@
 
 <!-- ========================================== -->
 <!-- ======================================================= -->
-<!-- GRILLE DU HAUT (2 COLONNES) : IMPORT & PARAMÉTRAGE -->
 <!-- ======================================================= -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px; margin-bottom: 26px; max-width: 1000px;">
-  <!-- 1. IMPORT DE RELEVÉ BANCAIRE (CSV) -->
-  <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between;">
+<!-- GRILLE DU HAUT (3 CARTES CÔTE À CÔTE EN RESPONSIVE)     -->
+<!-- ======================================================= -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px;">
+  
+  <!-- CARTE 1 : IMPORT DE RELEVÉ BANCAIRE (CSV) -->
+  <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; gap: 14px;">
     <!-- En-tête du bloc -->
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
       <div>
         <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
           <i class="fa-solid fa-cloud-arrow-up" style="color: #2563eb; font-size: 0.92rem;"></i> Import de relevé bancaire
@@ -1028,23 +1032,22 @@
         </span>
       </div>
 
-      <!-- Actions de l'en-tête : Supprimer le relevé -->
+      <!-- Action Annuler sobre et discrète -->
       {#if currentStructureTx.length > 0}
         <button 
           type="button" 
           onclick={effacerToutesOperations}
-          style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.75rem; padding: 5px 12px; background: #ffffff; border: 1px solid #fecaca; color: #dc2626; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;"
-          onmouseenter={(e) => { e.currentTarget.style.background = '#fef2f2'; }}
-          onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
-          title="Supprimer toutes les écritures de cette structure"
+          style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.75rem; padding: 4px 10px; background: #ffffff; border: 1px solid #cbd5e1; color: #64748b; border-radius: 6px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; flex-shrink: 0;"
+          onmouseenter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }}
+          onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#64748b'; }}
+          title="Annuler et réinitialiser le relevé bancaire"
         >
-          <i class="fa-solid fa-trash-can" style="font-size: 0.72rem;"></i>
-          Supprimer le relevé ({currentStructureTx.length})
+          Annuler
         </button>
       {/if}
     </div>
 
-    <!-- Zone de drop épurée sur fond blanc avec contour en tirets -->
+    <!-- Zone de drop harmonisée en fond bleu clair (#eff6ff / #bfdbfe) -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div 
       class="dropzone {dragover ? 'dragover' : ''}" 
@@ -1053,19 +1056,19 @@
       ondragover={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
       ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); dragover = false; }}
       ondrop={handleCSVDrop}
-      style="cursor: pointer; width: 100%; display: flex; align-items: center; gap: 14px; padding: 18px 20px; background: {dragover ? '#eff6ff' : '#ffffff'}; border: 1.5px dashed {dragover ? '#3b82f6' : '#cbd5e1'}; border-radius: 12px; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); box-sizing: border-box; flex: 1; min-height: 84px;"
-      onmouseenter={(e) => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#f8fafc'; }}
-      onmouseleave={(e) => { if (!dragover) { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff'; } }}
+      style="cursor: pointer; width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #eff6ff; border: 1.5px dashed {dragover ? '#2563eb' : '#bfdbfe'}; border-radius: 12px; transition: all 0.2s ease; box-sizing: border-box; flex: 1; min-height: 80px;"
+      onmouseenter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; }}
+      onmouseleave={(e) => { if (!dragover) { e.currentTarget.style.borderColor = '#bfdbfe'; } }}
     >
-      <div style="width: 44px; height: 44px; border-radius: 10px; background: #eff6ff; border: 1px solid #bfdbfe; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; pointer-events: none;">
+      <div style="width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid #bfdbfe; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; pointer-events: none;">
         <i class="fa-solid fa-cloud-arrow-up"></i>
       </div>
-      <div style="pointer-events: none;">
-        <div style="font-weight: 800; font-size: 0.94rem; color: #0f172a; margin-bottom: 2px;">
+      <div style="pointer-events: none; min-width: 0;">
+        <div style="font-weight: 800; font-size: 0.9rem; color: #1e3a8a; margin-bottom: 2px;">
           Déposez votre fichier bancaire CSV ici
         </div>
-        <div style="font-size: 0.76rem; color: #64748b; font-weight: 500;">
-          Compatible avec toutes les banques (BoursoBank, BNP, Crédit Agricole, Qonto, Shine, etc.)
+        <div style="font-size: 0.74rem; color: #1e40af; font-weight: 500;">
+          Compatible toutes banques (BoursoBank, BNP, CA, Qonto...)
         </div>
       </div>
 
@@ -1079,86 +1082,87 @@
     </div>
   </div>
 
-  <!-- 2. PARAMÉTRAGE DU DICTIONNAIRE -->
-  <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between;">
+  <!-- CARTE 2 : PARAMÉTRAGE DU DICTIONNAIRE -->
+  <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; gap: 14px;">
     <!-- En-tête du bloc -->
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-      <div>
-        <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-gear" style="color: #2563eb; font-size: 0.92rem;"></i> Paramétrage
-        </h3>
-        <span style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
-          Consultez et personnalisez les correspondances de votre dictionnaire comptable
-        </span>
-      </div>
+    <div>
+      <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-gear" style="color: #2563eb; font-size: 0.92rem;"></i> Paramétrage
+      </h3>
+      <span style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
+        Consultez et personnalisez les correspondances de votre dictionnaire comptable
+      </span>
     </div>
 
-    <!-- Carte unique Dictionnaire d'attribution -->
-    <div style="padding: 14px 18px; background: var(--bg-card, #ffffff); border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; flex: 1; min-height: 84px; box-sizing: border-box;">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <div style="width: 40px; height: 40px; border-radius: 9px; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;">
+    <!-- Carte intérieure blanche -->
+    <div style="padding: 14px 16px; background: var(--bg-card, #ffffff); border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: 1; min-height: 80px; box-sizing: border-box;">
+      <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+        <div style="width: 38px; height: 38px; border-radius: 9px; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;">
           <i class="fa-solid fa-book-bookmark"></i>
         </div>
-        <div>
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span style="font-weight: 800; font-size: 0.94rem; color: #0f172a;">Dictionnaire d'attribution</span>
-            <span style="font-size: 0.74rem; color: #1e3a8a; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 6px; font-weight: 700;">{$rules.length} règles actuellement attribuées</span>
-          </div>
-          <div style="font-size: 0.78rem; color: #64748b; margin-top: 2px;">
-            Mémorise automatiquement les mots-clés et associe les libellés bancaires aux bons comptes officiels.
-          </div>
+        <div style="min-width: 0;">
+          <div style="font-weight: 800; font-size: 0.9rem; color: #0f172a;">Dictionnaire d'attribution</div>
+          <span style="font-size: 0.72rem; color: #1e3a8a; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 6px; font-weight: 700; display: inline-block; margin-top: 2px;">{$rules.length} règles attribuées</span>
         </div>
       </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <button 
-          type="button" 
-          onclick={() => showDictionaryModal = true}
-          style="background: #0f172a; color: #ffffff; border: none; padding: 7px 16px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.82rem; transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12); display: flex; align-items: center; gap: 6px;"
-        >
-          <i class="fa-solid fa-sliders" style="font-size: 0.75rem;"></i>
-          Paramétrer
-        </button>
-      </div>
+      <button 
+        type="button" 
+        onclick={() => showDictionaryModal = true}
+        style="background: #0f172a; color: #ffffff; border: none; padding: 7px 14px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.82rem; flex-shrink: 0; transition: background 0.15s ease;"
+      >
+        Paramétrer
+      </button>
     </div>
   </div>
-</div>
 
-<!-- ========================================== -->
-<!-- 3. TRAITEMENT ET AFFECTATION DES OPÉRATIONS -->
-<!-- ========================================== -->
-<div style="margin-bottom: 30px; max-width: 1000px;">
-  <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-    <!-- En-tête du bloc : Titre, sous-titre, puis CTA en-dessous -->
-    <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: {(activeTab === 'pending' && nonTriees.length === 0) ? '0' : '16px'};">
-      <div>
-        <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-arrows-split-up-and-left" style="color: #2563eb; font-size: 0.92rem;"></i> Traitement et affectation des opérations
-        </h3>
-        <span style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
-          Affectez chaque dépense ou recette à son compte officiel
-        </span>
-      </div>
-
-      <!-- Onglets intégrés sous le sous-titre -->
-      <div style="display: inline-flex; gap: 6px; background: #ffffff; padding: 4px; border-radius: 10px; border: 1.5px solid #cbd5e1; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-        <button
-          style="border: none; background: {activeTab === 'pending' ? '#0f172a' : 'transparent'}; color: {activeTab === 'pending' ? '#ffffff' : '#475569'}; font-size: 0.84rem; padding: 6px 16px; border-radius: 7px; cursor: pointer; font-weight: 700; transition: all 0.15s ease;"
-          onclick={() => (activeTab = "pending")}
-        >
-          Reste à attribuer ({nonTriees.length})
-        </button>
-        <button
-          style="border: none; background: {activeTab === 'categorized' ? '#0f172a' : 'transparent'}; color: {activeTab === 'categorized' ? '#ffffff' : '#475569'}; font-size: 0.84rem; padding: 6px 16px; border-radius: 7px; cursor: pointer; font-weight: 700; transition: all 0.15s ease;"
-          onclick={() => (activeTab = "categorized")}
-        >
-          Attribuées ({triees.length})
-        </button>
-      </div>
+  <!-- CARTE 3 : TRAITEMENT ET AFFECTATION DES OPÉRATIONS (MÊME UI DE CARTE) -->
+  <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; gap: 14px;">
+    <!-- En-tête du bloc -->
+    <div>
+      <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-arrows-split-up-and-left" style="color: #2563eb; font-size: 0.92rem;"></i> Traitement et affectation des opérations
+      </h3>
+      <span style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
+        Affectez chaque dépense ou recette à son compte officiel
+      </span>
     </div>
 
-    <!-- Carte blanche intérieure avec toolbar & tableau uniquement si du contenu est présent -->
-    {#if (activeTab === 'pending' && nonTriees.length > 0) || activeTab === 'categorized'}
-      <div style="padding: 16px; background: var(--bg-card, #ffffff); border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); width: 100%; box-sizing: border-box; border: 1px solid #e2e8f0;">
+    <!-- Carte intérieure blanche avec deux boutons bien distincts -->
+    <div style="padding: 14px 16px; background: var(--bg-card, #ffffff); border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; align-items: center; justify-content: center; gap: 10px; flex: 1; min-height: 80px; box-sizing: border-box;">
+      <button
+        type="button"
+        style="flex: 1; padding: 9px 12px; border-radius: 8px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'pending' && nonTriees.length > 0 ? 'background: #0f172a; color: #ffffff; border: 1.5px solid #0f172a; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);' : 'background: #ffffff; color: #334155; border: 1.5px solid #cbd5e1;'}"
+        onclick={() => {
+          activeTab = activeTab === 'pending' ? null : 'pending';
+        }}
+        onmouseenter={(e) => { if (activeTab !== 'pending' || nonTriees.length === 0) e.currentTarget.style.borderColor = '#94a3b8'; }}
+        onmouseleave={(e) => { if (activeTab !== 'pending' || nonTriees.length === 0) e.currentTarget.style.borderColor = '#cbd5e1'; }}
+      >
+        Attribuer ({nonTriees.length})
+      </button>
+
+      <button
+        type="button"
+        style="flex: 1; padding: 9px 12px; border-radius: 8px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'categorized' && triees.length > 0 ? 'background: #0f172a; color: #ffffff; border: 1.5px solid #0f172a; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);' : 'background: #ffffff; color: #334155; border: 1.5px solid #cbd5e1;'}"
+        onclick={() => {
+          activeTab = activeTab === 'categorized' ? null : 'categorized';
+        }}
+        onmouseenter={(e) => { if (activeTab !== 'categorized' || triees.length === 0) e.currentTarget.style.borderColor = '#94a3b8'; }}
+        onmouseleave={(e) => { if (activeTab !== 'categorized' || triees.length === 0) e.currentTarget.style.borderColor = '#cbd5e1'; }}
+      >
+        Voir ({triees.length})
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ======================================================= -->
+<!-- CONTENEUR DU TABLEAU DE TRAITEMENT DES OPÉRATIONS       -->
+<!-- ======================================================= -->
+{#if (activeTab === 'pending' && nonTriees.length > 0) || (activeTab === 'categorized' && triees.length > 0)}
+  <div style="margin-bottom: 30px; background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+    <div style="padding: 16px; background: var(--bg-card, #ffffff); border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); width: 100%; box-sizing: border-box; border: 1px solid #e2e8f0;">
         
         {#if activeTab === 'pending'}
           {#if recognizedList.length > 0}
@@ -1421,9 +1425,8 @@
         {/if}
       {/if}
     </div>
-  {/if}
   </div>
-</div>
+{/if}
 
 <!-- Pedagogical Onboarding Modal -->
 {#if showPedagogicalModal}
