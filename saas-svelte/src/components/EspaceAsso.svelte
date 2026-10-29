@@ -2,6 +2,7 @@
   import Members from './Members.svelte';
   import Donations from './Donations.svelte';
   import Sales from './Sales.svelte';
+  import InfoTip from './InfoTip.svelte';
   import { openHelpGuide } from '../lib/store.js';
 
   // Carte actuellement survolée / sélectionnée
@@ -109,8 +110,9 @@
   >
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
-        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; font-family: var(--font-title);">
-          Recette en 756 et 706
+        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; font-family: var(--font-title); display: flex; align-items: center;">
+          <span>Recette en 756 et 706</span>
+          <InfoTip text="Isole et pilote vos cotisations, adhésions et forfaits encaissés sur votre compte bancaire." width="250px" />
         </h3>
         <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
           756 · 706
@@ -148,8 +150,9 @@
   >
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
-        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; font-family: var(--font-title);">
-          Recette en 754
+        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; font-family: var(--font-title); display: flex; align-items: center;">
+          <span>Recette en 754</span>
+          <InfoTip text="Registre officiel de vos soutiens financiers et génération des reçus fiscaux (CERFA)." width="250px" />
         </h3>
         <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
           754
@@ -187,8 +190,9 @@
   >
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
-        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; font-family: var(--font-title);">
-          Recette en 707 et 708
+        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; font-family: var(--font-title); display: flex; align-items: center;">
+          <span>Recette en 707 et 708</span>
+          <InfoTip text="Suivi des recettes accessoires (stages, boutique, buvette, billetterie d'événements)." width="250px" />
         </h3>
         <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
           707 · 708

@@ -39,6 +39,7 @@ export const isPremium = derived([userProfile, isAdmin], ([$p, $admin]) => {
 });
 
 export const showUpgradeModal = writable(false);
+export const showCancelModal = writable(false);
 export const showHelpGuideModal = writable(false);
 export const helpGuideSection = writable('intro'); // 'intro' | 'accueil' | 'attribution' | 'recettes' | 'obligations'
 

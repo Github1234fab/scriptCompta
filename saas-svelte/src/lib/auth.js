@@ -5,7 +5,8 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { resetAllStores } from './store.js';
 
@@ -151,6 +152,15 @@ export async function logoutUser() {
   } finally {
     authLoading.set(false);
   }
+}
+
+/**
+ * Envoi d'un lien de réinitialisation de mot de passe par e-mail
+ * @param {string} email
+ */
+export async function sendResetPassword(email) {
+  if (!email) throw new Error("Adresse e-mail requise.");
+  await sendPasswordResetEmail(auth, email);
 }
 
 /**

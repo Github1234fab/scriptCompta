@@ -36,6 +36,7 @@
   import WelcomeScreen from './components/WelcomeScreen.svelte';
   import AuthScreen from './components/AuthScreen.svelte';
   import UpgradeModal from './components/UpgradeModal.svelte';
+  import CancelSubscriptionModal from './components/CancelSubscriptionModal.svelte';
   import HelpGuideModal from './components/HelpGuideModal.svelte';
   import Header from './components/Header.svelte';
   import Sidebar from './components/Sidebar.svelte';
@@ -375,6 +376,9 @@
 
 <!-- MODAL : SURCLASSEMENT VERS FORMULE ILLIMITÉE -->
 <UpgradeModal />
+
+<!-- MODAL : GESTION & RÉSILIATION D'ABONNEMENT -->
+<CancelSubscriptionModal />
 
 
 

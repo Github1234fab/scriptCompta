@@ -15,6 +15,7 @@
     openHelpGuide
   } from '../lib/store.js';
   import { Categorizer } from '../lib/categorizer.js';
+  import InfoTip from './InfoTip.svelte';
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { id: 'default', name: 'Ma Structure', model: 'micro' });
   let accountingModel = $derived(activeEntity?.model || 'micro');
@@ -804,6 +805,7 @@
       <div>
         <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
           <i class="fa-solid fa-scale-balanced" style="color: #2563eb; font-size: 0.95rem;"></i> Exercice fiscal
+          <InfoTip text="Définissez les 12 mois de votre saison ou année comptable à certifier." width="250px" />
         </h3>
         <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
           Sélectionnez la période à clôturer pour générer vos registres et votre export officiel
@@ -812,9 +814,12 @@
 
       <!-- Badge récapitulatif -->
       {#if localStartDate && localEndDate}
-        <span style="font-size: 0.8rem; font-weight: 700; color: #166534; background: #dcfce7; border: 1px solid #86efac; padding: 5px 12px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px;">
-          <i class="fa-solid fa-circle-check"></i> {formatPeriodLabel(localStartDate, localEndDate)} (12 mois)
-        </span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 0.8rem; font-weight: 700; color: #166534; background: #dcfce7; border: 1px solid #86efac; padding: 5px 12px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-circle-check"></i> {formatPeriodLabel(localStartDate, localEndDate)} (12 mois)
+          </span>
+          <InfoTip text="Verrouille la période légale exacte pour répondre aux normes des experts-comptables et de l'administration." width="250px" />
+        </div>
       {:else}
         <span style="font-size: 0.8rem; font-weight: 700; color: #475569; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 9999px;">
           Tout l'historique
@@ -921,6 +926,7 @@
                 <span style="font-size: 0.72rem; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: 800;">
                   12 MOIS
                 </span>
+                <InfoTip text="Verrouille la période légale exacte pour répondre aux normes des experts-comptables et de l'administration." width="250px" />
               </div>
             </div>
 
@@ -1123,6 +1129,7 @@
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-weight: 800; font-size: 0.96rem; color: #0f172a;">Fichier des Écritures Comptables (FEC officiel)</span>
               <span style="font-size: 0.72rem; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 700; letter-spacing: 0.02em;">NORME DGFIP (ART. L.47 A-I LPF)</span>
+              <InfoTip text="Fichier informatique normalisé officiel exigé par le fisc en cas de contrôle ou pour votre expert." width="260px" />
             </div>
             <div style="font-size: 0.82rem; color: #64748b; margin-top: 3px;">
               Fichier informatique obligatoire à remettre à votre expert-comptable ou à l'administration fiscale.
@@ -1164,6 +1171,7 @@
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-weight: 800; font-size: 0.96rem; color: #0f172a;">Fichier des Écritures Comptables (FEC officiel)</span>
               <span style="font-size: 0.72rem; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 700; letter-spacing: 0.02em;">NORME DGFIP (ART. L.47 A-I LPF)</span>
+              <InfoTip text="Fichier informatique normalisé officiel exigé par le fisc en cas de contrôle ou pour votre expert." width="260px" />
             </div>
             <div style="font-size: 0.82rem; color: #64748b; margin-top: 3px;">
               Fichier informatique normé exigé par la DGFiP pour la clôture annuelle et votre expert-comptable.
@@ -1203,6 +1211,7 @@
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-weight: 800; font-size: 0.96rem; color: #0f172a;">Livre-Journal général</span>
               <span style="font-size: 0.72rem; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 700; letter-spacing: 0.02em;">CODE DE COMMERCE (ART. L.123-12)</span>
+              <InfoTip text="Registre chronologique obligatoire de toutes vos entrées et sorties au centime près." width="260px" />
             </div>
             <div style="font-size: 0.82rem; color: #64748b; margin-top: 3px;">
               Enregistrement chronologique officiel opération par opération avec débits et crédits équilibrés.
@@ -1242,6 +1251,7 @@
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-weight: 800; font-size: 0.96rem; color: #0f172a;">Grand-Livre général des comptes</span>
               <span style="font-size: 0.72rem; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 700; letter-spacing: 0.02em;">CODE DE COMMERCE (ART. L.123-12)</span>
+              <InfoTip text="Regroupement exhaustif de vos écritures compte par compte (achats, cotisations, banques)." width="260px" />
             </div>
             <div style="font-size: 0.82rem; color: #64748b; margin-top: 3px;">
               Ventilation intégrale de tous les mouvements compte par compte du plan comptable (classes 1 à 7).
@@ -1281,6 +1291,7 @@
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-weight: 800; font-size: 0.96rem; color: #0f172a;">Balance générale des comptes</span>
               <span style="font-size: 0.72rem; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 700; letter-spacing: 0.02em;">CONTRÔLE DE CLÔTURE</span>
+              <InfoTip text="État récapitulatif des soldes débiteurs et créditeurs validant l'équilibre parfait de vos comptes." width="260px" />
             </div>
             <div style="font-size: 0.82rem; color: #64748b; margin-top: 3px;">
               Récapitulatif des cumuls débits, crédits et soldes nets pour contrôler l'équilibre de l'exercice.

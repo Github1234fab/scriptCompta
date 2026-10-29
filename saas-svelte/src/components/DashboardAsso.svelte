@@ -3,6 +3,7 @@
   import { Categorizer } from '../lib/categorizer.js';
   import PageHeader from './PageHeader.svelte';
   import KpiCard from './KpiCard.svelte';
+  import InfoTip from './InfoTip.svelte';
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { name: 'Mon Association', model: 'asso' });
 
@@ -222,6 +223,7 @@
           value={(resultatNet >= 0 ? '+' : '') + resultatNet.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
           subtext="Recettes encaissées − Dépenses payées"
           textColor={resultatNet >= 0 ? '#16a34a' : '#dc2626'}
+          infoTip="Différence exacte entre vos recettes réelles et vos dépenses de l'exercice."
         />
 
         <KpiCard 
@@ -242,7 +244,9 @@
     <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px; display: flex; flex-direction: column; gap: 12px; max-width: 580px;">
       <div style="display: flex; align-items: center; gap: 10px;">
         <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-list-check" style="color: #2563eb; font-size: 0.92rem;"></i> Tâches à effectuer
+          <i class="fa-solid fa-list-check" style="color: #2563eb; font-size: 0.92rem;"></i> 
+          <span>Tâches à effectuer</span>
+          <InfoTip text="Indique le nombre d'opérations bancaires récemment importées qui attendent votre attribution." width="230px" />
         </h3>
         <span style="background: {pendingTxCount > 0 || retardsCount > 0 ? '#ef4444' : '#10b981'}; color: #ffffff; font-size: 0.74rem; font-weight: 800; padding: 2px 8px; border-radius: 9999px;">
           {totalTasksCount}
@@ -365,7 +369,10 @@
           <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
             <th style="padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase;">Date</th>
             <th style="padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase;">Libellé Opération</th>
-            <th style="padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase;">Attribution / Nature</th>
+            <th style="padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase;">
+              <span>Attribution / Nature</span>
+              <InfoTip text="Compte officiel dans lequel chaque opération est classée pour vos registres légaux." width="230px" position="bottom" />
+            </th>
             <th style="text-align: right; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase;">Montant</th>
           </tr>
         </thead>

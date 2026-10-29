@@ -497,25 +497,15 @@
         </div>
 
         <!-- Pied -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 28px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: #0b1329;">
-          <button
-            type="button"
-            onclick={handleStartTour}
-            style="background: #2563eb; color: #ffffff; border: none; padding: 10px 20px; font-weight: 700; font-size: 0.88rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(37,99,235,0.35); transition: background 0.15s ease;"
-            onmouseenter={(e) => { e.currentTarget.style.background = '#1d4ed8'; }}
-            onmouseleave={(e) => { e.currentTarget.style.background = '#2563eb'; }}
-          >
-            <i class="fa-solid fa-play"></i> Visiter l'application
-          </button>
-
+        <div style="display: flex; justify-content: flex-end; align-items: center; padding: 18px 28px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: #0b1329;">
           <button
             type="button"
             onclick={closeHelpGuide}
-            style="background: rgba(255, 255, 255, 0.1); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.15); padding: 10px 22px; font-weight: 700; font-size: 0.88rem; border-radius: 8px; cursor: pointer; transition: background 0.15s ease;"
-            onmouseenter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)'; }}
-            onmouseleave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; }}
+            style="background: #2563eb; color: #ffffff; border: none; padding: 10px 24px; font-weight: 700; font-size: 0.88rem; border-radius: 8px; cursor: pointer; transition: background 0.15s ease;"
+            onmouseenter={(e) => { e.currentTarget.style.background = '#1d4ed8'; }}
+            onmouseleave={(e) => { e.currentTarget.style.background = '#2563eb'; }}
           >
-            Commencer
+            Fermer le guide
           </button>
         </div>
       </div>

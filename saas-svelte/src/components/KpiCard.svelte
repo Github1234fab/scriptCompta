@@ -1,4 +1,6 @@
 <script>
+  import InfoTip from './InfoTip.svelte';
+
   /**
    * @type {{
    *   label: string,
@@ -10,7 +12,8 @@
    *   subtextColor?: string,
    *   progressBarPct?: number | null,
    *   actionLabel?: string,
-   *   onAction?: (() => void) | null
+   *   onAction?: (() => void) | null,
+   *   infoTip?: string
    * }}
    */
   let {
@@ -23,7 +26,8 @@
     subtextColor = '#64748b',
     progressBarPct = null,
     actionLabel = '',
-    onAction = null
+    onAction = null,
+    infoTip = ''
   } = $props();
 </script>
 
@@ -33,8 +37,11 @@
 >
   <div>
     <!-- TITRE PRINCIPAL -->
-    <h3 style="margin: 0 0 6px 0; font-size: 1.05rem; font-weight: 800; color: {textColor}; font-family: var(--font-title); letter-spacing: -0.015em; line-height: 1.25;">
-      {label}
+    <h3 style="margin: 0 0 6px 0; font-size: 1.05rem; font-weight: 800; color: {textColor}; font-family: var(--font-title); letter-spacing: -0.015em; line-height: 1.25; display: flex; align-items: center;">
+      <span>{label}</span>
+      {#if infoTip}
+        <InfoTip text={infoTip} />
+      {/if}
     </h3>
     
     <!-- SOUS-TITRE / PRÉCISION MÉTIER EN SECOND -->

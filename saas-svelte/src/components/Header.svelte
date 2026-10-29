@@ -1,6 +1,21 @@
 <script>
-  import { activeView, activeEntityId, entities, showCreateEntityModal, MANAGEMENT_MODELS, showToast } from '../lib/store.js';
-  import { currentUser, logoutUser } from '../lib/auth.js';
+  import { onMount } from 'svelte';
+  import { 
+    activeView, 
+    activeEntityId, 
+    entities, 
+    showCreateEntityModal, 
+    MANAGEMENT_MODELS, 
+    showToast,
+    isPremium,
+    isAdmin,
+    showUpgradeModal,
+    showCancelModal
+  } from '../lib/store.js';
+  import { currentUser, logoutUser, sendResetPassword } from '../lib/auth.js';
+  import InfoTip from './InfoTip.svelte';
+
+  const stripePortalUrl = import.meta.env.VITE_STRIPE_PORTAL_LINK || 'https://billing.stripe.com/p/login/test_8x24gy0MPgJi8wg3TP6c000';
 
   /** @type {{ startTour: () => void }} */
   let { startTour } = $props();
@@ -26,6 +41,18 @@
 
   let showLogoutModal = $state(false);
   let isLoggingOut = $state(false);
+  let showUserDropdown = $state(false);
+
+  onMount(() => {
+    /** @param {any} e */
+    function handleOutsideClick(e) {
+      if (!e.target?.closest?.('#header-user-menu')) {
+        showUserDropdown = false;
+      }
+    }
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  });
 
   async function confirmLogout() {
     isLoggingOut = true;
@@ -40,10 +67,34 @@
     }
   }
 
+  async function handleResetPassword() {
+    if (!$currentUser?.email) return;
+    try {
+      await sendResetPassword($currentUser.email);
+      showToast(`E-mail de sécurité envoyé à ${$currentUser.email} pour réinitialiser votre mot de passe.`);
+      showUserDropdown = false;
+    } catch (err) {
+      showToast("Impossible d'envoyer l'e-mail de réinitialisation.");
+    }
+  }
+
+  function openInvoices() {
+    showUserDropdown = false;
+    if ($isPremium) {
+      showToast("Redirection vers votre espace factures et reçus Stripe...");
+      window.open(stripePortalUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      showToast("Vous utilisez actuellement la formule gratuite : aucune facture émise.");
+    }
+  }
+
   /** @param {KeyboardEvent} e */
   function handleKeydown(e) {
     if (e.key === 'Escape' && showLogoutModal) {
       showLogoutModal = false;
+    }
+    if (e.key === 'Escape' && showUserDropdown) {
+      showUserDropdown = false;
     }
   }
 </script>
@@ -66,7 +117,10 @@
       {/if}
     </h2>
     <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
-      <span>Structure : <strong style="color: #2563eb; background: rgba(37, 99, 235, 0.09); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2);">{activeEntity ? activeEntity.name : ''}</strong></span>
+      <span style="display: inline-flex; align-items: center;">
+        Structure : <strong style="color: #2563eb; background: rgba(37, 99, 235, 0.09); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2); margin: 0 4px;">{activeEntity ? activeEntity.name : ''}</strong>
+        <InfoTip text="Changez d'organisation ou créez une nouvelle structure (association, micro-entreprise, etc.) en un clic." position="bottom" width="230px" />
+      </span>
       <span style="background: {modelObj?.accentBg || '#f1f5f9'}; color: {modelObj?.accentColor || '#2563eb'}; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 4px;">
         {modelObj ? modelObj.title : 'Entité'}
       </span>
@@ -75,26 +129,154 @@
 
   <!-- Right Header Actions -->
   <div style="display: flex; align-items: center; gap: 10px;">
+
+    <!-- CTA Passer en illimité bien visible en haut si compte gratuit -->
+    {#if !$isPremium && !$isAdmin}
+      <button 
+        type="button" 
+        onclick={() => showUpgradeModal.set(true)}
+        style="background: #2563eb; color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28); transition: background 0.15s ease;"
+        onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1d4ed8'}
+        onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#2563eb'}
+        title="Passer en illimité (6,99 € / mois ou 69,90 € / an)"
+      >
+        <span>Passer en illimité</span>
+        <i class="fa-solid fa-arrow-right" style="font-size: 0.75rem;"></i>
+      </button>
+    {/if}
+
+    <!-- Pastille Utilisateur & Menu Gestion du Compte -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-    <div 
-      class="user-badge" 
-      style="background: #ffffff; border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
-      title={$currentUser?.email || 'Compte connecté'}
-    >
-      <div class="user-avatar" style="background: #0f172a; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">
-        {userInitials}
+    <div id="header-user-menu" style="position: relative; display: flex; align-items: center;">
+      <div 
+        class="user-badge" 
+        onclick={() => showUserDropdown = !showUserDropdown}
+        style="background: #ffffff; border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: pointer; user-select: none; transition: all 0.15s ease;"
+        title="Gestion de mon compte et abonnement"
+        onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = '#94a3b8'}
+        onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = 'var(--border-color)'}
+      >
+        <div class="user-avatar" style="background: #0f172a; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">
+          {userInitials}
+        </div>
+        <div style="display: flex; flex-direction: column; text-align: left;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 0.84rem; font-weight: 700; color: var(--text-main); line-height: 1.2;">
+              {$currentUser?.displayName || activeEntity?.name || 'Mon Espace'}
+            </span>
+            {#if $isAdmin}
+              <span style="font-size: 0.65rem; font-weight: 800; background: rgba(37, 99, 235, 0.12); color: #2563eb; border: 1px solid rgba(37, 99, 235, 0.3); padding: 1px 5px; border-radius: 4px;">ADMIN</span>
+            {:else if $isPremium}
+              <span style="font-size: 0.65rem; font-weight: 800; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 1px 5px; border-radius: 4px;">PRO</span>
+            {:else}
+              <span style="font-size: 0.65rem; font-weight: 700; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; padding: 1px 5px; border-radius: 4px;">Gratuit</span>
+            {/if}
+          </div>
+          <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500; text-overflow: ellipsis; max-width: 130px; overflow: hidden; white-space: nowrap;">
+            {$currentUser?.email || 'Connecté'}
+          </span>
+        </div>
+        <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; color: #94a3b8; transition: transform 0.2s; transform: {showUserDropdown ? 'rotate(180deg)' : 'none'};"></i>
       </div>
-      <div style="display: flex; flex-direction: column; text-align: left;">
-        <span style="font-size: 0.84rem; font-weight: 700; color: var(--text-main); line-height: 1.2;">
-          {$currentUser?.displayName || activeEntity?.name || 'Mon Espace'}
-        </span>
-        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500; text-overflow: ellipsis; max-width: 130px; overflow: hidden; white-space: nowrap;">
-          {$currentUser?.email || 'Connecté'}
-        </span>
-      </div>
+      <InfoTip text="Accédez à vos factures, à la sécurité de votre compte et à la gestion de votre abonnement." position="bottom" width="220px" />
+
+      <!-- Menu déroulant Gestion de Compte & Abonnement -->
+      {#if showUserDropdown}
+        <div 
+          style="position: absolute; top: calc(100% + 8px); right: 0; min-width: 270px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 15px 35px -5px rgba(15, 23, 42, 0.2); padding: 14px; z-index: 10000; animation: fadeIn 0.15s ease-out;"
+        >
+          <!-- Détails Utilisateur -->
+          <div style="padding-bottom: 10px; border-bottom: 1px solid #f1f5f9; margin-bottom: 12px;">
+            <div style="font-size: 0.88rem; font-weight: 800; color: #0f172a;">
+              {$currentUser?.displayName || 'Utilisateur'}
+            </div>
+            <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
+              {$currentUser?.email || ''}
+            </div>
+          </div>
+
+          <!-- Section Abonnement / Formule -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Abonnement :</span>
+              <span style="font-size: 0.75rem; font-weight: 800; color: {$isPremium || $isAdmin ? '#2563eb' : '#0f172a'};">
+                {$isAdmin ? 'Administrateur' : $isPremium ? 'Formule Illimitée' : 'Quota Gratuit'}
+              </span>
+            </div>
+
+            {#if $isAdmin}
+              <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 6px;">Accès total sans restriction.</div>
+              <button 
+                type="button"
+                onclick={() => { showUserDropdown = false; showUpgradeModal.set(true); }}
+                style="width: 100%; padding: 7px 10px; background: #0f172a; border: none; color: #ffffff; font-size: 0.74rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s ease;"
+                onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1e293b'}
+                onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#0f172a'}
+              >
+                <i class="fa-solid fa-eye" style="font-size: 0.7rem; color: #94a3b8;"></i>
+                <span>Aperçu de l'offre</span>
+              </button>
+            {:else if $isPremium}
+              <button 
+                type="button"
+                onclick={() => { showUserDropdown = false; showCancelModal.set(true); }}
+                style="width: 100%; margin-top: 6px; padding: 7px 10px; background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; font-size: 0.78rem; font-weight: 700; border-radius: 6px; cursor: pointer;"
+              >
+                Gérer mon abonnement
+              </button>
+            {:else}
+              <button 
+                type="button"
+                onclick={() => { showUserDropdown = false; showUpgradeModal.set(true); }}
+                style="width: 100%; margin-top: 6px; padding: 8px 10px; background: #2563eb; border: none; color: #ffffff; font-size: 0.78rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;"
+              >
+                <span>Passer en illimité (6,99 €)</span>
+                <i class="fa-solid fa-arrow-right" style="font-size: 0.72rem;"></i>
+              </button>
+            {/if}
+          </div>
+
+          <!-- Options du compte : Factures & Sécurité avec hiérarchie visuelle affinée -->
+          <div style="display: flex; flex-direction: column; gap: 1px; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid #f1f5f9;">
+            <button 
+              type="button"
+              onclick={openInvoices}
+              style="width: 100%; text-align: left; padding: 6px 8px; background: transparent; border: none; border-radius: 6px; color: #475569; font-size: 0.75rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s ease;"
+              onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#f8fafc'; /** @type {HTMLElement} */ (e.currentTarget).style.color = '#0f172a'; }}
+              onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'; /** @type {HTMLElement} */ (e.currentTarget).style.color = '#475569'; }}
+            >
+              <i class="fa-solid fa-file-invoice" style="color: #2563eb; font-size: 0.75rem; width: 14px;"></i>
+              <span>Mes factures & reçus</span>
+            </button>
+
+            <button 
+              type="button"
+              onclick={handleResetPassword}
+              style="width: 100%; text-align: left; padding: 6px 8px; background: transparent; border: none; border-radius: 6px; color: #475569; font-size: 0.75rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s ease;"
+              onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#f8fafc'; /** @type {HTMLElement} */ (e.currentTarget).style.color = '#0f172a'; }}
+              onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'; /** @type {HTMLElement} */ (e.currentTarget).style.color = '#475569'; }}
+            >
+              <i class="fa-solid fa-key" style="color: #2563eb; font-size: 0.75rem; width: 14px;"></i>
+              <span>Modifier mon mot de passe</span>
+            </button>
+          </div>
+
+          <!-- Déconnexion -->
+          <button 
+            type="button"
+            onclick={() => { showUserDropdown = false; showLogoutModal = true; }}
+            style="width: 100%; text-align: left; padding: 6px 8px; background: transparent; border: none; border-radius: 6px; color: #dc2626; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s ease;"
+            onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#fef2f2'}
+            onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'}
+          >
+            <i class="fa-solid fa-arrow-right-from-bracket" style="font-size: 0.75rem; width: 14px;"></i>
+            <span>Se déconnecter</span>
+          </button>
+        </div>
+      {/if}
     </div>
 
-    <!-- Bouton Déconnexion ouvrant la modale de confirmation -->
+    <!-- Bouton Déconnexion rapide -->
     <button 
       type="button" 
       onclick={() => showLogoutModal = true}

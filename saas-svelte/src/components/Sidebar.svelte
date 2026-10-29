@@ -10,6 +10,7 @@
     isPremium, 
     isAdmin,
     showUpgradeModal, 
+    showCancelModal,
     FREE_TIER_MAX_TRANSACTIONS,
     MANAGEMENT_MODELS,
     showToast,
@@ -306,20 +307,6 @@
         </span>
       </li>
 
-      <!-- 5. VISITE GUIDÉE (Tutoriel interactif pas à pas) -->
-      <li style="margin-bottom: 6px; margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 12px;">
-        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-        <span 
-           id="start-tour-btn" 
-           class="menu-item" 
-           style="color: #60a5fa !important; cursor: pointer;" 
-           title="Lancer la visite guidée interactive"
-           onclick={() => { if (startTour) startTour(); }}>
-          <i class="fa-solid fa-compass" style="color: #60a5fa !important;"></i>
-          <span class="menu-label-text" style="color: #60a5fa; font-weight: 600;">Visite guidée</span>
-        </span>
-      </li>
-
     </ul>
   </nav>
   
@@ -357,15 +344,14 @@
           </div>
           <div style="font-size: 0.68rem; color: #94a3b8;">Accès complet actif</div>
         </div>
-        <a 
-          href={import.meta.env.VITE_STRIPE_PORTAL_LINK || 'https://billing.stripe.com/p/login/test_8x24gy0MPgJi8wg3TP6c000'}
-          target="_blank"
-          rel="noopener noreferrer"
-          style="background: rgba(255, 255, 255, 0.08); color: #ffffff; padding: 5px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center;"
+        <button 
+          type="button"
+          onclick={() => showCancelModal.set(true)}
+          style="background: rgba(255, 255, 255, 0.08); color: #ffffff; padding: 5px 10px; border: none; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center;"
           title="Gérer ou résilier mon abonnement"
         >
           Gérer
-        </a>
+        </button>
       </div>
     {:else}
       {@const usedCount = $transactions.length}

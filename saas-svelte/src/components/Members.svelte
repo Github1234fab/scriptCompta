@@ -7,6 +7,7 @@
     showToast, 
     formatDateFr 
   } from "../lib/store.js";
+  import InfoTip from "./InfoTip.svelte";
 
   // Deux modes : 'releve' (Journal des recettes bancaires réelles) ou 'pointage' (Suivi individuel des impayés avec forfaits)
   let displayMode = $state("releve");
@@ -414,8 +415,9 @@
 
     <!-- KPI 2 : Cotisations 756 -->
     <div class="kpi-box">
-      <div>
+      <div style="display: flex; align-items: center; justify-content: space-between;">
         <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">COTISATIONS & ADHÉSIONS (756)</span>
+        <InfoTip text="Ventilation automatique entre ce qui relève de l'adhésion pure (756) et des prestations/cours (706)." width="250px" />
       </div>
       <div>
         <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
@@ -490,8 +492,9 @@
 {#if displayMode === "releve"}
   <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 12px; padding: 14px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
     <div style="flex: 1; min-width: 300px;">
-      <p style="margin: 0; font-size: 0.86rem; color: #1e40af; line-height: 1.45;">
-        Par défaut, ce tableau affiche tous vos encaissements bancaires réels. Vous pouvez également importer un fichier CSV simple comprenant deux colonnes (<strong>colonne A :</strong> nom des payeurs, <strong>colonne B :</strong> montant facturé). Notre système calculera alors automatiquement vos restes dus et indicateurs de suivi.
+      <p style="margin: 0; font-size: 0.86rem; color: #1e40af; line-height: 1.45; display: flex; align-items: flex-start; gap: 8px;">
+        <span>Par défaut, ce tableau affiche tous vos encaissements bancaires réels. Vous pouvez également importer un fichier CSV simple comprenant deux colonnes (<strong>colonne A :</strong> nom des payeurs, <strong>colonne B :</strong> montant facturé). Notre système calculera alors automatiquement vos restes dus et indicateurs de suivi.</span>
+        <InfoTip text="Importez votre liste nominative d'adhérents (Colonnes Nom / Montant) pour automatiser le rapprochement individuel." width="250px" />
       </p>
     </div>
     <div>
@@ -637,7 +640,10 @@
             <th style="padding: 12px 18px; text-align: left;">Émetteur / Libellé bancaire</th>
             <th style="padding: 12px 18px; text-align: center; width: 170px;">Compte Comptable</th>
             <th style="padding: 12px 18px; text-align: right; width: 150px;">Montant Encaissé</th>
-            <th style="padding: 12px 18px; text-align: right; width: 230px;">Action / Période</th>
+            <th style="padding: 12px 18px; text-align: right; width: 230px;">
+              <span>Action / Période</span>
+              <InfoTip text="Isole les cotisations perçues d'avance pour la saison suivante, sans fausser le résultat de l'exercice en cours." width="250px" position="left" />
+            </th>
           </tr>
         </thead>
         <tbody>

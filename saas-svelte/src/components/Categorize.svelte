@@ -1,6 +1,7 @@
 <script>
   import { Categorizer } from "../lib/categorizer.js";
   import { CSVParser } from "../lib/parser.js";
+  import InfoTip from "./InfoTip.svelte";
 
   import { onMount } from "svelte";
   import { 
@@ -1026,7 +1027,9 @@
     <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
       <div>
         <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-cloud-arrow-up" style="color: #2563eb; font-size: 0.92rem;"></i> Import de relevé bancaire
+          <i class="fa-solid fa-cloud-arrow-up" style="color: #2563eb; font-size: 0.92rem;"></i> 
+          <span>Import de relevé bancaire</span>
+          <InfoTip text="Glissez ici le relevé téléchargé depuis votre banque en ligne (Boursorama, BNP, Crédit Agricole, Qonto, etc.)." width="240px" />
         </h3>
         <span style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
           Glissez-déposez le fichier CSV fourni par votre banque pour synchroniser vos écritures
@@ -1088,7 +1091,9 @@
     <!-- En-tête du bloc -->
     <div>
       <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-gear" style="color: #2563eb; font-size: 0.92rem;"></i> Paramétrage
+        <i class="fa-solid fa-gear" style="color: #2563eb; font-size: 0.92rem;"></i> 
+        <span>Paramétrage</span>
+        <InfoTip text="Vos règles apprises : chaque fois que vous attribuez un libellé, ScriptCompta le mémorise pour les prochains relevés." width="250px" />
       </h3>
       <span style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
         Consultez et personnalisez les correspondances de votre dictionnaire comptable
@@ -1121,7 +1126,9 @@
     <!-- En-tête du bloc -->
     <div>
       <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-arrows-split-up-and-left" style="color: #2563eb; font-size: 0.92rem;"></i> Traitement et affectation des opérations
+        <i class="fa-solid fa-arrows-split-up-and-left" style="color: #2563eb; font-size: 0.92rem;"></i> 
+        <span>Traitement et affectation des opérations</span>
+        <InfoTip text="Vérifiez les opérations en attente ou visualisez l'ensemble de votre grand journal déjà classé." width="250px" />
       </h3>
       <span style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
         Affectez chaque dépense ou recette à son compte officiel
