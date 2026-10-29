@@ -15,7 +15,7 @@
   import { currentUser, logoutUser, sendResetPassword } from '../lib/auth.js';
   import InfoTip from './InfoTip.svelte';
 
-  const stripePortalUrl = import.meta.env.VITE_STRIPE_PORTAL_LINK || 'https://billing.stripe.com/p/login/test_8x24gy0MPgJi8wg3TP6c000';
+  const stripePortalUrl = import.meta.env.VITE_STRIPE_PORTAL_LINK || 'https://billing.stripe.com/p/login/9B65kC2UzaUM8GR7CzfjG00';
 
   /** @type {{ startTour: () => void }} */
   let { startTour } = $props();

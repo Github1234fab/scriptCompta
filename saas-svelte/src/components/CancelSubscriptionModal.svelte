@@ -2,7 +2,7 @@
   import { showCancelModal, showToast } from '../lib/store.js';
   import { fade, scale } from 'svelte/transition';
 
-  const stripePortalUrl = import.meta.env.VITE_STRIPE_PORTAL_LINK || 'https://billing.stripe.com/p/login/test_8x24gy0MPgJi8wg3TP6c000';
+  const stripePortalUrl = import.meta.env.VITE_STRIPE_PORTAL_LINK || 'https://billing.stripe.com/p/login/9B65kC2UzaUM8GR7CzfjG00';
 
   function handleClose() {
     $showCancelModal = false;
