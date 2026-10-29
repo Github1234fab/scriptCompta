@@ -3,8 +3,8 @@
   import { currentUser } from '../lib/auth.js';
   import { fade, scale } from 'svelte/transition';
 
-  const stripeAnnualUrl = import.meta.env.VITE_STRIPE_PAYMENT_LINK_ANNUAL || import.meta.env.VITE_STRIPE_PAYMENT_LINK || 'https://buy.stripe.com/test_8x24gy0MPgJi8wg3TP6c000';
-  const stripeMonthlyUrl = import.meta.env.VITE_STRIPE_PAYMENT_LINK_MONTHLY || import.meta.env.VITE_STRIPE_PAYMENT_LINK || 'https://buy.stripe.com/test_8x24gy0MPgJi8wg3TP6c000';
+  const stripeAnnualUrl = import.meta.env.VITE_STRIPE_PAYMENT_LINK_ANNUAL || import.meta.env.VITE_STRIPE_PAYMENT_LINK || 'https://buy.stripe.com/test_aFadR8anp1Oo27S3TP6c001';
+  const stripeMonthlyUrl = import.meta.env.VITE_STRIPE_PAYMENT_LINK_MONTHLY || import.meta.env.VITE_STRIPE_PAYMENT_LINK || 'https://buy.stripe.com/test_28E28qeDFakUaEo7616c002';
 
   /** @type {'annual' | 'monthly'} */
   let selectedPlan = $state('annual');

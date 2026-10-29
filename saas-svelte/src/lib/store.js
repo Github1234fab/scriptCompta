@@ -35,7 +35,7 @@ export const isAdmin = derived(userProfile, ($p) => {
 
 export const isPremium = derived([userProfile, isAdmin], ([$p, $admin]) => {
   if ($admin) return true;
-  return $p?.plan === 'premium';
+  return $p?.plan === 'premium' || $p?.isPaid === true || $p?.subscriptionStatus === 'active';
 });
 
 export const showUpgradeModal = writable(false);
