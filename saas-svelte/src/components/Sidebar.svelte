@@ -18,6 +18,7 @@
   } from '../lib/store.js';
   import { currentUser } from '../lib/auth.js';
   import { updateUserPlan } from '../lib/firestoreService.js';
+  import logoComeTr from '../assets/MateoLogo.png';
 
   /** @type {{ switchView: (view: string) => void, handleResetDb: () => void, startTour?: () => void }} */
   let { switchView, handleResetDb, startTour } = $props();
@@ -95,14 +96,13 @@
   <!-- SIDEBAR HEADER : LOGO & SWITCHER D'ORGANISATION (HAUT DE SIDEBAR) -->
   <div style="padding: 16px 14px 14px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 12px; position: relative;" id="org-switcher-container">
     
-    <!-- Logo brand -->
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <div class="logo-icon" style="width: 32px; height: 32px; background: #3b82f6; color: #ffffff; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-family: var(--font-title); font-size: 1.05rem; flex-shrink: 0; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);">
-        S
-      </div>
-      <div class="brand-name" style="font-weight: 800; font-size: 1.2rem; color: #ffffff !important; letter-spacing: -0.02em; font-family: var(--font-title); white-space: nowrap;">
-        scriptCompta
-      </div>
+    <!-- Logo brand Côme -->
+    <div style="display: flex; align-items: center; justify-content: flex-start; padding: 2px 4px;">
+      <img 
+        src={logoComeTr} 
+        alt="Côme" 
+        style="height: 60px; max-width: 100%; object-fit: contain; border-radius: 6px;" 
+      />
     </div>
 
     <!-- SWITCHER D'ORGANISATION FLUIDE & DISCRET -->
@@ -314,17 +314,17 @@
   <div class="sidebar-bottom-panel" style="padding: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: #0c1220; box-sizing: border-box;">
     
     {#if $isAdmin}
-      <div style="background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(59, 130, 246, 0.28); border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
-        <div>
-          <div style="font-size: 0.78rem; font-weight: 800; color: #60a5fa; display: flex; align-items: center; gap: 6px;">
-            <i class="fa-solid fa-shield-halved" style="font-size: 0.75rem;"></i>
-            Compte Administrateur
-          </div>
-          <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 2px;">Accès illimité sans quota</div>
+      <div style="background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(59, 130, 246, 0.28); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+        <div style="font-size: 0.8rem; font-weight: 800; color: #60a5fa; display: flex; align-items: center; gap: 7px;">
+          <i class="fa-solid fa-shield-halved" style="font-size: 0.78rem;"></i>
+          Compte Administrateur
         </div>
-        <span style="font-size: 0.65rem; font-weight: 800; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.35); padding: 2px 7px; border-radius: 4px; letter-spacing: 0.04em;">
-          ADMIN
-        </span>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 0.64rem; font-weight: 800; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.35); padding: 2px 7px; border-radius: 4px; letter-spacing: 0.04em;">
+            ADMIN
+          </span>
+          <span style="font-size: 0.68rem; color: #94a3b8;">Accès illimité sans quota</span>
+        </div>
       </div>
     {:else if $isPremium}
       <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.22); border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">

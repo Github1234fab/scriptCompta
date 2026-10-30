@@ -113,7 +113,7 @@
       {:else if $activeView === 'books' || $activeView === 'recettes'}
         <i class="fa-solid fa-scale-balanced" style="color: var(--color-accent);"></i> {booksLabel || 'Obligation'}
       {:else}
-        <i class="fa-solid fa-cube" style="color: var(--color-accent);"></i> scriptCompta
+        <i class="fa-solid fa-cube" style="color: var(--color-accent);"></i> Côme
       {/if}
     </h2>
     <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
