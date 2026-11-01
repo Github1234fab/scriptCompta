@@ -26,7 +26,7 @@
 <style>
   .recette-card {
     background: #ffffff;
-    border: 1.5px solid transparent;
+    border: 1.5px solid #e2e8f0;
     border-radius: 14px;
     padding: 20px 22px;
     display: flex;
@@ -34,16 +34,17 @@
     justify-content: space-between;
     gap: 16px;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03);
     transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
   }
   .recette-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.10), 0 4px 10px -2px rgba(15, 23, 42, 0.05);
+    border-color: #cbd5e1;
   }
   .recette-card.is-selected {
-    border-color: #cbd5e1;
-    box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.09), 0 4px 10px -2px rgba(15, 23, 42, 0.05);
+    border-color: #3b82f6;
+    box-shadow: 0 10px 25px -4px rgba(37, 99, 235, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.05);
   }
   .recette-btn {
     width: 100%;
@@ -97,8 +98,9 @@
   </button>
 </div>
 
-<!-- BLOCS DE GESTION DES RECETTES PAR COMPTE COMPTABLE -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px;">
+<!-- BLOCS DE GESTION DES RECETTES PAR COMPTE COMPTABLE (FOND DÉDIÉ) -->
+<div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
   
   <!-- Bloc 1: Recettes en 756 et 706 -->
   <div 
@@ -219,7 +221,7 @@
       {/if}
     </button>
   </div>
-
+  </div>
 </div>
 
 <!-- TABLEAU DE GESTION SÉLECTIONNÉ -->

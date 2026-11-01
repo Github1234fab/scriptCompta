@@ -1024,24 +1024,19 @@
   <!-- CARTE 1 : IMPORT DE RELEVÉ BANCAIRE (CSV) -->
   <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; gap: 14px;">
     <!-- En-tête du bloc -->
-    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
-      <div>
-        <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-cloud-arrow-up" style="color: #2563eb; font-size: 0.92rem;"></i> 
-          <span>Import de relevé bancaire</span>
-          <InfoTip text="Glissez ici le relevé téléchargé depuis votre banque en ligne (Boursorama, BNP, Crédit Agricole, Qonto, etc.)." width="240px" />
-        </h3>
-        <span style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
-          Glissez-déposez le fichier CSV fourni par votre banque pour synchroniser vos écritures
-        </span>
-      </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px;">
+      <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap;">
+        <i class="fa-solid fa-cloud-arrow-up" style="color: #4f46e5; font-size: 0.9rem;"></i> 
+        <span>Import de relevé bancaire</span>
+        <InfoTip text="Glissez ici le relevé téléchargé depuis votre banque en ligne (Boursorama, BNP, Crédit Agricole, Qonto, etc.)." width="240px" />
+      </h3>
 
       <!-- Action Annuler sobre et discrète -->
       {#if currentStructureTx.length > 0}
         <button 
           type="button" 
           onclick={effacerToutesOperations}
-          style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.75rem; padding: 4px 10px; background: #ffffff; border: 1px solid #cbd5e1; color: #64748b; border-radius: 6px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; flex-shrink: 0;"
+          style="display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 0.74rem; padding: 3px 9px; background: #ffffff; border: 1px solid #cbd5e1; color: #64748b; border-radius: 6px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; flex-shrink: 0;"
           onmouseenter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }}
           onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#64748b'; }}
           title="Annuler et réinitialiser le relevé bancaire"
@@ -1051,7 +1046,7 @@
       {/if}
     </div>
 
-    <!-- Zone de drop harmonisée en fond bleu clair (#eff6ff / #bfdbfe) -->
+    <!-- Zone de drop ultra épurée selon la maquette -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div 
       class="dropzone {dragover ? 'dragover' : ''}" 
@@ -1060,21 +1055,21 @@
       ondragover={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
       ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); dragover = false; }}
       ondrop={handleCSVDrop}
-      style="cursor: pointer; width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #eff6ff; border: 1.5px dashed {dragover ? '#2563eb' : '#bfdbfe'}; border-radius: 12px; transition: all 0.2s ease; box-sizing: border-box; flex: 1; min-height: 80px;"
-      onmouseenter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; }}
-      onmouseleave={(e) => { if (!dragover) { e.currentTarget.style.borderColor = '#bfdbfe'; } }}
+      style="cursor: pointer; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 22px 16px; background: {dragover ? 'rgba(79, 70, 229, 0.05)' : '#ffffff'}; border: 2px dashed {dragover ? '#4f46e5' : '#cbd5e1'}; border-radius: 14px; transition: all 0.2s ease; box-sizing: border-box; flex: 1; min-height: 110px;"
+      onmouseenter={(e) => { e.currentTarget.style.borderColor = '#4f46e5'; }}
+      onmouseleave={(e) => { if (!dragover) { e.currentTarget.style.borderColor = '#cbd5e1'; } }}
     >
-      <div style="width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid #bfdbfe; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; pointer-events: none;">
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: #f8fafc; border: 1px solid #e2e8f0; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
         <i class="fa-solid fa-cloud-arrow-up"></i>
       </div>
-      <div style="pointer-events: none; min-width: 0;">
-        <div style="font-weight: 800; font-size: 0.9rem; color: #1e3a8a; margin-bottom: 2px;">
-          Déposez votre fichier bancaire CSV ici
-        </div>
-        <div style="font-size: 0.74rem; color: #1e40af; font-weight: 500;">
-          Compatible toutes banques (BoursoBank, BNP, CA, Qonto...)
-        </div>
+      
+      <div style="pointer-events: none; font-weight: 800; font-size: 0.92rem; color: #0f172a;">
+        Glissez ou importez
       </div>
+      
+      <span style="background: #4f46e5; color: #ffffff; padding: 5px 18px; border-radius: 20px; font-weight: 700; font-size: 0.76rem; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25); pointer-events: none;">
+        Parcourir
+      </span>
 
       <input 
         type="file" 
@@ -1089,32 +1084,35 @@
   <!-- CARTE 2 : PARAMÉTRAGE DU DICTIONNAIRE -->
   <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; gap: 14px;">
     <!-- En-tête du bloc -->
-    <div>
-      <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-gear" style="color: #2563eb; font-size: 0.92rem;"></i> 
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px;">
+      <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap;">
+        <i class="fa-solid fa-gear" style="color: #4f46e5; font-size: 0.9rem;"></i> 
         <span>Paramétrage</span>
         <InfoTip text="Vos règles apprises : chaque fois que vous attribuez un libellé, ScriptCompta le mémorise pour les prochains relevés." width="250px" />
       </h3>
-      <span style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
-        Consultez et personnalisez les correspondances de votre dictionnaire comptable
-      </span>
     </div>
 
-    <!-- Carte intérieure blanche -->
-    <div style="padding: 14px 16px; background: var(--bg-card, #ffffff); border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: 1; min-height: 80px; box-sizing: border-box;">
-      <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-        <div style="width: 38px; height: 38px; border-radius: 9px; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;">
-          <i class="fa-solid fa-book-bookmark"></i>
+    <!-- Carte intérieure blanche en colonne -->
+    <div style="padding: 16px 16px; background: var(--bg-card, #ffffff); border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; flex: 1; min-height: 110px; box-sizing: border-box;">
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <i class="fa-solid fa-book-bookmark"></i>
+      </div>
+
+      <div>
+        <div style="font-weight: 800; font-size: 0.92rem; color: #0f172a; white-space: nowrap;">
+          Dictionnaire d'attribution
         </div>
-        <div style="min-width: 0;">
-          <div style="font-weight: 800; font-size: 0.9rem; color: #0f172a;">Dictionnaire d'attribution</div>
-          <span style="font-size: 0.72rem; color: #1e3a8a; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 6px; font-weight: 700; display: inline-block; margin-top: 2px;">{$rules.length} règles attribuées</span>
+        <div style="font-size: 0.74rem; color: #64748b; font-weight: 600; margin-top: 2px;">
+          {$rules.length} règles attribuées
         </div>
       </div>
+
       <button 
         type="button" 
         onclick={() => showDictionaryModal = true}
-        style="background: #0f172a; color: #ffffff; border: none; padding: 7px 14px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.82rem; flex-shrink: 0; transition: background 0.15s ease;"
+        style="background: #0f172a; color: #ffffff; border: none; padding: 5px 18px; font-weight: 700; border-radius: 20px; cursor: pointer; font-size: 0.76rem; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18); transition: background 0.15s ease;"
+        onmouseenter={(e) => { e.currentTarget.style.background = '#1e293b'; }}
+        onmouseleave={(e) => { e.currentTarget.style.background = '#0f172a'; }}
       >
         Paramétrer
       </button>
@@ -1124,15 +1122,12 @@
   <!-- CARTE 3 : TRAITEMENT ET AFFECTATION DES OPÉRATIONS (MÊME UI DE CARTE) -->
   <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; gap: 14px;">
     <!-- En-tête du bloc -->
-    <div>
-      <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-arrows-split-up-and-left" style="color: #2563eb; font-size: 0.92rem;"></i> 
-        <span>Traitement et affectation des opérations</span>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px;">
+      <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap;">
+        <i class="fa-solid fa-arrows-split-up-and-left" style="color: #4f46e5; font-size: 0.9rem;"></i> 
+        <span>Traitement des opérations</span>
         <InfoTip text="Vérifiez les opérations en attente ou visualisez l'ensemble de votre grand journal déjà classé." width="250px" />
       </h3>
-      <span style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
-        Affectez chaque dépense ou recette à son compte officiel
-      </span>
     </div>
 
     <!-- Carte intérieure blanche avec deux boutons bien distincts -->

@@ -22,6 +22,11 @@
   let showDrawerModal = $state(false);
   /** @type {any} */
   let selectedMemberForDrawer = $state(null);
+  let isDropHover = $state(false);
+  /** @type {HTMLInputElement | null} */
+  let memberFileInput = $state(null);
+  /** @type {HTMLInputElement | null} */
+  let memberFileInputModal = $state(null);
 
   // Pagination & Vue
   let currentPage = $state(1);
@@ -286,7 +291,6 @@
   // 5. IMPORT CSV POUR LE SUIVI DES TARIFS ANNUELS
   let importFileName = $state("");
   let rawPasteText = $state("");
-  let activeImportTab = $state("file");
   /** @type {Array<{nom: string, forfait: number}>} */
   let importedRows = $state([]);
 
@@ -375,6 +379,21 @@
     displayMode = "pointage";
     showToast(`${newMembers.length} adhérents importés avec succès ! Pointage activé.`);
   }
+
+  function supprimerFichierAdherents() {
+    const totalAdherents = $members.length;
+    const msg = totalAdherents > 0
+      ? `Voulez-vous vraiment supprimer les ${totalAdherents} adhérents importés et réinitialiser le suivi ?`
+      : "Voulez-vous réinitialiser la liste des adhérents ?";
+    if (confirm(msg)) {
+      updateMembers([]);
+      importedRows = [];
+      importFileName = "";
+      rawPasteText = "";
+      displayMode = "pointage";
+      showToast("Fichier d'adhérents supprimé avec succès.");
+    }
+  }
 </script>
 
 <style>
@@ -394,22 +413,92 @@
   }
 </style>
 
-<!-- KPI CARDS SUPÉRIEURES -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+<!-- BLOC DE CONTRÔLE ET INDICATEURS (FOND DÉDIÉ) -->
+<div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 18px;">
+  <!-- SÉLECTEUR DE VUE PRINCIPAL : RELEVÉ BANCAIRE / SUIVI INDIVIDUEL + ACTIONS CSV -->
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div style="display: inline-flex; background: #e2e8f0; padding: 4px; border-radius: 10px; gap: 4px; border: 1px solid #cbd5e1;">
+      <button 
+        type="button"
+        onclick={() => displayMode = 'releve'}
+        style="padding: 9px 18px; border-radius: 7px; border: none; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 8px; {displayMode === 'releve' ? 'background: #0f172a; color: #ffffff; box-shadow: 0 2px 6px rgba(15,23,42,0.25);' : 'background: transparent; color: #475569;'}"
+      >
+        Relevé bancaire réel
+        <span style="font-size: 0.75rem; padding: 1px 7px; border-radius: 10px; {displayMode === 'releve' ? 'background: rgba(255,255,255,0.2); color: #ffffff;' : 'background: #cbd5e1; color: #334155;'}">
+          {allAssoTransactions.length}
+        </span>
+      </button>
+
+      <button 
+        type="button"
+        onclick={() => displayMode = 'pointage'}
+        style="padding: 9px 18px; border-radius: 7px; border: none; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 8px; {displayMode === 'pointage' ? 'background: #0f172a; color: #ffffff; box-shadow: 0 2px 6px rgba(15,23,42,0.25);' : 'background: transparent; color: #475569;'}"
+      >
+        Suivi individuel des cotisations
+        {#if $members.length > 0}
+          <span style="font-size: 0.75rem; padding: 1px 7px; border-radius: 10px; {displayMode === 'pointage' ? 'background: #2563eb; color: #ffffff;' : 'background: #cbd5e1; color: #334155;'}">
+            {$members.length}
+          </span>
+        {/if}
+      </button>
+    </div>
+
+    <!-- Actions Import & Annulation / Suppression de fichier -->
+    <div style="display: flex; align-items: center; gap: 8px;">
+      {#if $members.length > 0}
+        <button 
+          type="button"
+          onclick={supprimerFichierAdherents}
+          style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 0.82rem; font-weight: 600; color: #dc2626; background: #ffffff; border: 1.5px solid #fecaca; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
+          title="Supprimer la liste importée si le fichier comporte des erreurs"
+          onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#fef2f2'; /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = '#dc2626'; }}
+          onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#ffffff'; /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = '#fecaca'; }}
+        >
+          <i class="fa-solid fa-trash-can"></i>
+          <span>Supprimer le fichier</span>
+        </button>
+
+        <button 
+          type="button"
+          onclick={() => showImportModal = true}
+          style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.82rem; font-weight: 700; color: #ffffff; background: #0f172a; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(15,23,42,0.2);"
+          title="Importer un nouveau fichier CSV pour remplacer la liste"
+          onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1e293b'; }}
+          onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#0f172a'; }}
+        >
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>Nouveau CSV</span>
+        </button>
+      {:else}
+        <button 
+          type="button"
+          onclick={() => { displayMode = 'pointage'; showImportModal = true; }}
+          style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.82rem; font-weight: 700; color: #ffffff; background: #2563eb; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(37,99,235,0.25);"
+          title="Importer un fichier CSV d'adhérents pour activer le pointage"
+          onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1d4ed8'; }}
+          onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#2563eb'; }}
+        >
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>Importer un CSV cotisations</span>
+        </button>
+      {/if}
+    </div>
+  </div>
+
+  <!-- KPI CARDS SUPÉRIEURES -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
   
   {#if displayMode === "releve"}
     <!-- KPI 1 : Total Encaissé en 756 & 706 -->
     <div class="kpi-box">
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-        <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; white-space: nowrap;">TOTAL ENCAISSÉ (756 & 706)</span>
-        <span style="font-size: 0.72rem; font-weight: 700; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 8px; white-space: nowrap; flex-shrink: 0;">
-          En banque
-        </span>
+      <div>
+        <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">TOTAL ENCAISSÉ (756 & 706)</span>
       </div>
       <div>
         <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
           {totalGlobalRecettes.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
         </div>
+        <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">{allAssoTransactions.length} règlements</div>
       </div>
     </div>
 
@@ -486,47 +575,47 @@
     </div>
   {/if}
 
+  </div>
 </div>
 
-<!-- BANDEAU D'EXPLICATION & IMPORT -->
-{#if displayMode === "releve"}
-  <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 12px; padding: 14px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
-    <div style="flex: 1; min-width: 300px;">
-      <p style="margin: 0; font-size: 0.86rem; color: #1e40af; line-height: 1.45; display: flex; align-items: flex-start; gap: 8px;">
-        <span>Par défaut, ce tableau affiche tous vos encaissements bancaires réels. Vous pouvez également importer un fichier CSV simple comprenant deux colonnes (<strong>colonne A :</strong> nom des payeurs, <strong>colonne B :</strong> montant facturé). Notre système calculera alors automatiquement vos restes dus et indicateurs de suivi.</span>
-        <InfoTip text="Importez votre liste nominative d'adhérents (Colonnes Nom / Montant) pour automatiser le rapprochement individuel." width="250px" />
-      </p>
-    </div>
-    <div>
+<!-- ZONE D'IMPORT QUAND AUCUN ADHÉRENT N'EST IMPORTÉ (MODE POINTAGE) -->
+{#if displayMode === "pointage" && $members.length === 0}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 36px 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); text-align: center;">
+    <div 
+      class="dropzone {isDropHover ? 'dragover' : ''}"
+      onclick={() => memberFileInput && memberFileInput.click()}
+      ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = true; }}
+      ondragover={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = true; }}
+      ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = false; }}
+      ondrop={(e) => { 
+        e.preventDefault(); 
+        e.stopPropagation(); 
+        isDropHover = false; 
+        handleFileSelect(e);
+        showImportModal = true;
+      }}
+      style="border: 2px dashed {isDropHover ? '#4f46e5' : '#cbd5e1'}; border-radius: 16px; padding: 32px 24px; background: {isDropHover ? 'rgba(79, 70, 229, 0.04)' : '#f8fafc'}; cursor: pointer; transition: all 0.2s ease; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;"
+    >
+      <div style="width: 50px; height: 50px; border-radius: 50%; background: #ffffff; border: 1px solid #e2e8f0; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); pointer-events: none;">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+      </div>
+      <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a; pointer-events: none;">
+        Glissez ou importez
+      </div>
       <button 
         type="button" 
-        onclick={() => showImportModal = true}
-        style="background: #2563eb; color: #ffffff; border: none; padding: 9px 20px; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; box-shadow: 0 2px 6px rgba(37,99,235,0.25);"
+        style="background: #4f46e5; color: #ffffff; border: none; padding: 6px 20px; border-radius: 20px; font-weight: 700; font-size: 0.8rem; cursor: pointer; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);"
       >
-        Importer
+        Parcourir
       </button>
-    </div>
-  </div>
-{:else}
-  <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 12px 18px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-    <div style="font-size: 0.88rem; font-weight: 700; color: #0f172a;">
-      Suivi individuel actif ({$members.length} payeurs importés)
-    </div>
-    <div style="display: flex; gap: 10px;">
-      <button 
-        type="button"
-        onclick={() => showImportModal = true}
-        style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; cursor: pointer;"
-      >
-        Mettre à jour le fichier
-      </button>
-      <button 
-        type="button"
-        onclick={() => displayMode = "releve"}
-        style="background: #0f172a; color: #ffffff; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.82rem; cursor: pointer;"
-      >
-        Revenir au relevé bancaire
-      </button>
+      <input 
+        type="file" 
+        bind:this={memberFileInput} 
+        onchange={(e) => { handleFileSelect(e); showImportModal = true; }} 
+        style="display: none;" 
+        accept=".csv,text/csv"
+      />
     </div>
   </div>
 {/if}
@@ -618,6 +707,32 @@
           style="padding: 9px 14px 9px 38px; border-radius: 8px; background: #ffffff; border: 1.5px solid #cbd5e1; color: #0f172a; font-size: 0.88rem; width: 250px; outline: none;"
         />
       </div>
+
+      {#if displayMode === "pointage" && $members.length > 0}
+        <button 
+          type="button"
+          onclick={supprimerFichierAdherents}
+          style="padding: 9px 14px; font-weight: 600; font-size: 0.88rem; background: #ffffff; border: 1.5px solid #fecaca; color: #dc2626; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s ease;"
+          title="Supprimer la liste importée en cas d'erreurs"
+          onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#fef2f2'}
+          onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#ffffff'}
+        >
+          <i class="fa-solid fa-trash-can"></i>
+          <span>Supprimer le fichier</span>
+        </button>
+
+        <button 
+          type="button"
+          onclick={() => showImportModal = true}
+          style="padding: 9px 16px; font-weight: 700; font-size: 0.88rem; background: #ffffff; border: 1.5px solid #cbd5e1; color: #0f172a; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s ease;"
+          title="Importer un nouveau fichier CSV pour remplacer la liste"
+          onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#f8fafc'}
+          onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#ffffff'}
+        >
+          <i class="fa-solid fa-cloud-arrow-up" style="color: #4f46e5;"></i>
+          <span>Nouveau CSV</span>
+        </button>
+      {/if}
 
       <button 
         type="button"
@@ -737,9 +852,11 @@
         {#if totalTxPages > 1}
           <div style="display: flex; gap: 6px; align-items: center;">
             <button 
+              type="button"
               class="btn btn-secondary btn-sm"
               disabled={currentPage === 1}
               onclick={() => currentPage--}
+              aria-label="Page précédente"
               style="padding: 5px 11px; font-size: 0.8rem; background: #ffffff; border: 1px solid #cbd5e1;"
             >
               <i class="fa-solid fa-chevron-left"></i>
@@ -747,6 +864,7 @@
             {#each Array.from({ length: totalTxPages }) as _, i}
               {#if i < 7 || i === totalTxPages - 1}
                 <button 
+                  type="button"
                   onclick={() => currentPage = i + 1}
                   style="width: 30px; height: 30px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: 1px solid {currentPage === i + 1 ? '#0f172a' : '#cbd5e1'}; background: {currentPage === i + 1 ? '#0f172a' : '#ffffff'}; color: {currentPage === i + 1 ? '#ffffff' : '#0f172a'};"
                 >
@@ -755,9 +873,11 @@
               {/if}
             {/each}
             <button 
+              type="button"
               class="btn btn-secondary btn-sm"
               disabled={currentPage === totalTxPages}
               onclick={() => currentPage++}
+              aria-label="Page suivante"
               style="padding: 5px 11px; font-size: 0.8rem; background: #ffffff; border: 1px solid #cbd5e1;"
             >
               <i class="fa-solid fa-chevron-right"></i>
@@ -811,8 +931,11 @@
                 </td>
                 <td style="padding: 13px 18px; text-align: right;">
                   <button 
+                    type="button"
                     class="btn btn-secondary btn-sm" 
                     onclick={() => { selectedMemberForDrawer = m; showDrawerModal = true; }}
+                    title="Voir le détail de l'adhérent"
+                    aria-label="Voir le détail de l'adhérent"
                     style="padding: 5px 11px; font-size: 0.78rem; background: #ffffff; border: 1.5px solid #cbd5e1;"
                   >
                     <i class="fa-solid fa-list-check"></i>
@@ -834,9 +957,11 @@
         {#if totalMemberPages > 1}
           <div style="display: flex; gap: 6px; align-items: center;">
             <button 
+              type="button"
               class="btn btn-secondary btn-sm"
               disabled={currentPage === 1}
               onclick={() => currentPage--}
+              aria-label="Page précédente"
               style="padding: 5px 11px; font-size: 0.8rem; background: #ffffff; border: 1px solid #cbd5e1;"
             >
               <i class="fa-solid fa-chevron-left"></i>
@@ -844,6 +969,7 @@
             {#each Array.from({ length: totalMemberPages }) as _, i}
               {#if i < 7 || i === totalMemberPages - 1}
                 <button 
+                  type="button"
                   onclick={() => currentPage = i + 1}
                   style="width: 30px; height: 30px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: 1px solid {currentPage === i + 1 ? '#0f172a' : '#cbd5e1'}; background: {currentPage === i + 1 ? '#0f172a' : '#ffffff'}; color: {currentPage === i + 1 ? '#ffffff' : '#0f172a'};"
                 >
@@ -852,9 +978,11 @@
               {/if}
             {/each}
             <button 
+              type="button"
               class="btn btn-secondary btn-sm"
               disabled={currentPage === totalMemberPages}
               onclick={() => currentPage++}
+              aria-label="Page suivante"
               style="padding: 5px 11px; font-size: 0.8rem; background: #ffffff; border: 1px solid #cbd5e1;"
             >
               <i class="fa-solid fa-chevron-right"></i>
@@ -898,76 +1026,95 @@
       </div>
 
       <!-- Corps -->
-      <div style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
-        <div style="display: flex; gap: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
-          <button 
-            type="button"
-            onclick={() => activeImportTab = 'file'}
-            style="padding: 7px 14px; border-radius: 6px; font-weight: 700; font-size: 0.84rem; border: none; cursor: pointer; {activeImportTab === 'file' ? 'background: #0f172a; color: white;' : 'background: #f1f5f9; color: #475569;'}"
-          >
-            Fichier CSV / Excel
-          </button>
-          <button 
-            type="button"
-            onclick={() => activeImportTab = 'paste'}
-            style="padding: 7px 14px; border-radius: 6px; font-weight: 700; font-size: 0.84rem; border: none; cursor: pointer; {activeImportTab === 'paste' ? 'background: #0f172a; color: white;' : 'background: #f1f5f9; color: #475569;'}"
-          >
-            Copier-Coller depuis Excel
-          </button>
+      <div style="padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">
+            Fichier CSV
+          </span>
           <button 
             type="button"
             onclick={telechargerModeleCSV}
-            style="margin-left: auto; background: none; border: none; color: #2563eb; font-weight: 700; font-size: 0.82rem; cursor: pointer; text-decoration: underline;"
+            style="background: none; border: none; color: #2563eb; font-weight: 600; font-size: 0.82rem; cursor: pointer; text-decoration: underline; display: flex; align-items: center; gap: 6px;"
           >
-            Télécharger modèle exemple
+            <i class="fa-solid fa-download"></i> Télécharger modèle exemple
           </button>
         </div>
 
-        {#if activeImportTab === 'file'}
-          <label style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 32px 20px; text-align: center; cursor: pointer; background: #f8fafc; display: block;">
-            <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: #2563eb; margin-bottom: 10px;"></i>
-            <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">
-              {importFileName ? `Fichier : ${importFileName}` : "Cliquez ou glissez-déposez votre fichier CSV"}
-            </div>
-            <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">
-              2 colonnes attendues : Nom de l'élève / adhérent et Tarif annuel
-            </div>
-            <input type="file" accept=".csv,text/csv" onchange={handleFileSelect} style="display: none;" />
-          </label>
-        {:else}
-          <textarea 
-            rows="6"
-            placeholder="Collez ici vos deux colonnes depuis Excel (ex: Dupont Marc [Tabulation] 450.00)..."
-            bind:value={rawPasteText}
-            oninput={(e) => parseCSVMembers(/** @type {any} */ (e.target).value)}
-            style="width: 100%; box-sizing: border-box; padding: 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-family: ui-monospace, monospace; font-size: 0.85rem; outline: none;"
-          ></textarea>
-        {/if}
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+        <div 
+          class="dropzone {isDropHover ? 'dragover' : ''}"
+          onclick={() => memberFileInputModal && memberFileInputModal.click()}
+          ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = true; }}
+          ondragover={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = true; }}
+          ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = false; }}
+          ondrop={(e) => { 
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            isDropHover = false; 
+            handleFileSelect(e);
+          }}
+          style="border: 2px dashed {isDropHover ? '#4f46e5' : '#cbd5e1'}; border-radius: 14px; padding: 32px 20px; background: {isDropHover ? 'rgba(79, 70, 229, 0.04)' : '#f8fafc'}; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;"
+        >
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: #ffffff; border: 1px solid #e2e8f0; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin-bottom: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); pointer-events: none;">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </div>
+          <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a; pointer-events: none;">
+            {importFileName ? importFileName : "Glissez ou importez"}
+          </div>
+          <span style="background: #4f46e5; color: #ffffff; padding: 6px 20px; border-radius: 20px; font-weight: 700; font-size: 0.78rem; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25); pointer-events: none;">
+            Parcourir
+          </span>
+          <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px; pointer-events: none;">
+            2 colonnes attendues : Nom de l'élève / adhérent et Tarif annuel
+          </div>
+          <input 
+            type="file" 
+            bind:this={memberFileInputModal}
+            accept=".csv,text/csv" 
+            onchange={handleFileSelect} 
+            style="display: none;" 
+          />
+        </div>
 
         {#if importedRows.length > 0}
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; font-size: 0.86rem; color: #166534; font-weight: 600;">
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; font-size: 0.86rem; color: #166534; font-weight: 600; display: flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-check"></i> {importedRows.length} adhérents détectés avec leurs forfaits annuels.
           </div>
         {/if}
       </div>
 
       <!-- Pied de modale -->
-      <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; background: #f8fafc;">
-        <button 
-          type="button" 
-          onclick={() => showImportModal = false}
-          style="padding: 9px 16px; border-radius: 8px; background: #ffffff; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; cursor: pointer;"
-        >
-          Annuler
-        </button>
-        <button 
-          type="button" 
-          onclick={validerImportTarifs}
-          disabled={importedRows.length === 0}
-          style="padding: 9px 18px; border-radius: 8px; background: #2563eb; color: #ffffff; border: none; font-weight: 700; cursor: pointer; opacity: {importedRows.length === 0 ? 0.5 : 1};"
-        >
-          Valider et activer le pointage
-        </button>
+      <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; flex-wrap: wrap; gap: 10px;">
+        <div>
+          {#if $members.length > 0}
+            <button 
+              type="button" 
+              onclick={() => { showImportModal = false; supprimerFichierAdherents(); }}
+              style="padding: 8px 12px; border-radius: 8px; background: #ffffff; border: 1px solid #fecaca; color: #dc2626; font-weight: 600; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+              title="Supprimer la liste actuelle si elle comporte des erreurs"
+            >
+              <i class="fa-solid fa-trash-can"></i> Supprimer la liste ({$members.length})
+            </button>
+          {/if}
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center; margin-left: auto;">
+          <button 
+            type="button" 
+            onclick={() => showImportModal = false}
+            style="padding: 9px 16px; border-radius: 8px; background: #ffffff; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; cursor: pointer;"
+          >
+            Annuler
+          </button>
+          <button 
+            type="button" 
+            onclick={validerImportTarifs}
+            disabled={importedRows.length === 0}
+            style="padding: 9px 18px; border-radius: 8px; background: #2563eb; color: #ffffff; border: none; font-weight: 700; cursor: pointer; opacity: {importedRows.length === 0 ? 0.5 : 1}; box-shadow: 0 2px 6px rgba(37,99,235,0.25);"
+          >
+            Valider et activer le pointage
+          </button>
+        </div>
       </div>
 
     </div>
