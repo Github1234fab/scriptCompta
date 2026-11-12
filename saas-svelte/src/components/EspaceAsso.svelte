@@ -25,8 +25,8 @@
 
 <style>
   .recette-card {
-    background: #ffffff;
-    border: 1.5px solid #e2e8f0;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
     border-radius: 14px;
     padding: 20px 22px;
     display: flex;
@@ -34,17 +34,16 @@
     justify-content: space-between;
     gap: 16px;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03);
+    box-shadow: var(--shadow-sm);
     transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
   }
   .recette-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.10), 0 4px 10px -2px rgba(15, 23, 42, 0.05);
-    border-color: #cbd5e1;
+    box-shadow: var(--shadow-md);
   }
   .recette-card.is-selected {
-    border-color: #3b82f6;
-    box-shadow: 0 10px 25px -4px rgba(37, 99, 235, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.05);
+    border: 2px solid #3b82f6 !important;
+    box-shadow: 0 0 0 1px #3b82f6, 0 10px 25px -4px rgba(37, 99, 235, 0.25);
   }
   .recette-btn {
     width: 100%;
@@ -58,20 +57,21 @@
     transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
   }
   .recette-btn.inactive {
-    background: #f1f5f9;
-    color: #334155;
+    background: var(--bg-subtle);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color) !important;
   }
   .recette-btn.inactive:hover {
-    background: #e2e8f0;
-    color: #0f172a;
+    background: var(--bg-card-hover);
+    color: var(--text-main);
   }
   .recette-btn.active {
-    background: #2563eb;
+    background: #4f46e5;
     color: #ffffff;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
   }
   .recette-btn.active:hover {
-    background: #1d4ed8;
+    background: #4338ca;
   }
 </style>
 
@@ -104,26 +104,26 @@
   
   <!-- Bloc 1: Recettes en 756 et 706 -->
   <div 
-    class="recette-card {selectedCard === 'members' || activeTab === 'members' ? 'is-selected' : ''}" 
-    onclick={() => handleSelectCard('members')}
-    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectCard('members'); }}
+    class="recette-card {activeTab === 'members' ? 'is-selected' : ''}" 
+    onclick={() => handleActivateTab('members')}
+    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleActivateTab('members'); }}
     role="button"
     tabindex="0"
   >
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
-        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; font-family: var(--font-title); display: flex; align-items: center;">
+        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
           <span>Recette en 756 et 706</span>
           <InfoTip text="Isole et pilote vos cotisations, adhésions et forfaits encaissés sur votre compte bancaire." width="250px" />
         </h3>
-        <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
+        <span style="background: rgba(37, 99, 235, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
           756 · 706
         </span>
       </div>
-      <div style="font-size: 0.8rem; font-weight: 600; color: #475569; line-height: 1.4; margin-bottom: 10px;">
+      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); line-height: 1.4; margin-bottom: 10px;">
         (Cotisations, cours, forfaits annuels, licences sportives, stages, élèves et adhérents.)
       </div>
-      <p style="margin: 0; font-size: 0.78rem; color: #64748b; line-height: 1.45;">
+      <p style="margin: 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.45;">
         En cliquant sur « Créer », vous affichez un tableau de gestion qui vous permet de gérer et pointer tous vos mouvements des comptes 756 et 706.
       </p>
     </div>
@@ -144,26 +144,26 @@
 
   <!-- Bloc 2: Recettes en 754 -->
   <div 
-    class="recette-card {selectedCard === 'donations' || activeTab === 'donations' ? 'is-selected' : ''}" 
-    onclick={() => handleSelectCard('donations')}
-    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectCard('donations'); }}
+    class="recette-card {activeTab === 'donations' ? 'is-selected' : ''}" 
+    onclick={() => handleActivateTab('donations')}
+    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleActivateTab('donations'); }}
     role="button"
     tabindex="0"
   >
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
-        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; font-family: var(--font-title); display: flex; align-items: center;">
+        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
           <span>Recette en 754</span>
           <InfoTip text="Registre officiel de vos soutiens financiers et génération des reçus fiscaux (CERFA)." width="250px" />
         </h3>
-        <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
+        <span style="background: rgba(37, 99, 235, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
           754
         </span>
       </div>
-      <div style="font-size: 0.8rem; font-weight: 600; color: #475569; line-height: 1.4; margin-bottom: 10px;">
+      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); line-height: 1.4; margin-bottom: 10px;">
         (Dons manuels, mécénat et soutiens financiers.)
       </div>
-      <p style="margin: 0; font-size: 0.78rem; color: #64748b; line-height: 1.45;">
+      <p style="margin: 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.45;">
         En cliquant sur « Créer », vous affichez le registre des donateurs et la génération automatique des reçus fiscaux officiels (CERFA).
       </p>
     </div>
@@ -184,26 +184,26 @@
 
   <!-- Bloc 3: Recettes en 707 et 708 -->
   <div 
-    class="recette-card {selectedCard === 'sales' || activeTab === 'sales' ? 'is-selected' : ''}" 
-    onclick={() => handleSelectCard('sales')}
-    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectCard('sales'); }}
+    class="recette-card {activeTab === 'sales' ? 'is-selected' : ''}" 
+    onclick={() => handleActivateTab('sales')}
+    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleActivateTab('sales'); }}
     role="button"
     tabindex="0"
   >
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
-        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; font-family: var(--font-title); display: flex; align-items: center;">
+        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
           <span>Recette en 707 et 708</span>
           <InfoTip text="Suivi des recettes accessoires (stages, boutique, buvette, billetterie d'événements)." width="250px" />
         </h3>
-        <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
+        <span style="background: rgba(37, 99, 235, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
           707 · 708
         </span>
       </div>
-      <div style="font-size: 0.8rem; font-weight: 600; color: #475569; line-height: 1.4; margin-bottom: 10px;">
+      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); line-height: 1.4; margin-bottom: 10px;">
         (Ventes, billetterie, buvette, événements et marchandises.)
       </div>
-      <p style="margin: 0; font-size: 0.78rem; color: #64748b; line-height: 1.45;">
+      <p style="margin: 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.45;">
         En cliquant sur « Créer », vous affichez le suivi des encaissements liés aux ventes directes, buvettes et manifestations.
       </p>
     </div>

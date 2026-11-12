@@ -1,6 +1,7 @@
 <script>
   import { Categorizer } from "../lib/categorizer.js";
   import { CSVParser } from "../lib/parser.js";
+  import { getTitoRowExplanation } from "../lib/titoExplainer.js";
   import InfoTip from "./InfoTip.svelte";
 
   import { onMount } from "svelte";
@@ -8,6 +9,8 @@
     transactions, 
     planComptable, 
     rules, 
+    entities,
+    activeEntityId,
     activeTxId, 
     updateTransactions, 
     updateRules, 
@@ -16,7 +19,8 @@
     showUpgradeModal,
     FREE_TIER_MAX_TRANSACTIONS,
     formatDateFr,
-    openHelpGuide
+    openHelpGuide,
+    openTitoChat
   } from "../lib/store.js";
   
   // Active tab filter: 'pending' vs 'categorized' vs null
@@ -274,7 +278,7 @@
   /** @type {any[] | null} */
   let lastStateTransactions = $state(null);
 
-  import { activeEntityId } from "../lib/store.js";
+  // import { activeEntityId } from "../lib/store.js";
 
   // États pour l'historique des imports
   let showHistoryDrawer = $state(false);
@@ -439,16 +443,15 @@
             }
           }
 
-          const complement = (match?.info || (match?.rawCells && match.rawCells[selectedComplementColIdx]) || '').trim();
-          if (match && complement) {
-            const baseLib = match.rawLibelle || tx.rawLibelle || tx.libelle.split('—')[0].split('|')[0].trim();
-            const isGeneric = /^(REMISE EUROPRELEVEMENT|REMISE SDD|PRLV SEPA|PRELEVEMENT SDD|VIREMENT SEPA|REMISE CHEQUE)$/i.test(baseLib);
+          const complement = (match?.info || (match?.rawCells && match.rawCells[selectedComplementColIdx]) || (tx.rawCells && tx.rawCells[selectedComplementColIdx]) || '').trim();
+          if (complement) {
+            const baseLib = match?.rawLibelle || tx.rawLibelle || tx.libelle.split('—')[0].split('|')[0].trim();
             return {
               ...tx,
               info: complement,
               rawLibelle: baseLib,
-              libelle: isGeneric ? `${baseLib} — ${complement}` : tx.libelle,
-              rawCells: match.rawCells || tx.rawCells
+              libelle: `${baseLib} — ${complement}`,
+              rawCells: match?.rawCells || tx.rawCells
             };
           }
           return tx;
@@ -467,12 +470,15 @@
     const otherTx = $transactions.filter(t => t.entityId && t.entityId !== $activeEntityId);
     let updatedCount = 0;
     const updatedList = currentTx.map(tx => {
-      if (tx.rawCells && tx.rawCells[selectedComplementColIdx]) {
+      if (tx.rawCells && tx.rawCells[selectedComplementColIdx] !== undefined) {
         const comp = String(tx.rawCells[selectedComplementColIdx]).trim();
+        const baseLib = tx.rawLibelle || tx.libelle.split('—')[0].split('|')[0].trim();
         updatedCount++;
         return {
           ...tx,
-          info: comp
+          info: comp,
+          rawLibelle: baseLib,
+          libelle: comp ? `${baseLib} — ${comp}` : baseLib
         };
       }
       return tx;
@@ -480,6 +486,7 @@
 
     if (updatedCount > 0) {
       updateTransactions([...otherTx, ...updatedList]);
+      Categorizer.reappliquerReglesAuxTransactionsEnAttente();
       showToast(`Complément d'information appliqué à ${updatedCount} écritures.`);
       showConcatModal = false;
     } else {
@@ -575,7 +582,20 @@
   }
 
   // Reactive transaction lists filtrées strictement par structure
+  let activeEntityModel = $derived($entities.find((e) => e.id === $activeEntityId)?.model || 'micro');
   let currentStructureTx = $derived($transactions.filter((t) => (!t.entityId || t.entityId === $activeEntityId)));
+
+  /** @param {any} [tx] */
+  function openTitoChatForTx(tx = null) {
+    if (tx) {
+      const sug = getSuggestionForTx(tx);
+      const exp = getTitoRowExplanation(tx, activeEntityModel, sug);
+      const customMsg = `**Explication pour « ${cleanTransactionLibelle(tx.libelle, tx)} » (${tx.debit > 0 ? '-' + tx.debit : '+' + tx.credit} €) :**\n\n• **Ce que fait Tito :** ${exp.lineExplanation.replace('Tito a un doute : ', '')}\n• **Pourquoi (Règle officielle) :** ${exp.whyLegal}\n• **Impact concret :** ${exp.impact}`;
+      openTitoChat(tx, customMsg);
+    } else {
+      openTitoChat(null);
+    }
+  }
   let nonTriees = $derived(currentStructureTx.filter((t) => t.compteAttribué === "699" || t.statut === "non_attribue" || t.statut === "suggere"));
   let triees = $derived(currentStructureTx.filter((t) => t.compteAttribué !== "699" && t.statut === "attribue"));
   let displayedTxList = $derived(activeTab === "pending" ? nonTriees : triees);
@@ -651,20 +671,19 @@
     const parts = fullLibelle.split('|').map((/** @type {string} */ s) => s.trim()).filter(Boolean);
     let main = parts[0] || fullLibelle;
 
-    // Détection de complément d'information (payeur, motif, etc.) en ignorant formellement les dates
-    let rawComp = '';
+    // Détection de complément d'information (payeur, motif, etc.)
+    let complement = '';
     if (tx?.rawCells && selectedComplementColIdx !== -1 && tx.rawCells[selectedComplementColIdx]) {
-      rawComp = String(tx.rawCells[selectedComplementColIdx]).trim();
+      complement = String(tx.rawCells[selectedComplementColIdx]).trim();
     } else if (tx?.info && String(tx.info).trim()) {
-      rawComp = String(tx.info).trim();
+      complement = String(tx.info).trim();
     } else if (parts.length > 2) {
-      rawComp = parts[2];
+      const p = parts[2].trim();
+      if (!/^\d{2}[/\-.]\d{2}[/\-.]\d{2,4}$/.test(p)) complement = p;
     } else if (parts.length === 2 && !/^[A-Z0-9]{5,20}$/.test(parts[1])) {
-      rawComp = parts[1];
+      const p = parts[1].trim();
+      if (!/^\d{2}[/\-.]\d{2}[/\-.]\d{2,4}$/.test(p)) complement = p;
     }
-
-    const isDate = /^\d{2}[/\-.]\d{2}[/\-.]\d{2,4}$/.test(rawComp);
-    const complement = isDate ? '' : rawComp;
 
     // Vérifier si le libellé principal est un intitulé bancaire générique (Option 2 : REMISE EUROPRELEVEMENT — Nom)
     const isGeneric = /^(REMISE EUROPRELEVEMENT|REMISE SDD|PRLV SEPA|PRELEVEMENT SDD|VIREMENT SEPA|REMISE CHEQUE)$/i.test(main);
@@ -677,11 +696,9 @@
     cleaned = cleaned.replace(/^SA-/, '').trim();
     if (!cleaned) cleaned = main;
 
-    // Si on a un complément pertinent qui n'est pas déjà dans le libellé nettoyé (ex: virement court)
+    // Si on a un complément pertinent qui n'est pas déjà dans le libellé nettoyé
     if (complement && !cleaned.toLowerCase().includes(complement.toLowerCase())) {
-      if (/^(INST|EVI|VIR)$/i.test(cleaned)) {
-        return `${cleaned} — ${complement}`;
-      }
+      return `${cleaned} — ${complement}`;
     }
 
     return cleaned || main;
@@ -1017,16 +1034,14 @@
 <!-- ========================================== -->
 <!-- ======================================================= -->
 <!-- ======================================================= -->
-<!-- GRILLE DU HAUT (3 CARTES CÔTE À CÔTE EN RESPONSIVE)     -->
-<!-- ======================================================= -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px;">
+<!-- GRILLE DU HAUT (3 CARTES CÔTE À CÔTE DE MÊME HAUTEUR) -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px; align-items: stretch;">
   
   <!-- CARTE 1 : IMPORT DE RELEVÉ BANCAIRE (CSV) -->
-  <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; gap: 14px;">
+  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; height: 100%; box-sizing: border-box;">
     <!-- En-tête du bloc -->
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px;">
-      <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap;">
-        <i class="fa-solid fa-cloud-arrow-up" style="color: #4f46e5; font-size: 0.9rem;"></i> 
+      <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap;">
         <span>Import de relevé bancaire</span>
         <InfoTip text="Glissez ici le relevé téléchargé depuis votre banque en ligne (Boursorama, BNP, Crédit Agricole, Qonto, etc.)." width="240px" />
       </h3>
@@ -1036,9 +1051,7 @@
         <button 
           type="button" 
           onclick={effacerToutesOperations}
-          style="display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 0.74rem; padding: 3px 9px; background: #ffffff; border: 1px solid #cbd5e1; color: #64748b; border-radius: 6px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; flex-shrink: 0;"
-          onmouseenter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }}
-          onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#64748b'; }}
+          style="display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 0.74rem; padding: 3px 9px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 6px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; flex-shrink: 0;"
           title="Annuler et réinitialiser le relevé bancaire"
         >
           Annuler
@@ -1055,15 +1068,15 @@
       ondragover={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
       ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); dragover = false; }}
       ondrop={handleCSVDrop}
-      style="cursor: pointer; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 22px 16px; background: {dragover ? 'rgba(79, 70, 229, 0.05)' : '#ffffff'}; border: 2px dashed {dragover ? '#4f46e5' : '#cbd5e1'}; border-radius: 14px; transition: all 0.2s ease; box-sizing: border-box; flex: 1; min-height: 110px;"
+      style="cursor: pointer; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 20px 16px; background: {dragover ? 'rgba(79, 70, 229, 0.08)' : 'var(--bg-card)'}; border: 2px dashed {dragover ? '#4f46e5' : 'var(--border-color)'}; border-radius: 14px; transition: all 0.2s ease; box-sizing: border-box; flex: 1; min-height: 145px;"
       onmouseenter={(e) => { e.currentTarget.style.borderColor = '#4f46e5'; }}
-      onmouseleave={(e) => { if (!dragover) { e.currentTarget.style.borderColor = '#cbd5e1'; } }}
+      onmouseleave={(e) => { if (!dragover) { e.currentTarget.style.borderColor = 'var(--border-color)'; } }}
     >
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: #f8fafc; border: 1px solid #e2e8f0; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-subtle); border: 1px solid var(--border-color); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; pointer-events: none; box-shadow: var(--shadow-sm);">
         <i class="fa-solid fa-cloud-arrow-up"></i>
       </div>
       
-      <div style="pointer-events: none; font-weight: 800; font-size: 0.92rem; color: #0f172a;">
+      <div style="pointer-events: none; font-weight: 800; font-size: 0.92rem; color: var(--text-main);">
         Glissez ou importez
       </div>
       
@@ -1081,77 +1094,68 @@
     </div>
   </div>
 
-  <!-- CARTE 2 : PARAMÉTRAGE DU DICTIONNAIRE -->
-  <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; gap: 14px;">
+  <!-- CARTE 2 : DICTIONNAIRE D'ATTRIBUTION / PARAMÉTRAGE -->
+  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; height: 100%; box-sizing: border-box;">
     <!-- En-tête du bloc -->
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px;">
-      <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap;">
-        <i class="fa-solid fa-gear" style="color: #4f46e5; font-size: 0.9rem;"></i> 
-        <span>Paramétrage</span>
+      <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap;">
+        <span>Dictionnaire d'attribution</span>
         <InfoTip text="Vos règles apprises : chaque fois que vous attribuez un libellé, ScriptCompta le mémorise pour les prochains relevés." width="250px" />
       </h3>
     </div>
 
-    <!-- Carte intérieure blanche en colonne -->
-    <div style="padding: 16px 16px; background: var(--bg-card, #ffffff); border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; flex: 1; min-height: 110px; box-sizing: border-box;">
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-        <i class="fa-solid fa-book-bookmark"></i>
+    <!-- Carte intérieure en colonne -->
+    <div style="padding: 20px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; flex: 1; min-height: 145px; box-sizing: border-box;">
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-subtle); border: 1px solid var(--border-color); color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0;">
+        <i class="fa-solid fa-gear"></i>
       </div>
 
       <div>
-        <div style="font-weight: 800; font-size: 0.92rem; color: #0f172a; white-space: nowrap;">
-          Dictionnaire d'attribution
-        </div>
-        <div style="font-size: 0.74rem; color: #64748b; font-weight: 600; margin-top: 2px;">
-          {$rules.length} règles attribuées
+        <div style="font-weight: 800; font-size: 0.92rem; color: var(--text-main); white-space: nowrap;">
+          Paramétrage
         </div>
       </div>
 
       <button 
         type="button" 
         onclick={() => showDictionaryModal = true}
-        style="background: #0f172a; color: #ffffff; border: none; padding: 5px 18px; font-weight: 700; border-radius: 20px; cursor: pointer; font-size: 0.76rem; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18); transition: background 0.15s ease;"
-        onmouseenter={(e) => { e.currentTarget.style.background = '#1e293b'; }}
-        onmouseleave={(e) => { e.currentTarget.style.background = '#0f172a'; }}
+        style="background: #4f46e5; color: #ffffff; border: none; padding: 5px 18px; font-weight: 700; border-radius: 20px; cursor: pointer; font-size: 0.76rem; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25); transition: opacity 0.15s ease;"
+        onmouseenter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+        onmouseleave={(e) => { e.currentTarget.style.opacity = '1'; }}
       >
         Paramétrer
       </button>
     </div>
   </div>
 
-  <!-- CARTE 3 : TRAITEMENT ET AFFECTATION DES OPÉRATIONS (MÊME UI DE CARTE) -->
-  <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; gap: 14px;">
+  <!-- CARTE 3 : TRAITEMENT ET AFFECTATION DES OPÉRATIONS -->
+  <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; height: 100%; box-sizing: border-box;">
     <!-- En-tête du bloc -->
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px;">
-      <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap;">
-        <i class="fa-solid fa-arrows-split-up-and-left" style="color: #4f46e5; font-size: 0.9rem;"></i> 
+      <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap;">
         <span>Traitement des opérations</span>
         <InfoTip text="Vérifiez les opérations en attente ou visualisez l'ensemble de votre grand journal déjà classé." width="250px" />
       </h3>
     </div>
 
-    <!-- Carte intérieure blanche avec deux boutons bien distincts -->
-    <div style="padding: 14px 16px; background: var(--bg-card, #ffffff); border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; align-items: center; justify-content: center; gap: 10px; flex: 1; min-height: 80px; box-sizing: border-box;">
+    <!-- Carte intérieure avec deux boutons bien distincts et alignés -->
+    <div style="padding: 20px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; gap: 12px; flex: 1; min-height: 145px; box-sizing: border-box;">
       <button
         type="button"
-        style="flex: 1; padding: 9px 12px; border-radius: 8px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'pending' && nonTriees.length > 0 ? 'background: #0f172a; color: #ffffff; border: 1.5px solid #0f172a; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);' : 'background: #ffffff; color: #334155; border: 1.5px solid #cbd5e1;'}"
+        style="flex: 1; padding: 12px 14px; border-radius: 10px; font-size: 0.86rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'pending' && nonTriees.length > 0 ? 'background: #4f46e5; color: #ffffff; border: 1.5px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color);'}"
         onclick={() => {
           activeTab = activeTab === 'pending' ? null : 'pending';
         }}
-        onmouseenter={(e) => { if (activeTab !== 'pending' || nonTriees.length === 0) e.currentTarget.style.borderColor = '#94a3b8'; }}
-        onmouseleave={(e) => { if (activeTab !== 'pending' || nonTriees.length === 0) e.currentTarget.style.borderColor = '#cbd5e1'; }}
       >
-        Attribuer ({nonTriees.length})
+        À attribuer ({nonTriees.length})
       </button>
 
       <button
         type="button"
-        style="flex: 1; padding: 9px 12px; border-radius: 8px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'categorized' && triees.length > 0 ? 'background: #0f172a; color: #ffffff; border: 1.5px solid #0f172a; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);' : 'background: #ffffff; color: #334155; border: 1.5px solid #cbd5e1;'}"
+        style="flex: 1; padding: 12px 14px; border-radius: 10px; font-size: 0.86rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'categorized' && triees.length > 0 ? 'background: #4f46e5; color: #ffffff; border: 1.5px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color);'}"
         onclick={() => {
           activeTab = activeTab === 'categorized' ? null : 'categorized';
         }}
-        onmouseenter={(e) => { if (activeTab !== 'categorized' || triees.length === 0) e.currentTarget.style.borderColor = '#94a3b8'; }}
-        onmouseleave={(e) => { if (activeTab !== 'categorized' || triees.length === 0) e.currentTarget.style.borderColor = '#cbd5e1'; }}
       >
         Voir ({triees.length})
       </button>
@@ -1164,8 +1168,8 @@
 <!-- CONTENEUR DU TABLEAU DE TRAITEMENT DES OPÉRATIONS       -->
 <!-- ======================================================= -->
 {#if (activeTab === 'pending' && nonTriees.length > 0) || (activeTab === 'categorized' && triees.length > 0)}
-  <div style="margin-bottom: 30px; background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-    <div style="padding: 16px; background: var(--bg-card, #ffffff); border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); width: 100%; box-sizing: border-box; border: 1px solid #e2e8f0;">
+  <div style="margin-bottom: 30px; background: var(--table-container-bg); border: 1.5px solid var(--border-container); border-radius: 20px; padding: 20px; box-shadow: var(--shadow-card);">
+    <div style="padding: 6px; background: transparent; width: 100%; box-sizing: border-box;">
         
         {#if activeTab === 'pending'}
           {#if recognizedList.length > 0}
@@ -1174,7 +1178,7 @@
               <button 
                 type="button"
                 onclick={validerToutEnUnClic}
-                style="padding: 7px 16px; font-size: 0.84rem; font-weight: 700; background: #16a34a; color: #ffffff; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 7px; box-shadow: 0 1px 2px rgba(22, 163, 74, 0.2); transition: all 0.15s ease;"
+                style="padding: 8px 18px; font-size: 0.84rem; font-weight: 700; background: #16a34a; color: #ffffff; border: none; border-radius: 9999px; cursor: pointer; display: flex; align-items: center; gap: 7px; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35); transition: all 0.15s ease;"
                 onmouseenter={(e) => { e.currentTarget.style.background = '#15803d'; }}
                 onmouseleave={(e) => { e.currentTarget.style.background = '#16a34a'; }}
                 title="Valider toutes les suggestions d'un clic"
@@ -1186,13 +1190,13 @@
           {/if}
         {:else}
           <!-- Barre d'outils de tri et de filtrage pour les opérations attribuées -->
-          <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
             <!-- Sélecteur de compte -->
             <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 0.78rem; font-weight: 700; color: #64748b;">Compte :</span>
+              <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted);">Compte :</span>
               <select 
                 bind:value={categorizedFilterAccount}
-                style="padding: 6px 10px; font-size: 0.82rem; font-weight: 600; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0f172a; cursor: pointer;"
+                style="padding: 6px 10px; font-size: 0.82rem; font-weight: 600; background: var(--bg-card); border: 1.5px solid var(--border-color); border-radius: 8px; color: var(--text-main); cursor: pointer;"
               >
                 <option value="all">Tous les comptes ({triees.length})</option>
                 {#each attributedAccountsList as acc}
@@ -1203,10 +1207,10 @@
 
             <!-- Sélecteur de tri -->
             <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 0.78rem; font-weight: 700; color: #64748b;">Ordre :</span>
+              <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted);">Ordre :</span>
               <select 
                 bind:value={categorizedSortBy}
-                style="padding: 6px 10px; font-size: 0.82rem; font-weight: 600; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0f172a; cursor: pointer;"
+                style="padding: 6px 10px; font-size: 0.82rem; font-weight: 600; background: var(--bg-card); border: 1.5px solid var(--border-color); border-radius: 8px; color: var(--text-main); cursor: pointer;"
               >
                 <option value="account">Regrouper par compte comptable</option>
                 <option value="date_desc">Date (du plus récent au plus ancien)</option>
@@ -1217,12 +1221,12 @@
 
             <!-- Champ de recherche rapide -->
             <div style="position: relative; display: flex; align-items: center;">
-              <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 9px; color: #94a3b8; font-size: 0.75rem; pointer-events: none;"></i>
+              <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 9px; color: var(--text-muted); font-size: 0.75rem; pointer-events: none;"></i>
               <input 
                 type="text"
                 placeholder="Rechercher..."
                 bind:value={categorizedSearch}
-                style="padding: 6px 10px 6px 26px; font-size: 0.82rem; border: 1.5px solid #cbd5e1; border-radius: 8px; width: 140px; background: #ffffff;"
+                style="padding: 6px 10px 6px 26px; font-size: 0.82rem; border: 1.5px solid var(--border-color); border-radius: 8px; width: 140px; background: var(--bg-card); color: var(--text-main);"
               />
             </div>
           </div>
@@ -1230,16 +1234,13 @@
 
       {#if activeTab === 'pending'}
         {#if nonTriees.length > 0}
-          <!-- Tableau pour les écritures à attribuer -->
-          <div class="table-container" style="width: 100%; overflow-x: auto;">
-            <table class="custom-table" style="width: 100%; border-collapse: separate; border-spacing: 0;">
+          <!-- Tableau épuré à 2 colonnes (Date + Carte d'opération & Contrôle Tito) -->
+          <div class="table-container" style="width: 100%; overflow-x: auto; background: transparent !important; border: none !important; box-shadow: none !important;">
+            <table class="custom-table" style="width: 100%; border-collapse: separate; border-spacing: 0 10px; background: transparent !important;">
               <thead>
                 <tr>
-                  <th style="width: 12%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Date</th>
-                  <th style="width: 34%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Libellé</th>
-                  <th style="width: 14%; padding: 12px 14px; text-align: right; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Montant</th>
-                  <th style="width: 30%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Catégorie / Attribution</th>
-                  <th style="width: 12%; padding: 12px 14px; text-align: right; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Action</th>
+                  <th style="width: 110px; padding: 10px 14px; font-weight: 800; font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: none; background: transparent !important;">Date</th>
+                  <th style="padding: 10px 14px; font-weight: 800; font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: none; background: transparent !important;">Opération & Contrôle Tito</th>
                 </tr>
               </thead>
               <tbody>
@@ -1249,109 +1250,136 @@
                   {@const isStateA = Boolean(sug) && !manualCat}
                   {@const isStateC = Boolean(manualCat)}
                   {@const isStateB = !isStateA && !isStateC}
+                  {@const titoInfo = getTitoRowExplanation(tx, activeEntityModel, sug)}
 
-                  <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s ease;">
-                    
-                    <!-- 1. Date (Format français) -->
-                    <td style="padding: 14px 14px; vertical-align: middle; font-weight: 600; font-size: 0.88rem; color: #64748b; white-space: nowrap;">
-                      {formatDateFr(tx.date)}
-                    </td>
-
-                    <!-- 2. Libellé épuré avec pilule de concaténation -->
-                    <td style="padding: 12px 14px; vertical-align: middle;" title="{tx.libelle} {tx.info ? `• ${tx.info}` : ''} {tx.reference ? `• Ref: ${tx.reference}` : ''}">
-                      <div style="font-weight: 700; color: #0f172a; font-size: 0.93rem;">
-                        {cleanTransactionLibelle(tx.libelle, tx)}
-                      </div>
-                      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 3px;">
-                        <span style="font-size: 0.74rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                          {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
-                        </span>
-                        <button
-                          type="button"
-                          onclick={() => showConcatModal = true}
-                          style="margin-left: auto; flex-shrink: 0; font-size: 0.68rem; font-weight: 700; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.12s ease; line-height: 1.4; white-space: nowrap;"
-                          onmouseenter={(e) => { e.currentTarget.style.background = '#dbeafe'; }}
-                          onmouseleave={(e) => { e.currentTarget.style.background = '#eff6ff'; }}
-                          title="Mixer une autre colonne de votre fichier bancaire (payeur, motif, référence...)"
-                        >
-                          <i class="fa-solid fa-link" style="font-size: 0.62rem;"></i>
-                          <span>Associer un complément d'information</span>
-                        </button>
+                  <tr>
+                    <!-- 1. Colonne Date -->
+                    <td style="padding: 16px 14px; vertical-align: top; font-weight: 800; font-size: 0.88rem; color: var(--text-muted); white-space: nowrap; border: none;">
+                      <div style="background: var(--table-date-bg); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); text-align: center; color: var(--table-date-text); font-weight: 800;">
+                        {formatDateFr(tx.date)}
                       </div>
                     </td>
 
-                    <!-- 3. Montant -->
-                    <td style="padding: 14px 14px; vertical-align: middle; text-align: right; font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: {tx.debit > 0 ? '#b91c1c' : '#15803d'}; white-space: nowrap;">
-                      {tx.debit > 0 ? "- " : "+ "}
-                      {(Number(tx.debit || tx.credit || 0)).toFixed(2).replace('.', ',')} €
-                    </td>
+                    <!-- 2. Colonne Opération & Contrôle Tito (Carte Dashboard Hero) -->
+                    <td style="padding: 0 10px; vertical-align: top; border: none;">
+                      <div 
+                        style="background: {titoInfo.isHeuristicDoubt ? 'var(--heuristic-doubt-bg)' : 'var(--table-card-bg)'}; border: 1.5px solid {titoInfo.isHeuristicDoubt ? '#38bdf8' : 'var(--table-card-border)'}; border-radius: 14px; padding: 16px 18px; box-shadow: {titoInfo.isHeuristicDoubt ? '0 0 24px rgba(56, 189, 248, 0.16)' : 'var(--shadow-sm)'}; display: flex; flex-direction: column; gap: 9px; transition: all 0.15s ease;"
+                      >
+                        <!-- Étage 1 : Libellé + type à gauche, Montant à droite -->
+                        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span style="font-weight: 800; font-size: 0.98rem; color: var(--table-card-title); letter-spacing: 0.01em;">
+                              {cleanTransactionLibelle(tx.libelle, tx)}
+                            </span>
+                            <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); background: var(--bg-subtle); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-subtle);">
+                              {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
+                            </span>
+                          </div>
 
-                    <!-- 4. Catégorie / Attribution -->
-                    <td style="padding: 14px 14px; vertical-align: middle;">
-                      {#if isStateA && sug}
-                        <!-- ÉTAT A : Suggestion IA (Label suggestion + Bouton Modifier) -->
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                          <span style="font-weight: 700; font-size: 0.88rem; color: #166534; background: #f0fdf4; border: 1.5px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
-                            <i class="fa-solid fa-wand-magic-sparkles" style="color: #16a34a;"></i>
-                            {sug.label} ({sug.compte})
-                          </span>
+                          <div style="font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: {tx.debit > 0 ? '#f87171' : '#34d399'}; white-space: nowrap; margin-left: auto;">
+                            {tx.debit > 0 ? "- " : "+ "}
+                            {(Number(tx.debit || tx.credit || 0)).toFixed(2).replace('.', ',')} €
+                          </div>
+                        </div>
+
+                        <!-- Étage 2 : Analyse pédagogique Tito (avec numéro de compte explicite pour apprendre) -->
+                        <div style="font-size: 0.84rem; color: {titoInfo.isHeuristicDoubt ? 'var(--color-primary)' : 'var(--table-card-desc)'}; line-height: 1.45; font-weight: {titoInfo.isHeuristicDoubt ? '600' : '400'};">
+                          {titoInfo.lineExplanation}
+                        </div>
+
+                        <!-- Étage 3 : Barre de pilules actions -->
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+                          
+                          <!-- Pilule principale Tito -->
+                          {#if isStateA && sug}
+                            {#if titoInfo.isCertain}
+                              <span style="font-weight: 700; font-size: 0.78rem; color: #34d399; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); padding: 5px 12px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-check" style="font-size: 0.7rem;"></i>
+                                <span>Attribution automatique • {sug.label} (compte {sug.compte})</span>
+                              </span>
+                            {:else}
+                              <!-- Pilule bleue 1-clic Hero -->
+                              <button
+                                type="button"
+                                onclick={() => {
+                                  selectAccount(tx.id, sug.compte);
+                                  validerLigneSeule(tx);
+                                }}
+                                title="Valider en 1 clic au compte {sug.compte}"
+                                style="background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%); color: #ffffff; border: none; font-size: 0.8rem; font-weight: 800; padding: 6px 14px; border-radius: 9999px; cursor: pointer; box-shadow: 0 3px 12px rgba(6, 182, 212, 0.35); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;"
+                              >
+                                <span>{titoInfo.oneClickLabel}</span>
+                              </button>
+                            {/if}
+                          {:else if isStateC}
+                            <span style="font-weight: 700; font-size: 0.78rem; color: #93c5fd; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); padding: 5px 12px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px;">
+                              <i class="fa-solid fa-check" style="color: #60a5fa;"></i>
+                              <span>Compte {manualCat} ({formatAccountLabel(manualCat)})</span>
+                            </span>
+                          {:else}
+                            <button
+                              type="button"
+                              onclick={() => openCategorizeModal(tx)}
+                              style="background: var(--bg-subtle); color: var(--text-main); border: 1px solid var(--border-color); font-size: 0.78rem; font-weight: 700; padding: 5px 12px; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"
+                            >
+                              <i class="fa-solid fa-magnifying-glass" style="color: var(--color-primary);"></i>
+                              <span>Choisir la catégorie</span>
+                            </button>
+                          {/if}
+
+                          <!-- Bouton Confirmer -->
+                          {#if (isStateA && sug && titoInfo.isCertain) || isStateC}
+                            <button
+                              type="button"
+                              onclick={() => {
+                                if (isStateA && sug) selectAccount(tx.id, sug.compte);
+                                validerLigneSeule(tx);
+                              }}
+                              style="padding: 5px 14px; font-weight: 800; font-size: 0.78rem; background: #16a34a; color: #ffffff; border: none; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.35);"
+                              title="Confirmer cette attribution"
+                            >
+                              <i class="fa-solid fa-check"></i>
+                              <span>Confirmer</span>
+                            </button>
+                          {/if}
+
+                          <!-- Bouton Modifier -->
+                          {#if isStateA || isStateC}
+                            <button
+                              type="button"
+                              onclick={() => openCategorizeModal(tx)}
+                              style="background: var(--bg-subtle); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 5px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.74rem; font-weight: 600;"
+                            >
+                              Modifier
+                            </button>
+                          {/if}
+
+                          <!-- Bouton Analyse Tito -->
                           <button
                             type="button"
-                            onclick={() => openCategorizeModal(tx)}
-                            title="Modifier l'attribution"
-                            style="background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+                            onclick={() => openTitoChatForTx(tx)}
+                            style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 5px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;"
+                            title="Comprendre l'analyse de Tito et voir la règle officielle"
                           >
-                            <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i> Modifier
+                            <span>Analyse Tito</span>
                           </button>
-                        </div>
-                      {:else if isStateC}
-                        <!-- ÉTAT C : Choix manuel en cours (Label + Bouton Modifier) -->
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                          <span style="font-weight: 700; font-size: 0.88rem; color: #1e40af; background: #eff6ff; border: 1.5px solid #bfdbfe; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
-                            <i class="fa-solid fa-check" style="color: #2563eb;"></i>
-                            {formatAccountLabel(manualCat)} ({manualCat})
-                          </span>
+
+                          <!-- Bouton Ajouter détails (actif) -->
                           <button
                             type="button"
-                            onclick={() => openCategorizeModal(tx)}
-                            title="Modifier l'attribution"
-                            style="background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+                            onclick={() => showConcatModal = true}
+                            style="background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.72rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;"
+                            title="Ajouter des détails / associer une colonne de votre relevé"
+                            onmouseenter={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.color = 'var(--text-main)'; }}
+                            onmouseleave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                           >
-                            <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i> Modifier
+                            <span>+ Ajouter détails</span>
                           </button>
+
                         </div>
-                      {:else}
-                        <!-- ÉTAT B : Pas de suggestion IA -> Bouton "Attribution manuelle" -->
-                        <button
-                          type="button"
-                          onclick={() => openCategorizeModal(tx)}
-                          title="Ouvrir le menu d'attribution manuelle"
-                          style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.04);"
-                        >
-                          <i class="fa-solid fa-magnifying-glass" style="color: #6366f1;"></i>
-                          Attribution manuelle
-                        </button>
-                      {/if}
-                    </td>
 
-                    <!-- 5. Action (Bouton "Valider" explicite avec texte si une suggestion/choix existe) -->
-                    <td style="padding: 14px 14px; vertical-align: middle; text-align: right;">
-                      {#if (isStateA && sug) || isStateC}
-                        <button 
-                          type="button"
-                          onclick={() => {
-                            if (isStateA && sug) selectAccount(tx.id, sug.compte);
-                            validerLigneSeule(tx);
-                          }}
-                          title="Valider l'attribution"
-                          aria-label="Valider l'attribution"
-                          style="padding: 7px 16px; font-weight: 700; font-size: 0.85rem; background: #16a34a; color: #ffffff; border: none; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(22, 163, 74, 0.2);"
-                        >
-                          <i class="fa-solid fa-check"></i> Valider
-                        </button>
-                      {/if}
+                      </div>
                     </td>
-
                   </tr>
                 {/each}
               </tbody>
@@ -1359,66 +1387,96 @@
           </div>
         {/if}
       {:else}
-        <!-- ÉTAT ATTRIBUÉES -->
+        <!-- ÉTAT ATTRIBUÉES (2 Colonnes Hero également) -->
         {#if displayedCategorizedTxList.length === 0}
-          <div style="padding: 36px 20px; text-align: center; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; margin-top: 10px;">
-            <div style="width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin: 0 auto 10px auto;">
+          <div style="padding: 36px 20px; text-align: center; background: var(--bg-subtle); border: 1px dashed var(--border-color); border-radius: 14px; margin-top: 10px;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-card); color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin: 0 auto 10px auto;">
               <i class="fa-regular fa-folder-open"></i>
             </div>
-            <strong style="font-size: 0.98rem; color: #334155; display: block; margin-bottom: 4px;">Aucune écriture attribuée</strong>
-            <span style="font-size: 0.82rem; color: #64748b;">Importez un relevé bancaire ou classez vos écritures pour les retrouver ici.</span>
+            <strong style="font-size: 0.98rem; color: var(--text-main); display: block; margin-bottom: 4px;">Aucune écriture attribuée</strong>
+            <span style="font-size: 0.82rem; color: var(--text-muted);">Importez un relevé bancaire ou classez vos écritures pour les retrouver ici.</span>
           </div>
         {:else}
-          <div class="table-container" style="width: 100%; overflow-x: auto;">
-            <table class="custom-table" style="width: 100%; border-collapse: separate; border-spacing: 0;">
+          <div class="table-container" style="width: 100%; overflow-x: auto; background: transparent !important; border: none !important; box-shadow: none !important;">
+            <table class="custom-table" style="width: 100%; border-collapse: separate; border-spacing: 0 10px; background: transparent !important;">
               <thead>
                 <tr>
-                  <th style="width: 12%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Date</th>
-                  <th style="width: 34%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Libellé</th>
-                  <th style="width: 14%; padding: 12px 14px; text-align: right; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Montant</th>
-                  <th style="width: 30%; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Catégorie / Attribution</th>
-                  <th style="width: 12%; padding: 12px 14px; text-align: right; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Action</th>
+                  <th style="width: 110px; padding: 10px 14px; font-weight: 800; font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: none; background: transparent !important;">Date</th>
+                  <th style="padding: 10px 14px; font-weight: 800; font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: none; background: transparent !important;">Opération & Écriture validée</th>
                 </tr>
               </thead>
               <tbody>
                 {#each displayedCategorizedTxList as tx}
-                  <tr style="border-bottom: 1px solid #f1f5f9; background: #ffffff;">
-                    <td style="padding: 14px 14px; font-weight: 600; font-size: 0.88rem; color: #64748b; white-space: nowrap;">
-                      {formatDateFr(tx.date)}
-                    </td>
-                    <td style="padding: 12px 14px; vertical-align: middle;">
-                      <div style="font-weight: 700; color: #0f172a;">{cleanTransactionLibelle(tx.libelle, tx)}</div>
-                      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 3px;">
-                        <span style="font-size: 0.74rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                          {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
-                        </span>
-                        <button
-                          type="button"
-                          onclick={() => showConcatModal = true}
-                          style="margin-left: auto; flex-shrink: 0; font-size: 0.68rem; font-weight: 700; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.12s ease; line-height: 1.4; white-space: nowrap;"
-                          onmouseenter={(e) => { e.currentTarget.style.background = '#dbeafe'; }}
-                          onmouseleave={(e) => { e.currentTarget.style.background = '#eff6ff'; }}
-                          title="Mixer une autre colonne de votre fichier bancaire (payeur, motif, référence...)"
-                        >
-                          <i class="fa-solid fa-link" style="font-size: 0.62rem;"></i>
-                          <span>Associer un complément d'information</span>
-                        </button>
+                  <tr>
+                    <td style="padding: 16px 14px; vertical-align: top; font-weight: 800; font-size: 0.88rem; color: var(--text-muted); white-space: nowrap; border: none;">
+                      <div style="background: var(--table-date-bg); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); text-align: center; color: var(--table-date-text); font-weight: 800;">
+                        {formatDateFr(tx.date)}
                       </div>
                     </td>
-                    <td style="padding: 14px 14px; text-align: right; font-weight: 700; font-size: 0.95rem; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: {tx.debit > 0 ? '#b91c1c' : '#15803d'}; white-space: nowrap;">
-                      {tx.debit > 0 ? "- " : "+ "}
-                      {(Number(tx.debit || tx.credit || 0)).toFixed(2).replace('.', ',')} €
-                    </td>
-                    <td style="padding: 14px 14px; color: #3730a3; font-weight: 700;">
-                      <span style="display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; font-size: 0.88rem;">
-                        <i class="fa-solid fa-circle-check" style="color: #16a34a;"></i>
-                        {formatAccountLabel(tx.compteAttribué)} ({tx.compteAttribué})
-                      </span>
-                    </td>
-                    <td style="padding: 14px 14px; text-align: right;">
-                      <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #15803d; background: #dcfce7; border: 1px solid #86efac; padding: 4px 10px; border-radius: 6px; font-weight: 700;">
-                        <i class="fa-solid fa-check"></i> Validé
-                      </span>
+
+                    <td style="padding: 0 10px; vertical-align: top; border: none;">
+                      <div style="background: var(--table-card-bg); border: 1.5px solid var(--table-card-border); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 9px;">
+                        
+                        <!-- Ligne 1 : Libellé + type à gauche, Montant à droite -->
+                        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span style="font-weight: 800; font-size: 0.98rem; color: var(--table-card-title); letter-spacing: 0.01em;">
+                              {cleanTransactionLibelle(tx.libelle, tx)}
+                            </span>
+                            <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); background: var(--bg-subtle); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-subtle);">
+                              {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
+                            </span>
+                          </div>
+
+                          <div style="font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: {tx.debit > 0 ? '#f87171' : '#34d399'}; white-space: nowrap; margin-left: auto;">
+                            {tx.debit > 0 ? "- " : "+ "}
+                            {(Number(tx.debit || tx.credit || 0)).toFixed(2).replace('.', ',')} €
+                          </div>
+                        </div>
+
+                        <!-- Ligne 2 : Mention de classement validé -->
+                        <div style="font-size: 0.84rem; color: var(--table-card-desc); line-height: 1.45;">
+                          Inscrit et validé dans vos écritures officielles au compte <strong style="color: var(--table-card-title);">{tx.compteAttribué} ({formatAccountLabel(tx.compteAttribué)})</strong>.
+                        </div>
+
+                        <!-- Ligne 3 : Barre de pilules actions -->
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+                          <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); padding: 5px 12px; border-radius: 9999px; font-size: 0.78rem; font-weight: 700;">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span>Validé • Compte {tx.compteAttribué} ({formatAccountLabel(tx.compteAttribué)})</span>
+                          </span>
+
+                          <button
+                            type="button"
+                            onclick={() => openCategorizeModal(tx)}
+                            style="background: var(--bg-subtle); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 5px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.74rem; font-weight: 600;"
+                          >
+                            Modifier
+                          </button>
+
+                          <button
+                            type="button"
+                            onclick={() => openTitoChatForTx(tx)}
+                            style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 5px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;"
+                            title="Consulter l'analyse officielle Tito"
+                          >
+                            <span>Analyse Tito</span>
+                          </button>
+
+                          <!-- Bouton Ajouter détails (actif) -->
+                          <button
+                            type="button"
+                            onclick={() => showConcatModal = true}
+                            style="background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.72rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;"
+                            title="Ajouter des détails / associer une colonne de votre relevé"
+                            onmouseenter={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.color = 'var(--text-main)'; }}
+                            onmouseleave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                          >
+                            <span>+ Ajouter détails</span>
+                          </button>
+                        </div>
+
+                      </div>
                     </td>
                   </tr>
                 {/each}
@@ -2206,16 +2264,15 @@
   >
     <div 
       class="modal-card" 
-      style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; width: 100%; max-width: 620px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;"
+      style="background: var(--bg-modal); border: 1px solid var(--border-color); border-radius: 14px; width: 100%; max-width: 620px; box-shadow: var(--shadow-card); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;"
     >
       <!-- En-tête -->
-      <div style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; background: #ffffff;">
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--bg-modal);">
         <div>
-          <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.1rem; color: #0f172a; display: flex; align-items: center; gap: 8px; font-weight: 800;">
-            <i class="fa-solid fa-link" style="color: #2563eb; font-size: 0.95rem;"></i>
+          <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.1rem; color: var(--text-main); font-weight: 800;">
             Associer un complément d'information
           </h3>
-          <div style="font-size: 0.78rem; color: #64748b; margin-top: 3px;">
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">
             Mixez le libellé avec la colonne de votre choix (nom du payeur, motif, détail...)
           </div>
         </div>
@@ -2257,16 +2314,15 @@
           </div>
         {:else}
           <!-- Bloc de sélection des colonnes selon la charte graphique -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-              <div style="font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
-                <i class="fa-solid fa-table-columns" style="color: #2563eb;"></i>
+              <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
                 Sélectionnez la colonne à ajouter au libellé
               </div>
               <button 
                 type="button"
                 onclick={() => concatFileInput && concatFileInput.click()}
-                style="background: none; border: none; color: #2563eb; font-size: 0.74rem; font-weight: 700; cursor: pointer; text-decoration: underline;"
+                style="background: none; border: none; color: #38bdf8; font-size: 0.74rem; font-weight: 700; cursor: pointer; text-decoration: underline;"
               >
                 {concatFileName ? `Fichier : ${concatFileName} (Changer)` : 'Changer de fichier CSV'}
               </button>
@@ -2286,16 +2342,11 @@
                 <button
                   type="button"
                   onclick={() => selectedComplementColIdx = idx}
-                  style="padding: 7px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.12s ease; border: 1.5px solid {isSelected ? '#2563eb' : '#cbd5e1'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: {isSelected ? '#1d4ed8' : '#334155'}; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
+                  style="padding: 7px 14px; border-radius: 9999px; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.12s ease; border: 1px solid {isSelected ? '#38bdf8' : 'var(--border-color)'}; background: {isSelected ? 'rgba(56, 189, 248, 0.18)' : 'var(--bg-card)'}; color: {isSelected ? '#38bdf8' : 'var(--text-secondary)'}; display: inline-flex; align-items: center; gap: 6px; box-shadow: var(--shadow-sm);"
                 >
-                  {#if isSelected}
-                    <i class="fa-solid fa-circle-check" style="color: #2563eb; font-size: 0.85rem;"></i>
-                  {:else}
-                    <i class="fa-regular fa-circle" style="color: #94a3b8; font-size: 0.85rem;"></i>
-                  {/if}
                   <span>{header}</span>
                   {#if isLibelleCol}
-                    <span style="font-size: 0.65rem; color: #64748b; background: #f1f5f9; padding: 1px 4px; border-radius: 3px;">(base)</span>
+                    <span style="font-size: 0.65rem; color: var(--text-muted); background: var(--bg-subtle); padding: 1px 5px; border-radius: 4px;">(base)</span>
                   {/if}
                 </button>
               {/each}
@@ -2305,28 +2356,27 @@
           <!-- Live Preview Box -->
           {#if concatSampleRows.length > 0 && selectedComplementColIdx !== -1}
             {@const libColIdx = availableCsvHeaders.findIndex(h => h.toLowerCase().includes('libelle')) !== -1 ? availableCsvHeaders.findIndex(h => h.toLowerCase().includes('libelle')) : 1}
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                <i class="fa-solid fa-eye" style="color: #2563eb;"></i>
-                Aperçu
+            <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
+              <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px;">
+                Aperçu du libellé enrichi
               </div>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; flex-direction: column; gap: 10px;">
                 {#each concatSampleRows.slice(0, 3) as row}
                   {@const lib = row[libColIdx] || 'Libellé'}
                   {@const comp = row[selectedComplementColIdx] || ''}
-                  <div style="background: #ffffff; padding: 9px 12px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="background: var(--bg-card); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px;">
                     <!-- Ligne 1 : Ce qui est concaténé -->
-                    <div style="display: flex; align-items: center; font-size: 0.8rem; gap: 8px;">
-                      <span style="color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{lib}">{lib}</span>
-                      <span style="color: #2563eb; font-weight: 800; font-size: 0.95rem; flex-shrink: 0; line-height: 1;">+</span>
-                      <span style="color: #1d4ed8; font-weight: 700; background: #eff6ff; padding: 1px 7px; border-radius: 4px; border: 1px solid #bfdbfe; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{comp || '(vide)'}">
+                    <div style="display: flex; align-items: center; font-size: 0.82rem; gap: 8px; flex-wrap: wrap;">
+                      <span style="color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{lib}">{lib}</span>
+                      <span style="color: var(--color-accent); font-weight: 800; font-size: 0.95rem; flex-shrink: 0; line-height: 1;">+</span>
+                      <span style="color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.14); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{comp || '(vide)'}">
                         {comp || '(vide)'}
                       </span>
                     </div>
                     <!-- Ligne 2 : Visualisation du résultat final -->
-                    <div style="display: flex; align-items: baseline; gap: 6px; font-size: 0.82rem; padding-top: 5px; border-top: 1px dashed #f1f5f9;">
-                      <span style="color: #94a3b8; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; flex-shrink: 0;">Affichage :</span>
-                      <strong style="color: #0f172a; word-break: break-word;">
+                    <div style="display: flex; align-items: baseline; gap: 6px; font-size: 0.86rem; padding-top: 8px; border-top: 1px dashed var(--border-color);">
+                      <span style="color: var(--text-muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; flex-shrink: 0;">Affichage :</span>
+                      <strong style="color: var(--text-main); word-break: break-word;">
                         {comp ? `${lib} — ${comp}` : lib}
                       </strong>
                     </div>
@@ -2335,8 +2385,8 @@
               </div>
             </div>
           {:else if selectedComplementColIdx !== -1}
-            <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 10px; padding: 14px 16px; text-align: center;">
-              <div style="font-size: 0.82rem; color: #475569; margin-bottom: 8px;">
+            <div style="background: var(--bg-subtle); border: 1.5px dashed var(--border-color); border-radius: 10px; padding: 14px 16px; text-align: center;">
+              <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px;">
                 Rechargez votre relevé bancaire pour afficher l'aperçu du résultat en direct :
               </div>
               <button 
@@ -2353,11 +2403,11 @@
       </div>
 
       <!-- Pied de page -->
-      <div style="padding: 12px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; background: #f8fafc;">
+      <div style="padding: 12px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; background: var(--bg-subtle);">
         <button 
           type="button" 
           onclick={() => showConcatModal = false}
-          style="padding: 8px 16px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 700; font-size: 0.84rem; color: #475569; cursor: pointer;"
+          style="padding: 8px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; font-weight: 700; font-size: 0.84rem; color: var(--text-main); cursor: pointer;"
         >
           Annuler
         </button>
@@ -2365,9 +2415,8 @@
           type="button" 
           onclick={appliquerConcatenationAssistee}
           disabled={selectedComplementColIdx === -1}
-          style="padding: 8px 20px; background: #2563eb; border: none; border-radius: 8px; font-weight: 700; font-size: 0.84rem; color: #ffffff; cursor: {selectedComplementColIdx === -1 ? 'not-allowed' : 'pointer'}; opacity: {selectedComplementColIdx === -1 ? 0.6 : 1}; display: inline-flex; align-items: center; gap: 6px;"
+          style="padding: 8px 20px; background: #2563eb; border: none; border-radius: 8px; font-weight: 700; font-size: 0.84rem; color: #ffffff; cursor: {selectedComplementColIdx === -1 ? 'not-allowed' : 'pointer'}; opacity: {selectedComplementColIdx === -1 ? 0.6 : 1};"
         >
-          <i class="fa-solid fa-check"></i>
           Appliquer à tout le relevé
         </button>
       </div>

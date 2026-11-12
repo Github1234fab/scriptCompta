@@ -180,23 +180,13 @@
     </button>
   </PageHeader>
 
-  <!-- 1. VOTRE ASSOCIATION (Indicateurs clés) -->
+  <!-- 1. INDICATEURS CLÉS (SANS REDITE DU NOM DE STRUCTURE) -->
   <div style="margin-bottom: 30px;">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
-      <h2 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">
-        Votre association <span style="color: #2563eb; background: rgba(37, 99, 235, 0.09); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2); font-size: 0.95rem; margin-left: 6px;">{activeEntity.name}</span>
-      </h2>
-      <span style="font-size: 0.82rem; color: #64748b; font-weight: 600;">
-        Synthèse financière en temps réel
-      </span>
-    </div>
-
-    <!-- TITRE DE SECTION KPI : INDICATEURS -->
-    <!-- 1. BLOC GÉNÉRAL INDICATEURS (ENGLOBANT LE TITRE) -->
+    <!-- BLOC GÉNÉRAL INDICATEURS -->
     <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px;">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
-        <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-chart-line" style="color: #2563eb; font-size: 0.95rem;"></i> Indicateurs
+        <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: var(--text-main, #0f172a); margin: 0;">
+          Indicateurs
         </h3>
         <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
           Trésorerie et cotisations en direct
@@ -240,11 +230,10 @@
       </div>
     </div>
 
-    <!-- 2. BLOC GÉNÉRAL TÂCHES À EFFECTUER (ENGLOBANT LE TITRE) -->
+    <!-- 2. BLOC GÉNÉRAL TÂCHES À EFFECTUER (SANS ICÔNES) -->
     <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px; display: flex; flex-direction: column; gap: 12px; max-width: 580px;">
       <div style="display: flex; align-items: center; gap: 10px;">
-        <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-list-check" style="color: #2563eb; font-size: 0.92rem;"></i> 
+        <h3 style="font-family: var(--font-title); font-size: 1.02rem; font-weight: 800; color: var(--text-main, #0f172a); margin: 0; display: flex; align-items: center; gap: 8px;">
           <span>Tâches à effectuer</span>
           <InfoTip text="Indique le nombre d'opérations bancaires récemment importées qui attendent votre attribution." width="230px" />
         </h3>
@@ -253,19 +242,14 @@
         </span>
       </div>
 
-      <!-- Tâche 1: Attribution (fond blanc sans bordure) -->
-      <div style="padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: var(--bg-card, #ffffff); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); max-width: 540px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 38px; height: 38px; border-radius: 10px; background: var(--bg-subtle, #f1f5f9); border: none; color: {pendingTxCount > 0 ? '#d97706' : '#16a34a'}; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;">
-            <i class="fa-solid {pendingTxCount > 0 ? 'fa-arrows-split-up-and-left' : 'fa-circle-check'}"></i>
+      <!-- Tâche 1: Attribution -->
+      <div style="padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid var(--border-color, #e2e8f0); border-radius: 12px; background: var(--bg-card, #ffffff); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); max-width: 540px;">
+        <div>
+          <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-main, #0f172a);">
+            {pendingTxCount > 0 ? `Vous devez attribuer ${pendingTxCount} opération${pendingTxCount > 1 ? 's' : ''}` : "Vous n'avez aucune attribution en attente"}
           </div>
-          <div>
-            <div style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">
-              {pendingTxCount > 0 ? `Vous devez attribuer ${pendingTxCount} opération${pendingTxCount > 1 ? 's' : ''}` : "Vous n'avez aucune attribution en attente"}
-            </div>
-            <div style="font-size: 0.78rem; color: #64748b; line-height: 1.35;">
-              {pendingTxCount > 0 ? 'Affectez chaque mouvement au plan associatif pour actualiser la trésorerie et préparer les rapports.' : 'Toutes vos opérations sont classées et votre comptabilité est à jour.'}
-            </div>
+          <div style="font-size: 0.78rem; color: #64748b; line-height: 1.35; margin-top: 2px;">
+            {pendingTxCount > 0 ? 'Affectez chaque mouvement au plan associatif pour actualiser la trésorerie et préparer les rapports.' : 'Toutes vos opérations sont classées et votre comptabilité est à jour.'}
           </div>
         </div>
         <button 
@@ -278,20 +262,15 @@
         </button>
       </div>
 
-      <!-- Tâche 2: Cotisations / Adhésions en retard (fond blanc sans bordure) -->
+      <!-- Tâche 2: Cotisations / Adhésions en retard -->
       {#if retardsCount > 0}
-        <div style="padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: var(--bg-card, #ffffff); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); max-width: 540px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 38px; height: 38px; border-radius: 10px; background: var(--bg-subtle, #f1f5f9); border: none; color: #dc2626; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;">
-              <i class="fa-solid fa-clock-rotate-left"></i>
+        <div style="padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid var(--border-color, #e2e8f0); border-radius: 12px; background: var(--bg-card, #ffffff); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); max-width: 540px;">
+          <div>
+            <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-main, #0f172a);">
+              Vous devez régulariser {retardsCount} adhésion{retardsCount > 1 ? 's' : ''} en attente
             </div>
-            <div>
-              <div style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">
-                Vous devez régulariser {retardsCount} adhésion{retardsCount > 1 ? 's' : ''} en attente
-              </div>
-              <div style="font-size: 0.78rem; color: #64748b; line-height: 1.35;">
-                Un solde de {resteAEncaisser.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} reste à recouvrer pour l'exercice.
-              </div>
+            <div style="font-size: 0.78rem; color: #64748b; line-height: 1.35; margin-top: 2px;">
+              Un solde de {resteAEncaisser.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} reste à recouvrer pour l'exercice.
             </div>
           </div>
           <button 
@@ -307,12 +286,11 @@
     </div>
   </div>
 
-  <!-- 3. DERNIERS MOUVEMENTS DE TRÉSORERIE (ENGLOBANT LE TITRE) -->
+  <!-- 3. DERNIERS MOUVEMENTS DE TRÉSORERIE (SANS ICÔNE DANS LE TITRE) -->
   <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); padding: 20px; margin-bottom: 30px;">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
       <div>
-        <h2 style="font-family: var(--font-title); font-size: 1.12rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-money-bill-transfer" style="color: #2563eb; font-size: 0.95rem;"></i>
+        <h2 style="font-family: var(--font-title); font-size: 1.12rem; font-weight: 800; color: var(--text-main, #0f172a); margin: 0;">
           {#if showAllTransactions}
             Mouvements de trésorerie ({txSearch.trim() ? `${filteredTx.length} résultat${filteredTx.length > 1 ? 's' : ''}` : `${activeTx.length} opérations`})
           {:else}
@@ -362,30 +340,31 @@
       </div>
     </div>
 
-    <!-- Table conteneur blanc sans bordure avec ombre douce -->
-    <div class="table-container" style="border: none; border-radius: 12px; overflow: hidden; background: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);">
+    <!-- Table conteneur épuré adapté au thème sombre/clair -->
+    <div class="table-container" style="border: 1px solid var(--border-color, #e2e8f0); border-radius: 12px; overflow: hidden; background: var(--bg-card, #ffffff); box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05));">
       <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
-          <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
-            <th style="padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase;">Date</th>
-            <th style="padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase;">Libellé Opération</th>
-            <th style="padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase;">
+          <tr style="background: var(--bg-subtle, #f8fafc); border-bottom: 1.5px solid var(--border-color, #e2e8f0);">
+            <th style="padding: 12px 14px; font-weight: 700; font-size: 0.78rem; color: var(--text-muted, #64748b); text-transform: uppercase;">Date</th>
+            <th style="padding: 12px 14px; font-weight: 700; font-size: 0.78rem; color: var(--text-muted, #64748b); text-transform: uppercase;">Libellé Opération</th>
+            <th style="padding: 12px 14px; font-weight: 700; font-size: 0.78rem; color: var(--text-muted, #64748b); text-transform: uppercase;">
               <span>Attribution / Nature</span>
               <InfoTip text="Compte officiel dans lequel chaque opération est classée pour vos registres légaux." width="230px" position="bottom" />
             </th>
-            <th style="text-align: right; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: #475569; text-transform: uppercase;">Montant</th>
+            <th style="text-align: right; padding: 12px 14px; font-weight: 700; font-size: 0.78rem; color: var(--text-muted, #64748b); text-transform: uppercase;">Montant</th>
           </tr>
         </thead>
         <tbody>
           {#if displayedTx.length === 0}
             <tr>
-              <td colspan="4" style="text-align: center; padding: 32px; color: #64748b; font-size: 0.88rem;">
+              <td colspan="4" style="text-align: center; padding: 32px; color: var(--text-muted, #64748b); font-size: 0.88rem;">
                 Aucune opération ne correspond à votre recherche.
               </td>
             </tr>
           {:else}
             {#each displayedTx as tx}
-              <tr style="border-bottom: 1px solid #e2e8f0; background: #ffffff;">
+              {@const isAttributed = tx.compteAttribué && tx.compteAttribué !== '699'}
+              <tr style="border-bottom: 1px solid var(--border-color, #e2e8f0); background: transparent;">
                 <td style="color: var(--text-muted); white-space: nowrap; padding: 12px 14px; font-weight: 600; font-size: 0.86rem;">
                   {formatDateFr(tx.date)}
                 </td>
@@ -393,11 +372,17 @@
                   {tx.libelle}
                 </td>
                 <td style="padding: 12px 14px;">
-                  <span class="badge" style="background: {tx.compteAttribué && tx.compteAttribué !== '699' ? '#f0fdf4' : '#f8fafc'}; color: {tx.compteAttribué && tx.compteAttribué !== '699' ? '#166534' : '#64748b'}; border: 1px solid {tx.compteAttribué && tx.compteAttribué !== '699' ? '#bbf7d0' : '#cbd5e1'}; font-weight: 700; font-size: 0.78rem;">
-                    {tx.compteAttribué && tx.compteAttribué !== '699' ? `${Categorizer.obtenirLibelleCompte(tx.compteAttribué)} (${tx.compteAttribué})` : 'Non attribué'}
-                  </span>
+                  {#if isAttributed}
+                    <span style="display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 9999px; font-size: 0.74rem; font-weight: 700; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);">
+                      {Categorizer.obtenirLibelleCompte(tx.compteAttribué)} ({tx.compteAttribué})
+                    </span>
+                  {:else}
+                    <span style="display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 9999px; font-size: 0.74rem; font-weight: 700; background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);">
+                      Non attribué
+                    </span>
+                  {/if}
                 </td>
-                <td style="text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; padding: 12px 14px; font-size: 0.92rem; color: {tx.credit > 0 ? 'var(--color-success)' : 'var(--text-main)'};">
+                <td style="text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; padding: 12px 14px; font-size: 0.92rem; color: {tx.credit > 0 ? '#34d399' : '#f87171'};">
                   {tx.credit > 0 ? '+' : ''}{(tx.credit || -tx.debit).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
                 </td>
               </tr>

@@ -6,11 +6,11 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
-:root {
+:root, :root[data-theme="light"] {
   /* SCRIPTCOMPTA DESIGN SYSTEM - LIGHT SLATE MINIMALISTE */
   
   /* 1. Fond Global de l'application */
-  --bg-app: #ffffff;
+  --bg-app: #f8fafc;
   
   /* 2. Barre Latérale Gauche (Sidebar) */
   --bg-sidebar: #0f172a;
@@ -19,16 +19,26 @@
   --bg-header: #ffffff;
   
   /* 4. Fond du Screen Principal (Zone de travail) */
-  --bg-screen: #ffffff;
+  --bg-screen: #f8fafc;
   
   /* 5. Cartes, KPIs & Conteneurs de Tableaux */
-  --bg-container: #f8fafc; /* Conteneur général (gris ardoise très clair) */
-  --border-container: #cbd5e1; /* Bordure des conteneurs généraux (légère et discrète) */
+  --bg-container: #ffffff; /* Conteneur général blanc épuré */
+  --border-container: #e2e8f0; /* Bordure des conteneurs généraux */
   --bg-subtle: #f1f5f9; /* Pastilles et éléments discrets */
   --border-subtle: #e2e8f0;
   --bg-card: #ffffff;
   --bg-kpi: #ffffff; /* Cartes KPI blanches épurées avec bordures */
-  --bg-card-hover: #f1f5f9;
+  --bg-card-hover: #f8fafc;
+
+  /* Spécifique Tableau Hero */
+  --table-container-bg: #f8fafc;
+  --table-card-bg: #ffffff;
+  --table-card-border: #e2e8f0;
+  --table-card-title: #0f172a;
+  --table-card-desc: #475569;
+  --table-date-bg: #ffffff;
+  --table-date-text: #64748b;
+  --heuristic-doubt-bg: #f0f7ff;
   
   /* 6. Modales & Popups */
   --bg-modal: #ffffff;
@@ -36,7 +46,7 @@
   /* Couleurs de texte */
   --text-main: #0f172a;
   --text-primary: #0f172a;
-  --text-secondary: #475569;
+  --text-secondary: #334155;
   --text-muted: #64748b;
   --text-light: #94a3b8;
   
@@ -46,7 +56,8 @@
   
   /* Accents & Statuts */
   --color-primary: #0f172a;
-  --color-accent: #3f83f1;
+  --color-primary-text: #ffffff;
+  --color-accent: #2563eb;
   --color-success: #166534;
   --color-success-bg: #F0FDF4;
   --color-warning: #92400E;
@@ -55,7 +66,7 @@
   --color-danger-bg: #FEF2F2;
 
   --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --shadow-card: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08);
 
   --font-title: 'Outfit', sans-serif;
@@ -64,6 +75,87 @@
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
+}
+
+:root[data-theme="dark"] {
+  /* SCRIPTCOMPTA DESIGN SYSTEM - DARK COCKPIT TITO */
+  --bg-app: #080e1b;
+  --bg-sidebar: #060b15;
+  --bg-header: #0b1424;
+  --bg-screen: #080e1b;
+  --bg-container: #0b1424;
+  --border-container: rgba(56, 189, 248, 0.18);
+  --bg-subtle: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --bg-card: #0d182b;
+  --bg-kpi: #0d182b;
+  --bg-card-hover: #13223d;
+
+  /* Spécifique Tableau Hero */
+  --table-container-bg: #070e1e;
+  --table-card-bg: #0c1629;
+  --table-card-border: rgba(255, 255, 255, 0.09);
+  --table-card-title: #ffffff;
+  --table-card-desc: #cbd5e1;
+  --table-date-bg: rgba(15, 23, 42, 0.6);
+  --table-date-text: #cbd5e1;
+  --heuristic-doubt-bg: linear-gradient(180deg, #0d1e38 0%, #0a172c 100%);
+
+  --bg-modal: #0d182b;
+  --text-main: #f8fafc;
+  --text-primary: #ffffff;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-light: #64748b;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(56, 189, 248, 0.35);
+  --color-primary: #38bdf8;
+  --color-primary-text: #080e1a;
+  --color-accent: #38bdf8;
+  --color-success: #34d399;
+  --color-success-bg: rgba(16, 185, 129, 0.12);
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-danger: #f87171;
+  --color-danger-bg: rgba(239, 68, 68, 0.12);
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 10px -1px rgba(0, 0, 0, 0.5);
+}
+
+/* Prise en charge automatique du mode sombre pour les styles en ligne résiduels */
+:root[data-theme="dark"] [style*="color: #0f172a"],
+:root[data-theme="dark"] [style*="color:#0f172a"] {
+  color: var(--text-main) !important;
+}
+
+:root[data-theme="dark"] [style*="color: #475569"],
+:root[data-theme="dark"] [style*="color: #64748b"],
+:root[data-theme="dark"] [style*="color: #334155"] {
+  color: var(--text-muted) !important;
+}
+
+:root[data-theme="dark"] [style*="background: #ffffff"],
+:root[data-theme="dark"] [style*="background-color: #ffffff"],
+:root[data-theme="dark"] [style*="background: white"],
+:root[data-theme="dark"] [style*="background-color: white"] {
+  background-color: var(--bg-card) !important;
+  color: var(--text-main) !important;
+}
+
+:root[data-theme="dark"] [style*="background: #f8fafc"],
+:root[data-theme="dark"] [style*="background: #f1f5f9"],
+:root[data-theme="dark"] [style*="background-color: #f8fafc"],
+:root[data-theme="dark"] [style*="background-color: #f1f5f9"] {
+  background-color: var(--bg-subtle) !important;
+}
+
+:root[data-theme="dark"] [style*="border: 1px solid #e2e8f0"],
+:root[data-theme="dark"] [style*="border: 1.5px solid #e2e8f0"],
+:root[data-theme="dark"] [style*="border: 1px solid #cbd5e1"],
+:root[data-theme="dark"] [style*="border: 1.5px solid #cbd5e1"] {
+  border-color: var(--border-color) !important;
 }
 
 body {
@@ -498,15 +590,15 @@ body {
   font-weight: 800;
   letter-spacing: -0.5px;
   margin-bottom: 6px;
-  color: #0f172a !important;
+  color: var(--text-main) !important;
   background: none !important;
   -webkit-background-clip: initial !important;
   background-clip: initial !important;
-  -webkit-text-fill-color: #0f172a !important;
+  -webkit-text-fill-color: var(--text-main) !important;
 }
 
 .page-subtitle {
-  color: var(--text-secondary);
+  color: var(--text-muted) !important;
   font-size: 1.05rem;
   font-weight: 400;
 }
@@ -769,9 +861,9 @@ body {
 
 /* Form Controls & Select Inputs */
 .form-control, select, input {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid #cbd5e1 !important;
+  background-color: var(--bg-card) !important;
+  color: var(--text-main) !important;
+  border: 1px solid var(--border-color) !important;
   border-radius: var(--radius-sm);
   padding: 8px 12px;
   outline: none;
@@ -883,18 +975,18 @@ body {
    TABLEAUX ET GRILLES DE DONNEES
 /* Headings & Page Titles High Contrast */
 h1, h2, h3, h4, h5, .page-title {
-  color: var(--text-main);
+  color: var(--text-main) !important;
 }
 .page-subtitle {
-  color: var(--text-muted);
+  color: var(--text-muted) !important;
 }
 
 .table-container {
   overflow-x: auto;
   border-radius: var(--radius-md);
-  border: none;
-  background-color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--border-color);
+  background-color: var(--table-container-bg) !important;
+  box-shadow: var(--shadow-sm);
 }
 
 .custom-table {
@@ -902,20 +994,20 @@ h1, h2, h3, h4, h5, .page-title {
   border-collapse: collapse;
   text-align: left;
   font-size: 0.9rem;
-  background-color: #ffffff;
+  background-color: var(--table-card-bg);
 }
 
 .custom-table th {
-  background-color: #ffffff !important;
+  background-color: var(--bg-card) !important;
   padding: 14px 18px;
   font-family: var(--font-title);
   font-weight: 700;
   font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #64748b !important;
-  border-bottom: 1.5px solid #cbd5e1;
-  border-right: 1px solid #e2e8f0;
+  color: var(--text-muted) !important;
+  border-bottom: 1.5px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
 }
 
 .custom-table th:last-child {
@@ -924,9 +1016,9 @@ h1, h2, h3, h4, h5, .page-title {
 
 .custom-table td {
   padding: 14px 18px;
-  border-bottom: 1px solid #e2e8f0;
-  border-right: 1px solid #e2e8f0;
-  color: #0f172a !important;
+  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  color: var(--text-main) !important;
   font-weight: 500;
 }
 
@@ -936,17 +1028,17 @@ h1, h2, h3, h4, h5, .page-title {
 
 .custom-table tbody tr {
   transition: background-color 0.15s ease;
-  background-color: #ffffff !important;
+  background-color: var(--table-card-bg) !important;
 }
 
-/* Lignes uniformes calmes (suppression de l'alternance zébrée) */
+/* Lignes uniformes calmes */
 .custom-table tbody tr:nth-child(even), table.custom-table tbody tr:nth-child(even),
 .custom-table tbody tr:nth-child(odd), table.custom-table tbody tr:nth-child(odd) {
-  background-color: #ffffff !important;
+  background-color: var(--table-card-bg) !important;
 }
 
 .custom-table tbody tr:hover, .student-row:hover {
-  background-color: #f8fafc !important;
+  background-color: var(--bg-card-hover) !important;
 }
 
 .custom-table tbody tr:last-child td {

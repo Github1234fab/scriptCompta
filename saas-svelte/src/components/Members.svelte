@@ -398,9 +398,9 @@
 
 <style>
   .kpi-box {
-    background: #ffffff;
-    border: 1.5px solid #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
     border-radius: 12px;
     padding: 20px 22px;
     display: flex;
@@ -409,7 +409,7 @@
     gap: 12px;
   }
   .table-row-hover:hover {
-    background: #f8fafc !important;
+    background: var(--bg-card-hover) !important;
   }
 </style>
 
@@ -417,14 +417,14 @@
 <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 18px;">
   <!-- SÉLECTEUR DE VUE PRINCIPAL : RELEVÉ BANCAIRE / SUIVI INDIVIDUEL + ACTIONS CSV -->
   <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-    <div style="display: inline-flex; background: #e2e8f0; padding: 4px; border-radius: 10px; gap: 4px; border: 1px solid #cbd5e1;">
+    <div style="display: inline-flex; background: var(--bg-subtle); padding: 4px; border-radius: 10px; gap: 4px; border: 1px solid var(--border-color);">
       <button 
         type="button"
         onclick={() => displayMode = 'releve'}
-        style="padding: 9px 18px; border-radius: 7px; border: none; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 8px; {displayMode === 'releve' ? 'background: #0f172a; color: #ffffff; box-shadow: 0 2px 6px rgba(15,23,42,0.25);' : 'background: transparent; color: #475569;'}"
+        style="padding: 9px 18px; border-radius: 7px; border: none; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 8px; {displayMode === 'releve' ? 'background: #4f46e5; color: #ffffff; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);' : 'background: transparent; color: var(--text-muted);'}"
       >
         Relevé bancaire réel
-        <span style="font-size: 0.75rem; padding: 1px 7px; border-radius: 10px; {displayMode === 'releve' ? 'background: rgba(255,255,255,0.2); color: #ffffff;' : 'background: #cbd5e1; color: #334155;'}">
+        <span style="font-size: 0.75rem; padding: 1px 7px; border-radius: 10px; {displayMode === 'releve' ? 'background: rgba(255,255,255,0.22); color: #ffffff;' : 'background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-color);'}">
           {allAssoTransactions.length}
         </span>
       </button>
@@ -432,11 +432,11 @@
       <button 
         type="button"
         onclick={() => displayMode = 'pointage'}
-        style="padding: 9px 18px; border-radius: 7px; border: none; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 8px; {displayMode === 'pointage' ? 'background: #0f172a; color: #ffffff; box-shadow: 0 2px 6px rgba(15,23,42,0.25);' : 'background: transparent; color: #475569;'}"
+        style="padding: 9px 18px; border-radius: 7px; border: none; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 8px; {displayMode === 'pointage' ? 'background: #4f46e5; color: #ffffff; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);' : 'background: transparent; color: var(--text-muted);'}"
       >
         Suivi individuel des cotisations
         {#if $members.length > 0}
-          <span style="font-size: 0.75rem; padding: 1px 7px; border-radius: 10px; {displayMode === 'pointage' ? 'background: #2563eb; color: #ffffff;' : 'background: #cbd5e1; color: #334155;'}">
+          <span style="font-size: 0.75rem; padding: 1px 7px; border-radius: 10px; {displayMode === 'pointage' ? 'background: rgba(255,255,255,0.22); color: #ffffff;' : 'background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-color);'}">
             {$members.length}
           </span>
         {/if}
@@ -449,10 +449,8 @@
         <button 
           type="button"
           onclick={supprimerFichierAdherents}
-          style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 0.82rem; font-weight: 600; color: #dc2626; background: #ffffff; border: 1.5px solid #fecaca; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
+          style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 0.82rem; font-weight: 700; color: #f87171; background: var(--bg-card); border: 1.5px solid rgba(239, 68, 68, 0.35); border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
           title="Supprimer la liste importée si le fichier comporte des erreurs"
-          onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#fef2f2'; /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = '#dc2626'; }}
-          onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#ffffff'; /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = '#fecaca'; }}
         >
           <i class="fa-solid fa-trash-can"></i>
           <span>Supprimer le fichier</span>
@@ -461,10 +459,8 @@
         <button 
           type="button"
           onclick={() => showImportModal = true}
-          style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.82rem; font-weight: 700; color: #ffffff; background: #0f172a; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(15,23,42,0.2);"
+          style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.82rem; font-weight: 700; color: #ffffff; background: #4f46e5; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);"
           title="Importer un nouveau fichier CSV pour remplacer la liste"
-          onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1e293b'; }}
-          onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#0f172a'; }}
         >
           <i class="fa-solid fa-cloud-arrow-up"></i>
           <span>Nouveau CSV</span>
@@ -473,10 +469,10 @@
         <button 
           type="button"
           onclick={() => { displayMode = 'pointage'; showImportModal = true; }}
-          style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.82rem; font-weight: 700; color: #ffffff; background: #2563eb; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(37,99,235,0.25);"
+          style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.82rem; font-weight: 700; color: #ffffff; background: #4f46e5; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);"
           title="Importer un fichier CSV d'adhérents pour activer le pointage"
-          onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1d4ed8'; }}
-          onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#2563eb'; }}
+          onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#4338ca'; }}
+          onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#4f46e5'; }}
         >
           <i class="fa-solid fa-cloud-arrow-up"></i>
           <span>Importer un CSV cotisations</span>
@@ -492,53 +488,53 @@
     <!-- KPI 1 : Total Encaissé en 756 & 706 -->
     <div class="kpi-box">
       <div>
-        <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">TOTAL ENCAISSÉ (756 & 706)</span>
+        <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">TOTAL ENCAISSÉ (756 & 706)</span>
       </div>
       <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+        <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
           {totalGlobalRecettes.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
         </div>
-        <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">{allAssoTransactions.length} règlements</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">{allAssoTransactions.length} règlements</div>
       </div>
     </div>
 
     <!-- KPI 2 : Cotisations 756 -->
     <div class="kpi-box">
       <div style="display: flex; align-items: center; justify-content: space-between;">
-        <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">COTISATIONS & ADHÉSIONS (756)</span>
+        <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">COTISATIONS & ADHÉSIONS (756)</span>
         <InfoTip text="Ventilation automatique entre ce qui relève de l'adhésion pure (756) et des prestations/cours (706)." width="250px" />
       </div>
       <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+        <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
           {totalRecettes756.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
         </div>
-        <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">{countTx756} règlements</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">{countTx756} règlements</div>
       </div>
     </div>
 
     <!-- KPI 3 : Cours & Activités 706 -->
     <div class="kpi-box">
       <div>
-        <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">COURS & FORFAITS (706)</span>
+        <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">COURS & FORFAITS (706)</span>
       </div>
       <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+        <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
           {totalRecettes706.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
         </div>
-        <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">{countTx706} règlements</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">{countTx706} règlements</div>
       </div>
     </div>
 
     <!-- KPI 4 : Reports saison future 487 -->
     <div class="kpi-box">
       <div>
-        <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">REPORTS SAISON SUIVANTE (487)</span>
+        <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">REPORTS SAISON SUIVANTE (487)</span>
       </div>
       <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: {totalRecettes487 > 0 ? '#b45309' : '#0f172a'}; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+        <div style="font-size: 1.75rem; font-weight: 800; color: {totalRecettes487 > 0 ? '#f59e0b' : 'var(--text-main)'}; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
           {totalRecettes487.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
         </div>
-        <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
           {countTx487} règlement{countTx487 > 1 ? 's' : ''} neutralisé{countTx487 > 1 ? 's' : ''}
         </div>
       </div>
@@ -547,30 +543,30 @@
   {:else}
     <!-- KPIs DU MODE POINTAGE INDIVIDUEL (SANS ICÔNES) -->
     <div class="kpi-box">
-      <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">TOTAL ATTENDU FACTURÉ</span>
-      <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, monospace;">
+      <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">TOTAL ATTENDU FACTURÉ</span>
+      <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, monospace;">
         {kpiTotalAttendu.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
       </div>
     </div>
 
     <div class="kpi-box">
-      <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">DÉJÀ ENCAISSÉ</span>
+      <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">DÉJÀ ENCAISSÉ</span>
       <div style="font-size: 1.75rem; font-weight: 800; color: #166534; font-family: ui-monospace, monospace;">
         {kpiTotalEncaissePointage.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
       </div>
     </div>
 
     <div class="kpi-box">
-      <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">RESTE À RECOUVRER</span>
-      <div style="font-size: 1.75rem; font-weight: 800; color: {kpiRestant > 0 ? '#dc2626' : '#0f172a'}; font-family: ui-monospace, monospace;">
+      <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">RESTE À RECOUVRER</span>
+      <div style="font-size: 1.75rem; font-weight: 800; color: {kpiRestant > 0 ? '#dc2626' : 'var(--text-main)'}; font-family: ui-monospace, monospace;">
         {kpiRestant.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
       </div>
     </div>
 
     <div class="kpi-box">
-      <span style="font-size: 0.74rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">PAYEURS EN RETARD</span>
-      <div style="font-size: 1.75rem; font-weight: 800; color: #0f172a; font-family: ui-monospace, monospace;">
-        {kpiImpayesCount} <span style="font-size: 1rem; color: #64748b;">personne{kpiImpayesCount > 1 ? 's' : ''}</span>
+      <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">PAYEURS EN RETARD</span>
+      <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, monospace;">
+        {kpiImpayesCount} <span style="font-size: 1rem; color: var(--text-muted);">personne{kpiImpayesCount > 1 ? 's' : ''}</span>
       </div>
     </div>
   {/if}
@@ -621,7 +617,7 @@
 {/if}
 
 <!-- CONTENEUR DU TABLEAU DE GESTION -->
-<div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+<div style="background: var(--bg-card); border: 1.5px solid var(--border-color); border-radius: 14px; padding: 24px; box-shadow: var(--shadow-sm);">
   
   <!-- BARRE D'OUTILS -->
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 16px;">
@@ -630,47 +626,47 @@
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
       {#if displayMode === "releve"}
         <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.15s; {txFilter === 'tous' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === 'tous' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
           onclick={() => txFilter = 'tous'}
         >
           Tous <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({allAssoTransactions.length})</span>
         </button>
 
         <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.15s; {txFilter === '756' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === '756' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
           onclick={() => txFilter = '756'}
         >
           756 · Cotisations <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({countTx756})</span>
         </button>
 
         <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.15s; {txFilter === '706' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === '706' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
           onclick={() => txFilter = '706'}
         >
           706 · Cours <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({countTx706})</span>
         </button>
 
         <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.15s; {txFilter === '487' ? 'background: #b45309; color: white; border: 1px solid #b45309;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === '487' ? 'background: #d97706; color: #ffffff; border: 1px solid #d97706; box-shadow: 0 2px 6px rgba(217, 119, 6, 0.25);' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
           onclick={() => txFilter = '487'}
         >
           487 · Reports <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({countTx487})</span>
         </button>
       {:else}
         <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; {memberFilter === 'tous' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; {memberFilter === 'tous' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
           onclick={() => memberFilter = 'tous'}
         >
           Tous ({report.length})
         </button>
         <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; {memberFilter === 'payes' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; {memberFilter === 'payes' ? 'background: #16a34a; color: #ffffff; border: 1px solid #16a34a;' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
           onclick={() => memberFilter = 'payes'}
         >
           À jour ({report.filter(m => m.resteAPayer === 0).length})
         </button>
         <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 600; cursor: pointer; {memberFilter === 'impayes' ? 'background: #0f172a; color: white; border: 1px solid #0f172a;' : 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;'}"
+          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; {memberFilter === 'impayes' ? 'background: #dc2626; color: #ffffff; border: 1px solid #dc2626;' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
           onclick={() => memberFilter = 'impayes'}
         >
           Impayés ({kpiImpayesCount})
@@ -678,17 +674,17 @@
       {/if}
 
       <!-- Switcher Feuillets / Scroll -->
-      <div style="display: flex; background: #f1f5f9; padding: 2px; border-radius: 18px; border: 1px solid #e2e8f0; margin-left: 8px;">
+      <div style="display: flex; background: var(--bg-subtle); padding: 2px; border-radius: 18px; border: 1px solid var(--border-color); margin-left: 8px;">
         <button 
           type="button"
-          style="padding: 5px 11px; font-size: 0.78rem; font-weight: 600; border-radius: 14px; border: none; cursor: pointer; {viewMode === 'pagination' ? 'background: #ffffff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+          style="padding: 5px 11px; font-size: 0.78rem; font-weight: 600; border-radius: 14px; border: none; cursor: pointer; {viewMode === 'pagination' ? 'background: var(--bg-card); color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: var(--text-muted);'}"
           onclick={() => viewMode = 'pagination'}
         >
           <i class="fa-solid fa-file-lines"></i> Feuillets
         </button>
         <button 
           type="button"
-          style="padding: 5px 11px; font-size: 0.78rem; font-weight: 600; border-radius: 14px; border: none; cursor: pointer; {viewMode === 'scroll' ? 'background: #ffffff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+          style="padding: 5px 11px; font-size: 0.78rem; font-weight: 600; border-radius: 14px; border: none; cursor: pointer; {viewMode === 'scroll' ? 'background: var(--bg-card); color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: var(--text-muted);'}"
           onclick={() => viewMode = 'scroll'}
         >
           <i class="fa-solid fa-scroll"></i> Scroll
@@ -699,12 +695,12 @@
     <!-- Recherche & Export CSV -->
     <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
       <div style="position: relative; display: flex; align-items: center;">
-        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; color: #94a3b8; font-size: 0.85rem; pointer-events: none;"></i>
+        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; color: var(--text-muted); font-size: 0.85rem; pointer-events: none;"></i>
         <input 
           type="text" 
           placeholder="Rechercher par nom / libellé..." 
           bind:value={searchQuery}
-          style="padding: 9px 14px 9px 38px; border-radius: 8px; background: #ffffff; border: 1.5px solid #cbd5e1; color: #0f172a; font-size: 0.88rem; width: 250px; outline: none;"
+          style="padding: 9px 14px 9px 38px; border-radius: 8px; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); font-size: 0.88rem; width: 250px; outline: none;"
         />
       </div>
 
@@ -712,10 +708,8 @@
         <button 
           type="button"
           onclick={supprimerFichierAdherents}
-          style="padding: 9px 14px; font-weight: 600; font-size: 0.88rem; background: #ffffff; border: 1.5px solid #fecaca; color: #dc2626; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s ease;"
+          style="padding: 9px 14px; font-weight: 600; font-size: 0.88rem; background: var(--bg-card); border: 1.5px solid #fecaca; color: #dc2626; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s ease;"
           title="Supprimer la liste importée en cas d'erreurs"
-          onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#fef2f2'}
-          onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#ffffff'}
         >
           <i class="fa-solid fa-trash-can"></i>
           <span>Supprimer le fichier</span>
@@ -724,10 +718,8 @@
         <button 
           type="button"
           onclick={() => showImportModal = true}
-          style="padding: 9px 16px; font-weight: 700; font-size: 0.88rem; background: #ffffff; border: 1.5px solid #cbd5e1; color: #0f172a; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s ease;"
+          style="padding: 9px 16px; font-weight: 700; font-size: 0.88rem; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s ease;"
           title="Importer un nouveau fichier CSV pour remplacer la liste"
-          onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#f8fafc'}
-          onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#ffffff'}
         >
           <i class="fa-solid fa-cloud-arrow-up" style="color: #4f46e5;"></i>
           <span>Nouveau CSV</span>
@@ -737,7 +729,7 @@
       <button 
         type="button"
         onclick={exporterCSV}
-        style="padding: 9px 16px; font-weight: 700; font-size: 0.88rem; background: #ffffff; border: 1.5px solid #cbd5e1; color: #0f172a; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
+        style="padding: 9px 16px; font-weight: 700; font-size: 0.88rem; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
         title="Exporter en fichier CSV Excel"
       >
         <i class="fa-solid fa-file-export" style="color: #2563eb;"></i> Exporter CSV
@@ -747,10 +739,10 @@
 
   <!-- TABLEAU (MODE RELEVÉ BANCAIRE PAR DÉFAUT) -->
   {#if displayMode === "releve"}
-    <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+    <div style="border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: var(--bg-card);">
       <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
         <thead>
-          <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; text-transform: uppercase; font-size: 0.76rem; letter-spacing: 0.6px; color: #475569;">
+          <tr style="background: var(--bg-subtle); border-bottom: 1.5px solid var(--border-color); text-transform: uppercase; font-size: 0.76rem; letter-spacing: 0.6px; color: var(--text-muted);">
             <th style="padding: 12px 18px; text-align: left; width: 120px;">Date</th>
             <th style="padding: 12px 18px; text-align: left;">Émetteur / Libellé bancaire</th>
             <th style="padding: 12px 18px; text-align: center; width: 170px;">Compte Comptable</th>
@@ -775,19 +767,19 @@
               {@const cleanName = cleanMemberName(t.libelle)}
               <tr 
                 class="table-row-hover"
-                style="border-bottom: 1px solid #f1f5f9; background: {index % 2 === 0 ? '#ffffff' : '#fcfdfe'}; transition: background 0.15s ease;"
+                style="border-bottom: 1px solid var(--border-color); background: var(--bg-card); transition: background 0.15s ease;"
               >
                 <!-- Date -->
-                <td style="padding: 13px 18px; text-align: left; color: #64748b; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">
+                <td style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-weight: 600; font-size: 0.85rem; white-space: nowrap;">
                   {t.date ? formatDateFr(t.date) : (t.datePaiement || '—')}
                 </td>
 
                 <!-- Libellé & Émetteur -->
                 <td style="padding: 13px 18px; text-align: left;">
-                  <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">
+                  <div style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">
                     {cleanName}
                   </div>
-                  <div style="font-size: 0.76rem; color: #64748b; margin-top: 2px; word-break: break-all;">
+                  <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; word-break: break-all;">
                     {t.libelle || ''}
                   </div>
                 </td>
@@ -795,15 +787,15 @@
                 <!-- Compte Comptable -->
                 <td style="padding: 13px 18px; text-align: center; white-space: nowrap;">
                   {#if is487}
-                    <span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 6px;">
+                    <span style="background: rgba(245, 158, 11, 0.14); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 6px;">
                       487 · Saison suivante
                     </span>
                   {:else if cpt === "756"}
-                    <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 6px;">
+                    <span style="background: rgba(37, 99, 235, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 6px;">
                       756 · Cotisations
                     </span>
                   {:else}
-                    <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 6px;">
+                    <span style="background: rgba(37, 99, 235, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 6px;">
                       706 · Cours & Forfaits
                     </span>
                   {/if}
@@ -820,7 +812,7 @@
                     <button 
                       type="button"
                       onclick={() => retablirCompteRecette(t.id)}
-                      style="background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; padding: 5px 11px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; cursor: pointer;"
+                      style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 5px 11px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer;"
                       title="Rétablir cette opération dans les recettes de l'exercice courant"
                     >
                       <i class="fa-solid fa-rotate-left"></i> Rétablir en recette
@@ -829,7 +821,7 @@
                     <button 
                       type="button"
                       onclick={() => basculerVers487(t.id)}
-                      style="background: #ffffff; border: 1px solid #e2e8f0; color: #475569; padding: 5px 11px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; cursor: pointer; transition: all 0.15s ease;"
+                      style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-muted); padding: 5px 11px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; transition: all 0.15s ease;"
                       title="Reporter ce paiement en compte 487 pour l'exercice / saison suivante"
                     >
                       <i class="fa-solid fa-clock-rotate-left" style="color: #f59e0b;"></i> Reporter en 487
@@ -857,7 +849,7 @@
               disabled={currentPage === 1}
               onclick={() => currentPage--}
               aria-label="Page précédente"
-              style="padding: 5px 11px; font-size: 0.8rem; background: #ffffff; border: 1px solid #cbd5e1;"
+              style="padding: 5px 11px; font-size: 0.8rem; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main);"
             >
               <i class="fa-solid fa-chevron-left"></i>
             </button>
@@ -866,7 +858,7 @@
                 <button 
                   type="button"
                   onclick={() => currentPage = i + 1}
-                  style="width: 30px; height: 30px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: 1px solid {currentPage === i + 1 ? '#0f172a' : '#cbd5e1'}; background: {currentPage === i + 1 ? '#0f172a' : '#ffffff'}; color: {currentPage === i + 1 ? '#ffffff' : '#0f172a'};"
+                  style="width: 30px; height: 30px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: 1px solid {currentPage === i + 1 ? 'var(--color-primary)' : 'var(--border-color)'}; background: {currentPage === i + 1 ? 'var(--color-primary)' : 'var(--bg-card)'}; color: {currentPage === i + 1 ? '#ffffff' : 'var(--text-main)'};"
                 >
                   {i + 1}
                 </button>
@@ -878,7 +870,7 @@
               disabled={currentPage === totalTxPages}
               onclick={() => currentPage++}
               aria-label="Page suivante"
-              style="padding: 5px 11px; font-size: 0.8rem; background: #ffffff; border: 1px solid #cbd5e1;"
+              style="padding: 5px 11px; font-size: 0.8rem; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main);"
             >
               <i class="fa-solid fa-chevron-right"></i>
             </button>
@@ -889,10 +881,10 @@
 
   {:else}
     <!-- TABLEAU (MODE POINTAGE INDIVIDUEL PAR ÉLÈVE) -->
-    <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+    <div style="border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: var(--bg-card);">
       <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
         <thead>
-          <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; text-transform: uppercase; font-size: 0.76rem; letter-spacing: 0.6px; color: #475569;">
+          <tr style="background: var(--bg-subtle); border-bottom: 1.5px solid var(--border-color); text-transform: uppercase; font-size: 0.76rem; letter-spacing: 0.6px; color: var(--text-muted);">
             <th style="padding: 12px 18px; text-align: left;">Nom de l'adhérent / élève</th>
             <th style="padding: 12px 18px; text-align: right; width: 170px;">Tarif annuel dû</th>
             <th style="padding: 12px 18px; text-align: right; width: 170px;">Déjà versé</th>
@@ -904,7 +896,7 @@
         <tbody>
           {#if displayedMembers.length === 0}
             <tr>
-              <td colspan="6" style="text-align: center; color: #64748b; padding: 45px 10px;">
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 45px 10px;">
                 Aucun adhérent ne correspond aux critères.
               </td>
             </tr>
@@ -912,15 +904,15 @@
             {#each displayedMembers as m, index}
               <tr 
                 class="table-row-hover"
-                style="border-bottom: 1px solid #f1f5f9; background: {index % 2 === 0 ? '#ffffff' : '#fcfdfe'}; transition: background 0.15s ease;"
+                style="border-bottom: 1px solid var(--border-color); background: var(--bg-card); transition: background 0.15s ease;"
               >
-                <td style="padding: 13px 18px; text-align: left; font-weight: 700; color: #0f172a;">
+                <td style="padding: 13px 18px; text-align: left; font-weight: 700; color: var(--text-main);">
                   {m.cleanName}
                 </td>
-                <td style="padding: 13px 18px; text-align: right; font-family: ui-monospace, monospace; font-weight: 700;">
+                <td style="padding: 13px 18px; text-align: right; font-family: ui-monospace, monospace; font-weight: 700; color: var(--text-main);">
                   {Number(m.forfait || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </td>
-                <td style="padding: 13px 18px; text-align: right; font-family: ui-monospace, monospace; font-weight: 700; color: {m.dejaPaye > 0 ? '#15803d' : '#64748b'};">
+                <td style="padding: 13px 18px; text-align: right; font-family: ui-monospace, monospace; font-weight: 700; color: {m.dejaPaye > 0 ? '#15803d' : 'var(--text-muted)'};">
                   {Number(m.dejaPaye || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </td>
                 <td style="padding: 13px 18px; text-align: right; font-family: ui-monospace, monospace; font-weight: 700; color: {m.resteAPayer > 0 ? '#dc2626' : '#15803d'};">
@@ -936,7 +928,7 @@
                     onclick={() => { selectedMemberForDrawer = m; showDrawerModal = true; }}
                     title="Voir le détail de l'adhérent"
                     aria-label="Voir le détail de l'adhérent"
-                    style="padding: 5px 11px; font-size: 0.78rem; background: #ffffff; border: 1.5px solid #cbd5e1;"
+                    style="padding: 5px 11px; font-size: 0.78rem; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main);"
                   >
                     <i class="fa-solid fa-list-check"></i>
                   </button>

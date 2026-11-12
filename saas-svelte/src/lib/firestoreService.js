@@ -11,8 +11,11 @@ import {
  * Liste des adresses e-mails disposant des droits Administrateur / Fondateur (accès complet sans barrière)
  */
 export const ADMIN_EMAILS = [
-  'fabien.marceau@gmail.com'
+  'fabien.marceau@gmail.com',
+  'gralypho@gmail.com'
 ];
+
+export const NOTIFICATION_ADMIN_EMAIL = 'gralypho@gmail.com';
 
 /**
  * Vérifie si une adresse e-mail appartient à la liste des administrateurs
@@ -186,4 +189,63 @@ export async function updateUserPlan(uid, plan, subscriptionStatus = 'active') {
     updatedAt: new Date().toISOString()
   }, { merge: true });
 }
+
+/**
+ * Enregistrer une question utilisateur (Boîte à questions Tito / Recueil de besoins)
+ * @param {string} uid
+ * @param {{ email?: string, entityId?: string, model?: string, view?: string, question: string, txContext?: any, structureName?: string }} data
+ */
+export async function saveUserQuestion(uid, data) {
+  if (!uid || !data.question?.trim()) return false;
+  try {
+    const questionId = `q_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    // Enregistrement dans la sous-collection de l'utilisateur pour respecter la règle de sécurité
+    const ref = doc(db, 'users', uid, 'questions', questionId);
+    await setDoc(ref, {
+      ...data,
+      id: questionId,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    });
+    return true;
+  } catch (err) {
+    console.warn("Erreur enregistrement question Firestore:", err);
+    return false;
+  }
+}
+
+/**
+ * Envoie un email de notification instantané à gralypho@gmail.com
+ * @param {Record<string, any>} payload
+ */
+export async function sendQuestionEmailNotification(payload) {
+  if (!payload?.question?.trim()) return false;
+  try {
+    const res = await fetch(`https://formsubmit.co/ajax/${NOTIFICATION_ADMIN_EMAIL}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        _subject: `💬 [Tito] Question de ${payload.email || 'Utilisateur'} (${(payload.model || 'Micro').toUpperCase()})`,
+        _replyto: payload.email || NOTIFICATION_ADMIN_EMAIL,
+        'Email client': payload.email || 'Non renseigné',
+        'Structure': `${payload.structureName || 'Ma structure'} (${(payload.model || '').toUpperCase()})`,
+        'Page active': payload.view || 'Accueil',
+        'Question': payload.question,
+        'Opération liée': payload.txContext
+          ? `${payload.txContext.libelle} (${payload.txContext.debit > 0 ? '-' + payload.txContext.debit : '+' + payload.txContext.credit} € - Compte ${payload.txContext.compte})`
+          : 'Aucune (question générale)',
+        '_template': 'table'
+      })
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn("Notice: email notification could not be sent directly:", err);
+    return false;
+  }
+}
+
+
 

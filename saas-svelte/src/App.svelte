@@ -10,7 +10,8 @@
     updateActiveEntityId,
     updateEntities,
     showCreateEntityModal,
-    resetAllStores
+    resetAllStores,
+    appTheme
   } from './lib/store.js';
 
   // Import components
@@ -38,11 +39,20 @@
   import UpgradeModal from './components/UpgradeModal.svelte';
   import CancelSubscriptionModal from './components/CancelSubscriptionModal.svelte';
   import HelpGuideModal from './components/HelpGuideModal.svelte';
+  import CguModal from './components/CguModal.svelte';
+  import TitoChatDrawer from './components/TitoChatDrawer.svelte';
   import Header from './components/Header.svelte';
   import Sidebar from './components/Sidebar.svelte';
   import { currentUser, authInitialized } from './lib/auth.js';
   import { ensureUserProfile, listenUserStructures, listenUserProfile } from './lib/firestoreService.js';
   import { userProfile } from './lib/store.js';
+
+  // Synchronisation du thème sombre/clair global
+  $effect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', $appTheme);
+    }
+  });
 
   // State for creating a new entity
   let entityNameInput = $state('');
@@ -380,6 +390,11 @@
 <!-- MODAL : GESTION & RÉSILIATION D'ABONNEMENT -->
 <CancelSubscriptionModal />
 
+<!-- PASTILLE & TIROIR COPILOTE PÉDAGOGIQUE "DEMANDER À TITO" (ACTIF SUR TOUS LES ÉCRANS) -->
+{#if $currentUser && !isFirstLaunch}
+  <TitoChatDrawer />
+{/if}
+
 
 
 <!-- ONBOARDING TOUR OVERLAY AND POPOVER -->
@@ -416,3 +431,4 @@
 {/if}
 
 <HelpGuideModal {startTour} />
+<CguModal />

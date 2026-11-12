@@ -6,7 +6,7 @@
     authLoading, 
     authError 
   } from '../lib/auth.js';
-  import { showToast } from '../lib/store.js';
+  import { showToast, openCguModal } from '../lib/store.js';
 
   let mode = $state('login'); // 'login' | 'register'
   let email = $state('');
@@ -252,6 +252,17 @@
           Se connecter
         </button>
       {/if}
+    </div>
+
+    <div style="margin-top: 14px; text-align: center; font-size: 0.74rem; color: #94a3b8; line-height: 1.4;">
+      En continuant, vous acceptez nos 
+      <button 
+        type="button" 
+        onclick={openCguModal} 
+        style="background: transparent; border: none; color: #38bdf8; text-decoration: underline; cursor: pointer; padding: 0; font-size: inherit; font-family: inherit; font-weight: 600;"
+      >
+        Conditions Générales d'Utilisation (CGU)
+      </button>
     </div>
 
   </div>

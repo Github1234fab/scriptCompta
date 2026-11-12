@@ -42,6 +42,15 @@ export const showUpgradeModal = writable(false);
 export const showCancelModal = writable(false);
 export const showHelpGuideModal = writable(false);
 export const helpGuideSection = writable('intro'); // 'intro' | 'accueil' | 'attribution' | 'recettes' | 'obligations'
+export const showCguModal = writable(false);
+
+export function openCguModal() {
+  showCguModal.set(true);
+}
+
+export function closeCguModal() {
+  showCguModal.set(false);
+}
 
 /** @param {'intro' | 'accueil' | 'attribution' | 'recettes' | 'obligations'} [section] */
 export function openHelpGuide(section = 'intro') {
@@ -51,6 +60,50 @@ export function openHelpGuide(section = 'intro') {
 
 export function closeHelpGuide() {
   showHelpGuideModal.set(false);
+}
+
+// Thème Global de l'application ('dark' | 'light')
+const initialTheme = (typeof window !== 'undefined' && localStorage.getItem('saas_compta_theme')) || 'dark';
+export const appTheme = writable(initialTheme);
+
+/** @param {'dark' | 'light'} t */
+export function setAppTheme(t) {
+  appTheme.set(t);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('saas_compta_theme', t);
+    document.documentElement.setAttribute('data-theme', t);
+  }
+}
+
+// État global du copilote pédagogique "Demander à Tito" (accessible sur tous les écrans)
+export const showTitoChatDrawer = writable(false);
+export const focusedChatTx = writable(null);
+export const titoChatMessages = writable([
+  {
+    sender: 'tito',
+    text: "Bonjour ! Je suis Tito, votre copilote comptable. Cliquez sur « Analyse Tito » sur n'importe quelle ligne ou posez-moi une question sur vos chiffres, vos frais, vos seuils ou vos obligations."
+  }
+]);
+
+/**
+ * Ouvre le tiroir "Demander à Tito" depuis n'importe quel écran (avec ou sans ligne bancaire ciblée)
+ * @param {any} [tx]
+ * @param {string} [customExplanationMessage]
+ */
+export function openTitoChat(tx = null, customExplanationMessage = '') {
+  focusedChatTx.set(tx);
+  showTitoChatDrawer.set(true);
+  if (customExplanationMessage) {
+    titoChatMessages.update((msgs) => [
+      ...msgs,
+      { sender: 'tito', text: customExplanationMessage }
+    ]);
+  }
+}
+
+export function closeTitoChat() {
+  showTitoChatDrawer.set(false);
+  focusedChatTx.set(null);
 }
 
 // Visual states

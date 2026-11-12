@@ -133,14 +133,14 @@
   }
 
   .infotip-trigger {
-    width: 17px;
-    height: 17px;
-    min-width: 17px;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
     border-radius: 50%;
-    background: rgba(148, 163, 184, 0.16);
-    border: 1px solid rgba(148, 163, 184, 0.4);
-    color: #64748b;
-    font-size: 0.65rem;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1.5px solid rgba(56, 189, 248, 0.45);
+    color: #38bdf8;
+    font-size: 0.72rem;
     font-weight: 800;
     font-family: inherit;
     display: inline-flex;
@@ -158,8 +158,8 @@
     background: #2563eb;
     border-color: #2563eb;
     color: #ffffff;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
-    transform: scale(1.06);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+    transform: scale(1.1);
   }
 
   .infotip-popover {

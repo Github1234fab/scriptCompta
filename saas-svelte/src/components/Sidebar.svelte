@@ -14,11 +14,12 @@
     FREE_TIER_MAX_TRANSACTIONS,
     MANAGEMENT_MODELS,
     showToast,
-    openHelpGuide
+    openHelpGuide,
+    openTitoChat
   } from '../lib/store.js';
   import { currentUser } from '../lib/auth.js';
   import { updateUserPlan } from '../lib/firestoreService.js';
-  import logoComeTr from '../assets/LogoMateo.png';
+  import logoComeTr from '../assets/Mateo_logo.png';
 
   /** @type {{ switchView: (view: string) => void, handleResetDb: () => void, startTour?: () => void }} */
   let { switchView, handleResetDb, startTour } = $props();
@@ -96,13 +97,11 @@
   <!-- SIDEBAR HEADER : LOGO & SWITCHER D'ORGANISATION (HAUT DE SIDEBAR) -->
   <div style="padding: 16px 14px 14px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 12px; position: relative;" id="org-switcher-container">
     
-    <!-- Logo brand Côme -->
-    <div style="display: flex; align-items: center; justify-content: flex-start; padding: 2px 4px;">
-      <img 
-        src={logoComeTr} 
-        alt="Côme" 
-        style="height: 60px; max-width: 100%; object-fit: contain; border-radius: 6px;" 
-      />
+    <!-- Logo brand Tito -->
+    <div style="display: flex; align-items: center; justify-content: center; padding: 6px 0 4px 0;">
+      <span style="font-family: inherit; font-size: 1.85rem; font-weight: 900; letter-spacing: -0.03em; color: #ffffff; user-select: none;">
+        Ti<span style="color: #38bdf8;">t</span>o
+      </span>
     </div>
 
     <!-- SWITCHER D'ORGANISATION FLUIDE & DISCRET -->
@@ -304,6 +303,20 @@
           >
             ?
           </button>
+        </span>
+      </li>
+
+      <!-- SÉPARATEUR & LIEN DIRECT POSER VOS QUESTIONS -->
+      <li style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.08);">
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+        <span 
+           class="menu-item" 
+           style="color: #38bdf8; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.16);"
+           data-tooltip="Posez vos questions"
+           title="Posez vos questions à l'équipe Tito"
+           onclick={() => openTitoChat(null)}>
+          <i class="fa-regular fa-comment-dots" style="color: #38bdf8;"></i>
+          <span class="menu-label-text" style="font-weight: 700;">Posez vos questions</span>
         </span>
       </li>
 

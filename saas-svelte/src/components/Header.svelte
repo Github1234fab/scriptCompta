@@ -10,7 +10,10 @@
     isPremium,
     isAdmin,
     showUpgradeModal,
-    showCancelModal
+    showCancelModal,
+    openCguModal,
+    appTheme,
+    setAppTheme
   } from '../lib/store.js';
   import { currentUser, logoutUser, sendResetPassword } from '../lib/auth.js';
   import InfoTip from './InfoTip.svelte';
@@ -101,49 +104,64 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<header class="content-header" style="gap: 15px; flex-wrap: wrap; padding: 14px 24px; background: var(--bg-header); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between;">
-  <div>
-    <h2 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+<header class="content-header" style="gap: 15px; padding: 12px 24px; background: var(--bg-header); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between;">
+  <!-- Gauche : Fil d'Ariane épuré sans redondance -->
+  <div style="display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--text-muted);">
+    <span style="font-weight: 600;">{activeEntity ? activeEntity.name : 'Mon Espace'}</span>
+    <span style="opacity: 0.35;">/</span>
+    <span style="color: var(--text-main); font-weight: 700;">
       {#if $activeView === 'dashboard'}
-        <i class="fa-solid fa-house" style="color: var(--color-accent);"></i> {modelObj?.dashboardTitle || 'Accueil'}
+        Accueil
       {:else if $activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces'}
-        <i class="fa-solid fa-arrows-split-up-and-left" style="color: var(--color-accent);"></i> Attribution
+        Attribution
       {:else if $activeView === 'activity' || $activeView.startsWith('workspace_')}
-        <i class="fa-solid {activityIcon}" style="color: var(--color-accent);"></i> {activityLabel}
+        {activityLabel}
       {:else if $activeView === 'books' || $activeView === 'recettes'}
-        <i class="fa-solid fa-scale-balanced" style="color: var(--color-accent);"></i> {booksLabel || 'Obligation'}
+        Obligation
       {:else}
-        <i class="fa-solid fa-cube" style="color: var(--color-accent);"></i> Côme
+        Côme
       {/if}
-    </h2>
-    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
-      <span style="display: inline-flex; align-items: center;">
-        Structure : <strong style="color: #2563eb; background: rgba(37, 99, 235, 0.09); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2); margin: 0 4px;">{activeEntity ? activeEntity.name : ''}</strong>
-        <InfoTip text="Changez d'organisation ou créez une nouvelle structure (association, micro-entreprise, etc.) en un clic." position="bottom" width="230px" />
-      </span>
-      <span style="background: {modelObj?.accentBg || '#f1f5f9'}; color: {modelObj?.accentColor || '#2563eb'}; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 4px;">
-        {modelObj ? modelObj.title : 'Entité'}
-      </span>
-    </p>
+    </span>
   </div>
 
   <!-- Right Header Actions -->
-  <div style="display: flex; align-items: center; gap: 10px;">
+  <div style="display: flex; align-items: center; gap: 12px;">
 
     <!-- CTA Passer en illimité bien visible en haut si compte gratuit -->
     {#if !$isPremium && !$isAdmin}
       <button 
         type="button" 
         onclick={() => showUpgradeModal.set(true)}
-        style="background: #2563eb; color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28); transition: background 0.15s ease;"
+        style="background: #2563eb; color: #ffffff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 7px; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28); transition: background 0.15s ease;"
         onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1d4ed8'}
         onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#2563eb'}
         title="Passer en illimité (6,99 € / mois ou 69,90 € / an)"
       >
         <span>Passer en illimité</span>
-        <i class="fa-solid fa-arrow-right" style="font-size: 0.75rem;"></i>
+        <i class="fa-solid fa-arrow-right" style="font-size: 0.72rem;"></i>
       </button>
     {/if}
+
+    <!-- Sélecteur Thème Clair / Sombre direct en 1 clic -->
+    <div 
+      class="theme-segmented-control"
+      style="display: inline-flex; align-items: center; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 9999px; padding: 2px; gap: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
+    >
+      <button 
+        type="button"
+        onclick={() => setAppTheme('light')}
+        style="border: none; border-radius: 9999px; padding: 4px 12px; font-size: 0.74rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; {$appTheme === 'light' ? 'background: #2563eb; color: #ffffff; box-shadow: 0 1px 4px rgba(37,99,235,0.3);' : 'background: transparent; color: var(--text-muted);'}"
+      >
+        Clair
+      </button>
+      <button 
+        type="button"
+        onclick={() => setAppTheme('dark')}
+        style="border: none; border-radius: 9999px; padding: 4px 12px; font-size: 0.74rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; {$appTheme === 'dark' ? 'background: #2563eb; color: #ffffff; box-shadow: 0 1px 4px rgba(37,99,235,0.3);' : 'background: transparent; color: var(--text-muted);'}"
+      >
+        Sombre
+      </button>
+    </div>
 
     <!-- Pastille Utilisateur & Menu Gestion du Compte -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -151,12 +169,12 @@
       <div 
         class="user-badge" 
         onclick={() => showUserDropdown = !showUserDropdown}
-        style="background: #ffffff; border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: pointer; user-select: none; transition: all 0.15s ease;"
+        style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: pointer; user-select: none; transition: all 0.15s ease;"
         title="Gestion de mon compte et abonnement"
         onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = '#94a3b8'}
         onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = 'var(--border-color)'}
       >
-        <div class="user-avatar" style="background: #0f172a; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">
+        <div class="user-avatar" style="background: #4f46e5; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">
           {userInitials}
         </div>
         <div style="display: flex; flex-direction: column; text-align: left;">
@@ -183,44 +201,66 @@
       <!-- Menu déroulant Gestion de Compte & Abonnement -->
       {#if showUserDropdown}
         <div 
-          style="position: absolute; top: calc(100% + 8px); right: 0; min-width: 270px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 15px 35px -5px rgba(15, 23, 42, 0.2); padding: 14px; z-index: 10000; animation: fadeIn 0.15s ease-out;"
+          style="position: absolute; top: calc(100% + 8px); right: 0; min-width: 270px; background: var(--bg-modal); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 15px 35px -5px rgba(15, 23, 42, 0.3); padding: 14px; z-index: 10000; animation: fadeIn 0.15s ease-out;"
         >
           <!-- Détails Utilisateur -->
-          <div style="padding-bottom: 10px; border-bottom: 1px solid #f1f5f9; margin-bottom: 12px;">
-            <div style="font-size: 0.88rem; font-weight: 800; color: #0f172a;">
+          <div style="padding-bottom: 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 10px;">
+            <div style="font-size: 0.88rem; font-weight: 800; color: var(--text-main);">
               {$currentUser?.displayName || 'Utilisateur'}
             </div>
-            <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
               {$currentUser?.email || ''}
             </div>
           </div>
 
+          <!-- Option A : Choix du thème Clair / Sombre -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 12px;">
+            <span style="font-size: 0.76rem; font-weight: 700; color: var(--text-main);">Thème</span>
+            <div 
+              class="theme-segmented-control"
+              style="display: inline-flex; align-items: center; background: rgba(125, 125, 125, 0.15); border: 1px solid var(--border-color); border-radius: 9999px; padding: 2px; gap: 2px;"
+            >
+              <button 
+                type="button"
+                onclick={() => setAppTheme('light')}
+                style="border: none; border-radius: 9999px; padding: 3px 10px; font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; {$appTheme === 'light' ? 'background: #ffffff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.12);' : 'background: transparent; color: var(--text-muted);'}"
+              >
+                Clair
+              </button>
+              <button 
+                type="button"
+                onclick={() => setAppTheme('dark')}
+                style="border: none; border-radius: 9999px; padding: 3px 10px; font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; {$appTheme === 'dark' ? 'background: #1e293b; color: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1);' : 'background: transparent; color: var(--text-muted);'}"
+              >
+                Sombre
+              </button>
+            </div>
+          </div>
+
           <!-- Section Abonnement / Formule -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;">
+          <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Abonnement :</span>
-              <span style="font-size: 0.75rem; font-weight: 800; color: {$isPremium || $isAdmin ? '#2563eb' : '#0f172a'};">
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Abonnement :</span>
+              <span style="font-size: 0.75rem; font-weight: 800; color: {$isPremium || $isAdmin ? '#2563eb' : 'var(--text-main)'};">
                 {$isAdmin ? 'Administrateur' : $isPremium ? 'Formule Illimitée' : 'Quota Gratuit'}
               </span>
             </div>
 
             {#if $isAdmin}
-              <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 6px;">Accès total sans restriction.</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 6px;">Accès total sans restriction.</div>
               <button 
                 type="button"
                 onclick={() => { showUserDropdown = false; showUpgradeModal.set(true); }}
-                style="width: 100%; padding: 7px 10px; background: #0f172a; border: none; color: #ffffff; font-size: 0.74rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s ease;"
-                onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1e293b'}
-                onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#0f172a'}
+                style="width: 100%; padding: 7px 10px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); font-size: 0.74rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s ease;"
               >
-                <i class="fa-solid fa-eye" style="font-size: 0.7rem; color: #94a3b8;"></i>
+                <i class="fa-solid fa-eye" style="font-size: 0.7rem; color: var(--text-muted);"></i>
                 <span>Aperçu de l'offre</span>
               </button>
             {:else if $isPremium}
               <button 
                 type="button"
                 onclick={() => { showUserDropdown = false; showCancelModal.set(true); }}
-                style="width: 100%; margin-top: 6px; padding: 7px 10px; background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; font-size: 0.78rem; font-weight: 700; border-radius: 6px; cursor: pointer;"
+                style="width: 100%; margin-top: 6px; padding: 7px 10px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); font-size: 0.78rem; font-weight: 700; border-radius: 6px; cursor: pointer;"
               >
                 Gérer mon abonnement
               </button>
@@ -236,14 +276,14 @@
             {/if}
           </div>
 
-          <!-- Options du compte : Factures & Sécurité avec hiérarchie visuelle affinée -->
-          <div style="display: flex; flex-direction: column; gap: 1px; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid #f1f5f9;">
+          <!-- Options du compte : Factures & Sécurité -->
+          <div style="display: flex; flex-direction: column; gap: 1px; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--border-color);">
             <button 
               type="button"
               onclick={openInvoices}
-              style="width: 100%; text-align: left; padding: 6px 8px; background: transparent; border: none; border-radius: 6px; color: #475569; font-size: 0.75rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s ease;"
-              onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#f8fafc'; /** @type {HTMLElement} */ (e.currentTarget).style.color = '#0f172a'; }}
-              onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'; /** @type {HTMLElement} */ (e.currentTarget).style.color = '#475569'; }}
+              style="width: 100%; text-align: left; padding: 6px 8px; background: transparent; border: none; border-radius: 6px; color: var(--text-secondary); font-size: 0.75rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s ease;"
+              onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'var(--bg-subtle)'; /** @type {HTMLElement} */ (e.currentTarget).style.color = 'var(--text-main)'; }}
+              onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'; /** @type {HTMLElement} */ (e.currentTarget).style.color = 'var(--text-secondary)'; }}
             >
               <i class="fa-solid fa-file-invoice" style="color: #2563eb; font-size: 0.75rem; width: 14px;"></i>
               <span>Mes factures & reçus</span>
@@ -252,12 +292,23 @@
             <button 
               type="button"
               onclick={handleResetPassword}
-              style="width: 100%; text-align: left; padding: 6px 8px; background: transparent; border: none; border-radius: 6px; color: #475569; font-size: 0.75rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s ease;"
-              onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#f8fafc'; /** @type {HTMLElement} */ (e.currentTarget).style.color = '#0f172a'; }}
-              onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'; /** @type {HTMLElement} */ (e.currentTarget).style.color = '#475569'; }}
+              style="width: 100%; text-align: left; padding: 6px 8px; background: transparent; border: none; border-radius: 6px; color: var(--text-secondary); font-size: 0.75rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s ease;"
+              onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'var(--bg-subtle)'; /** @type {HTMLElement} */ (e.currentTarget).style.color = 'var(--text-main)'; }}
+              onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'; /** @type {HTMLElement} */ (e.currentTarget).style.color = 'var(--text-secondary)'; }}
             >
               <i class="fa-solid fa-key" style="color: #2563eb; font-size: 0.75rem; width: 14px;"></i>
               <span>Modifier mon mot de passe</span>
+            </button>
+
+            <button 
+              type="button"
+              onclick={() => { showUserDropdown = false; openCguModal(); }}
+              style="width: 100%; text-align: left; padding: 6px 8px; background: transparent; border: none; border-radius: 6px; color: var(--text-secondary); font-size: 0.75rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s ease;"
+              onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'var(--bg-subtle)'; /** @type {HTMLElement} */ (e.currentTarget).style.color = 'var(--text-main)'; }}
+              onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'; /** @type {HTMLElement} */ (e.currentTarget).style.color = 'var(--text-secondary)'; }}
+            >
+              <i class="fa-solid fa-scale-balanced" style="color: #2563eb; font-size: 0.75rem; width: 14px;"></i>
+              <span>CGU & Cadre légal</span>
             </button>
           </div>
 
@@ -266,7 +317,7 @@
             type="button"
             onclick={() => { showUserDropdown = false; showLogoutModal = true; }}
             style="width: 100%; text-align: left; padding: 6px 8px; background: transparent; border: none; border-radius: 6px; color: #dc2626; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s ease;"
-            onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#fef2f2'}
+            onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = 'rgba(220, 38, 38, 0.1)'}
             onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'}
           >
             <i class="fa-solid fa-arrow-right-from-bracket" style="font-size: 0.75rem; width: 14px;"></i>
@@ -281,7 +332,7 @@
       type="button" 
       onclick={() => showLogoutModal = true}
       class="btn-logout"
-      style="background: #ffffff; border: 1px solid var(--border-color); color: #64748b; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; gap: 6px; transition: all 0.2s;"
+      style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-muted); padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; gap: 6px; transition: all 0.2s;"
       title="Se déconnecter"
     >
       <i class="fa-solid fa-arrow-right-from-bracket"></i>

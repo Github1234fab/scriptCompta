@@ -21,9 +21,9 @@
     value,
     subtext = '',
     bgColor = 'var(--bg-card, #ffffff)',
-    borderColor = 'var(--border-subtle, #e2e8f0)',
-    textColor = '#0f172a',
-    subtextColor = '#64748b',
+    borderColor = 'var(--border-color, #e2e8f0)',
+    textColor = 'var(--text-main, #0f172a)',
+    subtextColor = 'var(--text-muted, #64748b)',
     progressBarPct = null,
     actionLabel = '',
     onAction = null,
@@ -33,7 +33,7 @@
 
 <div 
   class="kpi-card" 
-  style="background: {bgColor}; border: none; border-radius: 12px; padding: 18px 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 110px; transition: transform 0.15s ease, box-shadow 0.15s ease;"
+  style="background: {bgColor}; border: 1px solid {borderColor}; border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 110px; transition: transform 0.15s ease, box-shadow 0.15s ease;"
 >
   <div>
     <!-- TITRE PRINCIPAL -->
@@ -74,8 +74,8 @@
           {value}
         </span>
       </div>
-      <div style="width: 100%; height: 5px; background: #e2e8f0; border-radius: 999px; overflow: hidden;">
-        <div style="width: {Math.min(100, Math.max(0, progressBarPct))}%; height: 100%; background: #0f172a; border-radius: 999px; transition: width 0.3s ease;"></div>
+      <div style="width: 100%; height: 5px; background: var(--border-color, #e2e8f0); border-radius: 999px; overflow: hidden;">
+        <div style="width: {Math.min(100, Math.max(0, progressBarPct))}%; height: 100%; background: var(--color-accent, #2563eb); border-radius: 999px; transition: width 0.3s ease;"></div>
       </div>
     </div>
   {:else}

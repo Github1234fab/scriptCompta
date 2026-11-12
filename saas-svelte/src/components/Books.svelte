@@ -746,7 +746,7 @@
 
 <div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 24px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 280px;">
-    <h1 class="page-title" style="margin: 0 0 6px 0; font-family: var(--font-title); font-weight: 800; font-size: 1.6rem; color: #0f172a;">
+    <h1 class="page-title" style="margin: 0 0 6px 0; font-family: var(--font-title); font-weight: 800; font-size: 1.6rem; color: var(--text-main);">
       {#if accountingModel === 'micro'}
         Registres Obligatoires & Déclaration Urssaf
       {:else if accountingModel === 'bnc'}
@@ -763,7 +763,7 @@
         Livres & Synthèse Comptable
       {/if}
     </h1>
-    <p class="page-subtitle" style="margin: 0; color: #64748b; font-size: 0.9rem; line-height: 1.5;">
+    <p class="page-subtitle" style="margin: 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.5;">
       {#if accountingModel === 'micro'}
         Générez vos registres officiels de recettes et d'achats, et préparez votre déclaration de chiffre d'affaires trimestrielle.
       {:else if accountingModel === 'bnc'}
@@ -804,8 +804,8 @@
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
       <div>
         <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-scale-balanced" style="color: #2563eb; font-size: 0.95rem;"></i> Exercice fiscal
-          <InfoTip text="Définissez les 12 mois de votre saison ou année comptable à certifier." width="250px" />
+          Exercice fiscal
+          <InfoTip text="Définissez les 12 mois de votre saison ou exercice comptable à clôturer." width="250px" />
         </h3>
         <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
           Sélectionnez la période à clôturer pour générer vos registres et votre export officiel
@@ -948,8 +948,8 @@
 <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px;">
   <!-- En-tête du bloc -->
   <div style="margin-bottom: 18px;">
-    <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-      <i class="fa-solid fa-file-contract" style="color: #2563eb; font-size: 0.95rem;"></i> Documents légaux à fournir
+    <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0;">
+      Documents légaux à fournir
     </h3>
     <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
       Pièces officielles obligatoires pour l'Urssaf, la DGFiP ou votre expert-comptable
