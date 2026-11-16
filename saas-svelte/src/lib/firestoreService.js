@@ -3,6 +3,7 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  deleteDoc,
   collection, 
   onSnapshot 
 } from 'firebase/firestore';
@@ -89,6 +90,23 @@ export async function saveEntityData(uid, entityId, payload) {
     ...payload,
     updatedAt: new Date().toISOString()
   }, { merge: true });
+}
+
+/**
+ * Supprimer définitivement une structure (entité) dans Firestore
+ * @param {string} uid
+ * @param {string} entityId
+ */
+export async function deleteStructureData(uid, entityId) {
+  if (!uid || !entityId) return false;
+  try {
+    const ref = doc(db, 'users', uid, 'structures', entityId);
+    await deleteDoc(ref);
+    return true;
+  } catch (err) {
+    console.error(`Erreur suppression structure ${entityId} dans Firestore:`, err);
+    return false;
+  }
 }
 
 /**

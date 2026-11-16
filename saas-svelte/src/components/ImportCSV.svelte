@@ -8,7 +8,8 @@
     showToast,
     isPremium,
     showUpgradeModal,
-    FREE_TIER_MAX_TRANSACTIONS
+    FREE_TIER_MAX_TRANSACTIONS,
+    saveCsvMetadata
   } from '../lib/store.js';
   import { CSVParser } from '../lib/parser.js';
   import { Categorizer } from '../lib/categorizer.js';
@@ -277,34 +278,69 @@
     if (uploadedFileName) {
       localStorage.setItem(`saas_compta_last_csv_name_${$activeEntityId}`, uploadedFileName);
     }
+    saveCsvMetadata($activeEntityId, csvHeaders, uploadedFileName, uploadedRawText);
 
-    // Déduplication
-    const existingHashes = new Set($transactions.map(tx => {
-      const amount = (tx.debit > 0 ? -tx.debit : tx.credit).toFixed(2);
-      return `${tx.date}_${tx.libelle}_${amount}`;
-    }));
+    // Déduplication intelligente avec enrichissement des transactions existantes
+    const currentTransactions = [...$transactions];
+    const entId = $activeEntityId;
 
     /** @type {Array<any>} */
     const newTransactions = [];
     const importId = 'import_' + Date.now();
+    let refreshedCount = 0;
 
-    transactionsImp.forEach((/** @type {any} */ tx) => {
-      const amount = (tx.debit > 0 ? -tx.debit : tx.credit).toFixed(2);
-      const hash = `${tx.date}_${tx.libelle}_${amount}`;
-      if (!existingHashes.has(hash)) {
-        tx.importId = importId;
-        newTransactions.push(tx);
+    // Indexer les transactions existantes de cette structure pour un rapprochement précis
+    // Utilisation d'une liste de clones pour consommer les doublons de montants/dates identiques
+    const availableExisting = currentTransactions
+      .map((tx, originalIndex) => ({ tx, originalIndex }))
+      .filter(item => !item.tx.entityId || item.tx.entityId === entId);
+
+    transactionsImp.forEach((/** @type {any} */ impTx) => {
+      const impAmount = (impTx.debit > 0 ? -impTx.debit : impTx.credit).toFixed(2);
+      
+      // Recherche de correspondance par Date et Montant
+      const foundIdx = availableExisting.findIndex(item => {
+        const exAmount = (item.tx.debit > 0 ? -item.tx.debit : item.tx.credit).toFixed(2);
+        return item.tx.date === impTx.date && exAmount === impAmount;
+      });
+
+      if (foundIdx !== -1) {
+        // Transaction existante trouvée : on l'enrichit sans écraser son travail comptable
+        const matchedItem = availableExisting.splice(foundIdx, 1)[0];
+        const ex = matchedItem.tx;
+        
+        currentTransactions[matchedItem.originalIndex] = {
+          ...ex,
+          rawCells: impTx.rawCells || ex.rawCells,
+          info: ex.info || impTx.info || '',
+          reference: ex.reference || impTx.reference || '',
+          typeOperation: ex.typeOperation || impTx.typeOperation || '',
+          rawLibelle: ex.rawLibelle || impTx.rawLibelle || ''
+        };
+        refreshedCount++;
+      } else {
+        // Nouvelle opération inédite
+        impTx.importId = importId;
+        newTransactions.push(impTx);
       }
     });
 
+    // Cas 1 : Toutes les opérations sont déjà connues -> rafraîchissement des détails sans doublon
     if (newTransactions.length === 0) {
-      showToast("Toutes les transactions de ce fichier ont déjà été importées (doublons détectés).");
+      if (refreshedCount > 0) {
+        updateTransactions(currentTransactions);
+        saveCsvMetadata($activeEntityId, csvHeaders, uploadedFileName, uploadedRawText);
+        showToast(`${refreshedCount} opération(s) rafraîchie(s) et enrichie(s) avec succès. Vos attributions ont été conservées.`);
+      } else {
+        showToast("Toutes les transactions de ce fichier ont déjà été importées.");
+      }
       showMappingStep = false;
       return;
     }
 
+    // Cas 2 : Présence de nouvelles opérations (avec ou sans rafraîchissement d'anciennes)
     // Contrôle Quota Freemium (Max 60 écritures en gratuit)
-    const totalAfterImport = $transactions.length + newTransactions.length;
+    const totalAfterImport = currentTransactions.length + newTransactions.length;
     let userIsPremium = false;
     isPremium.subscribe(v => userIsPremium = v)();
 
@@ -314,12 +350,13 @@
       return;
     }
 
-    const merged = newTransactions.concat($transactions);
+    // Catégoriser uniquement les NOUVELLES opérations pour préserver les choix manuels des anciennes
+    const categorizedNew = Categorizer.categoriserTransactions(newTransactions);
+    const merged = categorizedNew.concat(currentTransactions);
     merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    // Catégoriser et sauvegarder
-    const categorized = Categorizer.categoriserTransactions(merged);
-    updateTransactions(categorized);
+    updateTransactions(merged);
+    saveCsvMetadata($activeEntityId, csvHeaders, uploadedFileName, uploadedRawText);
 
     // Enregistrer dans l'historique
     const history = getImportsHistory();
@@ -396,9 +433,27 @@
       const recatted = Categorizer.categoriserTransactions(filteredTx);
       updateTransactions(recatted);
 
-      showToast(`🗑️ Import "${fileName}" annulé avec succès.`);
+      showToast(`Import "${fileName}" annulé avec succès.`);
     }
   }
+
+  // Vider complètement toutes les écritures bancaires de la structure active pour repartir à zéro
+  function viderToutesLesOperations() {
+    const currentCount = $transactions.filter(t => !t.entityId || t.entityId === $activeEntityId).length;
+    if (confirm(`Voulez-vous vraiment effacer les ${currentCount} opérations bancaires de cette structure ?\n\nToutes les opérations seront supprimées de votre espace et de la base de données. Vous pourrez réimporter votre fichier CSV proprement.`)) {
+      const remainingTx = $transactions.filter(t => t.entityId && t.entityId !== $activeEntityId);
+      updateTransactions(remainingTx);
+      saveImportsHistory([]);
+      localStorage.removeItem(`saas_compta_last_csv_text_${$activeEntityId}`);
+      localStorage.removeItem(`saas_compta_csv_headers_${$activeEntityId}`);
+      localStorage.removeItem(`saas_compta_concat_sample_rows_${$activeEntityId}`);
+      localStorage.removeItem(`saas_compta_last_csv_name_${$activeEntityId}`);
+      saveCsvMetadata($activeEntityId, [], '', '');
+      showToast(`${currentCount} opérations effacées avec succès. Vous pouvez maintenant importer votre CSV à neuf.`);
+    }
+  }
+
+  let currentStructureTxCount = $derived($transactions.filter(t => !t.entityId || t.entityId === $activeEntityId).length);
 
   // Manual recalculation of accounting books
   function recalculerComptabilite() {
@@ -407,7 +462,7 @@
       const recatted = Categorizer.categoriserTransactions($transactions);
       updateTransactions(recatted);
       isRecalculating = false;
-      showToast('🤖 Comptabilité entièrement recalculée et registres à jour !');
+      showToast('Comptabilité entièrement recalculée et registres à jour.');
     }, 500);
   }
 
@@ -743,12 +798,28 @@
 
 <!-- History -->
 <div class="glass-card" style="margin-bottom: 30px;">
-  <h3 style="font-family: var(--font-title); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-    <i class="fa-solid fa-clock-rotate-left" style="color: var(--color-primary-light);"></i> Historique des Imports CSV
-  </h3>
-  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px;">
-    Retrouvez tous les fichiers importés et supprimez-les en cascade si nécessaire.
-  </p>
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+    <div>
+      <h3 style="font-family: var(--font-title); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-clock-rotate-left" style="color: var(--color-primary-light);"></i> Historique des Imports CSV
+      </h3>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0;">
+        Retrouvez tous les fichiers importés et supprimez-les en cascade si nécessaire.
+      </p>
+    </div>
+    {#if currentStructureTxCount > 0}
+      <button 
+        type="button" 
+        class="btn btn-secondary btn-sm"
+        onclick={viderToutesLesOperations}
+        style="color: #ef4444; border-color: rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.08); font-weight: 700; gap: 6px; display: flex; align-items: center; padding: 7px 12px;"
+        title="Effacer toutes les écritures de cette structure pour réimporter à neuf"
+      >
+        <i class="fa-solid fa-trash-can"></i>
+        <span>Vider toutes les écritures ({currentStructureTxCount})</span>
+      </button>
+    {/if}
+  </div>
   <div class="table-container">
     <table class="custom-table" id="imports-history-table">
       <thead>

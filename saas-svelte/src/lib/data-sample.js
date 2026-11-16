@@ -41,7 +41,8 @@ export const INITIAL_PLAN_COMPTABLE = [
   { compte: "707", libelle: "Ventes de marchandises", type: "Produit", group: "entrees", desc: "Ventes de biens et marchandises destinées à la revente." },
   { compte: "756", libelle: "Cotisations & Adhésions", type: "Produit", group: "entrees", desc: "Adhésion annuelle simple versée par les membres." },
   { compte: "740", libelle: "Subventions reçues", type: "Produit", group: "entrees", desc: "Subventions de la mairie, du département, de la région." },
-  { compte: "758", libelle: "Dons & Mécénat", type: "Produit", group: "entrees", desc: "Dons de particuliers ou d'entreprises." }
+  { compte: "758", libelle: "Dons & Mécénat", type: "Produit", group: "entrees", desc: "Dons de particuliers ou d'entreprises." },
+  { compte: "791", libelle: "Remboursements Sécurité Sociale (IJSS) & Assurances", type: "Produit", group: "entrees", desc: "Indemnités journalières de la CPAM (arrêt de travail, subrogation) ou remboursements de prévoyance / assurance." }
 ];
 
 export const INITIAL_RULES_LYON = [

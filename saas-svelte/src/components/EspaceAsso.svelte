@@ -100,6 +100,17 @@
 
 <!-- BLOCS DE GESTION DES RECETTES PAR COMPTE COMPTABLE (FOND DÉDIÉ) -->
 <div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+  
+  <!-- Titre de section du bloc des comptes -->
+  <div style="margin-bottom: 16px;">
+    <h2 style="margin: 0; font-size: 1.12rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title, sans-serif); letter-spacing: -0.2px;">
+      Gestion des recettes par compte
+    </h2>
+    <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: var(--text-muted);">
+      Sélectionnez une catégorie de recettes pour ouvrir son registre et son suivi dédié.
+    </p>
+  </div>
+
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
   
   <!-- Bloc 1: Recettes en 756 et 706 -->
@@ -113,7 +124,7 @@
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
         <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
-          <span>Recette en 756 et 706</span>
+          <span>Gestion des comptes 756 et 706</span>
           <InfoTip text="Isole et pilote vos cotisations, adhésions et forfaits encaissés sur votre compte bancaire." width="250px" />
         </h3>
         <span style="background: rgba(37, 99, 235, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
@@ -153,7 +164,7 @@
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
         <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
-          <span>Recette en 754</span>
+          <span>Gestion du compte 754</span>
           <InfoTip text="Registre officiel de vos soutiens financiers et génération des reçus fiscaux (CERFA)." width="250px" />
         </h3>
         <span style="background: rgba(37, 99, 235, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
@@ -193,7 +204,7 @@
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
         <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
-          <span>Recette en 707 et 708</span>
+          <span>Gestion des comptes 707 et 708</span>
           <InfoTip text="Suivi des recettes accessoires (stages, boutique, buvette, billetterie d'événements)." width="250px" />
         </h3>
         <span style="background: rgba(37, 99, 235, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">

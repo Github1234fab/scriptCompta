@@ -15,7 +15,8 @@
     MANAGEMENT_MODELS,
     showToast,
     openHelpGuide,
-    openTitoChat
+    openTitoChat,
+    openDeleteStructureModal
   } from '../lib/store.js';
   import { currentUser } from '../lib/auth.js';
   import { updateUserPlan } from '../lib/firestoreService.js';
@@ -146,38 +147,57 @@
           Mes structures
         </div>
 
-        <div style="max-height: 200px; overflow-y: auto; padding: 4px;">
+        <div style="max-height: 200px; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 2px;">
           {#each $entities as entity}
             {@const isSelected = entity.id === $activeEntityId}
-            <button 
-              type="button"
-              onclick={() => {
-                updateActiveEntityId(entity.id);
-                showOrgDropdown = false;
-                const m = MANAGEMENT_MODELS[entity.model] || MANAGEMENT_MODELS.micro;
-                showToast(`Structure active : ${entity.name} (${m.title})`);
-              }}
-              style="width: 100%; padding: 8px 10px; border-radius: 6px; border: none; background: {isSelected ? '#1e293b' : 'transparent'}; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; text-align: left; transition: background 0.12s;"
+            <div 
+              style="width: 100%; border-radius: 6px; background: {isSelected ? '#1e293b' : 'transparent'}; display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 2px 4px; transition: background 0.12s;"
               onmouseenter={(e) => { if (!isSelected) /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1a2333'; }}
               onmouseleave={(e) => { if (!isSelected) /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'; }}
             >
-              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                <div style="width: 22px; height: 22px; border-radius: 4px; background: {isSelected ? '#2563eb' : 'rgba(255, 255, 255, 0.08)'}; color: #ffffff; font-size: 0.7rem; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                  {entity.name.charAt(0).toUpperCase()}
-                </div>
-                <div style="min-width: 0;">
-                  <div style="font-weight: 700; font-size: 0.78rem; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    {entity.name}
+              <button 
+                type="button"
+                onclick={() => {
+                  updateActiveEntityId(entity.id);
+                  showOrgDropdown = false;
+                  const m = MANAGEMENT_MODELS[entity.model] || MANAGEMENT_MODELS.micro;
+                  showToast(`Structure active : ${entity.name} (${m.title})`);
+                }}
+                style="flex: 1; min-width: 0; padding: 6px 4px; border: none; background: transparent; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; text-align: left;"
+              >
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                  <div style="width: 22px; height: 22px; border-radius: 4px; background: {isSelected ? '#2563eb' : 'rgba(255, 255, 255, 0.08)'}; color: #ffffff; font-size: 0.7rem; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    {entity.name.charAt(0).toUpperCase()}
                   </div>
-                  <div style="font-size: 0.65rem; color: #94a3b8; line-height: 1.1;">
-                    {MANAGEMENT_MODELS[entity.model]?.badge || entity.model}
+                  <div style="min-width: 0;">
+                    <div style="font-weight: 700; font-size: 0.78rem; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      {entity.name}
+                    </div>
+                    <div style="font-size: 0.65rem; color: #94a3b8; line-height: 1.1;">
+                      {MANAGEMENT_MODELS[entity.model]?.badge || entity.model}
+                    </div>
                   </div>
                 </div>
-              </div>
-              {#if isSelected}
-                <i class="fa-solid fa-check" style="font-size: 0.72rem; color: #38bdf8;"></i>
-              {/if}
-            </button>
+                {#if isSelected}
+                  <i class="fa-solid fa-check" style="font-size: 0.72rem; color: #38bdf8;"></i>
+                {/if}
+              </button>
+
+              <button
+                type="button"
+                title="Supprimer la structure {entity.name}"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  showOrgDropdown = false;
+                  openDeleteStructureModal(entity);
+                }}
+                style="background: transparent; border: none; color: #64748b; padding: 6px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s ease;"
+                onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.color = '#ef4444'; /** @type {HTMLElement} */ (e.currentTarget).style.background = 'rgba(239, 68, 68, 0.15)'; }}
+                onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.color = '#64748b'; /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'; }}
+              >
+                <i class="fa-regular fa-trash-can" style="font-size: 0.72rem;"></i>
+              </button>
+            </div>
           {/each}
         </div>
 
@@ -242,7 +262,7 @@
           <span class="menu-label-text">Attribution</span>
           <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
             {#if pendingTxBadgeCount > 0}
-              <span class="badge" id="pending-tx-badge" style="background: #f59e0b; color: #ffffff; font-size: 0.72rem; padding: 2px 7px; border-radius: 10px; font-weight: 800; min-width: 18px; text-align: center; flex-shrink: 0;">{pendingTxBadgeCount}</span>
+              <span class="badge" id="pending-tx-badge" style="background: #f59e0b; color: #ffffff; font-size: 0.62rem; padding: 2px 7px; border-radius: 10px; font-weight: 800; min-width: 18px; text-align: center; flex-shrink: 0;">{pendingTxBadgeCount}</span>
             {/if}
             <button 
               type="button" 

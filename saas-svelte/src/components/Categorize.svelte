@@ -20,9 +20,14 @@
     FREE_TIER_MAX_TRANSACTIONS,
     formatDateFr,
     openHelpGuide,
-    openTitoChat
+    openTitoChat,
+    saveCsvMetadata
   } from "../lib/store.js";
   
+  // Reactive transaction lists filtrées strictement par structure active
+  let activeEntityModel = $derived($entities.find((e) => e.id === $activeEntityId)?.model || 'micro');
+  let currentStructureTx = $derived($transactions.filter((t) => (!t.entityId || t.entityId === $activeEntityId)));
+
   // Active tab filter: 'pending' vs 'categorized' vs null
   /** @type {'pending' | 'categorized' | null} */
   let activeTab = $state('pending');
@@ -266,7 +271,7 @@
   function openCategorizeModal(tx) {
     selectedTxForCategorization = tx;
     modalSearchQuery = "";
-    activeAccordionSection = null;
+    activeAccordionSection = tx.debit > 0 ? 'depenses' : 'recettes';
     activeSubMenuKey = null;
     showCategorizeModal = true;
   }
@@ -378,6 +383,50 @@
       concatFileName = fileName;
       localStorage.setItem(`saas_compta_last_csv_name_${$activeEntityId}`, fileName);
     }
+    saveCsvMetadata($activeEntityId, headers, fileName, rawText);
+
+    // Enrichir immédiatement les transactions en mémoire avec leurs rawCells fraîches
+    try {
+      const parsed = CSVParser.parse(rawText);
+      if (parsed && parsed.length > 0) {
+        const currentTx = $transactions.filter(t => !t.entityId || t.entityId === $activeEntityId);
+        const otherTx = $transactions.filter(t => t.entityId && t.entityId !== $activeEntityId);
+        const remainingParsed = [...parsed];
+
+        let enrichedCount = 0;
+        const updatedList = currentTx.map((tx, idx) => {
+          let match = null;
+          if (currentTx.length === parsed.length) {
+            match = parsed[idx];
+          } else {
+            const foundIdx = remainingParsed.findIndex(p => 
+              p.date === tx.date && 
+              Math.abs((p.debit || 0) - (tx.debit || 0)) < 0.01 && 
+              Math.abs((p.credit || 0) - (tx.credit || 0)) < 0.01
+            );
+            if (foundIdx !== -1) {
+              match = remainingParsed.splice(foundIdx, 1)[0];
+            }
+          }
+          if (match && match.rawCells) {
+            enrichedCount++;
+            return {
+              ...tx,
+              rawCells: match.rawCells,
+              info: tx.info || match.info || '',
+              reference: tx.reference || match.reference || ''
+            };
+          }
+          return tx;
+        });
+
+        if (enrichedCount > 0) {
+          updateTransactions([...otherTx, ...updatedList]);
+        }
+      }
+    } catch (e) {
+      console.warn("Notice: enrichissement automatique des écritures lors du chargement CSV:", e);
+    }
 
     if (selectedComplementColIdx === -1) {
       const idx = headers.findIndex(h => {
@@ -400,6 +449,143 @@
       };
       reader.readAsText(file);
     }
+  }
+
+  function refreshConcatHeaders() {
+    try {
+      // 1. Tenter avec l'entité active
+      let saved = localStorage.getItem(`saas_compta_csv_headers_${$activeEntityId}`);
+      let parsed = saved ? JSON.parse(saved) : null;
+
+      // 2. Si non trouvé avec l'entité active, chercher toute clé saas_compta_csv_headers_ dans localStorage
+      if (!parsed || !Array.isArray(parsed) || parsed.length === 0) {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('saas_compta_csv_headers_')) {
+            const rawVal = localStorage.getItem(k);
+            if (rawVal) {
+              try {
+                const arr = JSON.parse(rawVal);
+                if (Array.isArray(arr) && arr.length > 0) {
+                  parsed = arr;
+                  break;
+                }
+              } catch (_) {}
+            }
+          }
+        }
+      }
+
+      // 3. Si toujours non trouvé, chercher dans le texte CSV brut sauvegardé
+      if (!parsed || parsed.length === 0) {
+        let rawText = localStorage.getItem(`saas_compta_last_csv_text_${$activeEntityId}`);
+        if (!rawText) {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('saas_compta_last_csv_text_')) {
+              const val = localStorage.getItem(k);
+              if (val) { rawText = val; break; }
+            }
+          }
+        }
+        if (rawText) {
+          concatRawText = rawText;
+          const lines = rawText.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
+          if (lines.length > 0) {
+            const sep = lines[0].split(',').length > lines[0].split(';').length ? ',' : ';';
+            parsed = CSVParser.splitLineRespectingQuotes(lines[0], sep).map(h => h.trim().replace(/^"|"$/g, ''));
+            if (lines.length > 1 && concatSampleRows.length === 0) {
+              concatSampleRows = lines.slice(1, 6).map(l => CSVParser.splitLineRespectingQuotes(l, sep));
+            }
+          }
+        }
+      }
+
+      // 4. Si toujours rien mais qu'on a des écritures dans la structure courante :
+      if ((!parsed || parsed.length === 0) && currentStructureTx.length > 0) {
+        const txWithCells = currentStructureTx.find(t => t.rawCells && t.rawCells.length > 0);
+        if (txWithCells && txWithCells.rawCells) {
+          parsed = txWithCells.rawCells.map((/** @type {any} */ _, /** @type {number} */ idx) => {
+            if (idx === 0) return 'Date';
+            if (idx === 1) return 'Libellé';
+            if (idx === 2) return 'Informations complémentaires';
+            if (idx === 3) return 'Débit';
+            if (idx === 4) return 'Crédit';
+            return `Colonne ${idx + 1}`;
+          });
+          concatSampleRows = currentStructureTx.slice(0, 5).map(t => t.rawCells || []);
+        } else {
+          parsed = ['Date', 'Libellé', 'Informations complémentaires', 'Débit', 'Crédit'];
+          concatSampleRows = currentStructureTx.slice(0, 5).map(t => [
+            formatDateFr(t.date),
+            t.libelle,
+            t.info || t.typeOperation || 'Détail opération',
+            String(t.debit || ''),
+            String(t.credit || '')
+          ]);
+        }
+      }
+
+      if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+        availableCsvHeaders = parsed;
+        localStorage.setItem(`saas_compta_csv_headers_${$activeEntityId}`, JSON.stringify(parsed));
+      }
+
+      // Recharger aussi les échantillons si vides
+      if (concatSampleRows.length === 0) {
+        const savedSamples = localStorage.getItem(`saas_compta_concat_sample_rows_${$activeEntityId}`);
+        if (savedSamples) {
+          try { concatSampleRows = JSON.parse(savedSamples); } catch (_) {}
+        }
+      }
+      if (concatSampleRows.length === 0 && currentStructureTx.length > 0) {
+        const txCells = currentStructureTx.filter(t => t.rawCells && t.rawCells.length > 0);
+        if (txCells.length > 0) {
+          concatSampleRows = txCells.slice(0, 5).map(t => t.rawCells);
+        } else {
+          concatSampleRows = currentStructureTx.slice(0, 5).map(t => [
+            formatDateFr(t.date),
+            t.rawLibelle || t.libelle.split('—')[0].trim(),
+            t.info || t.typeOperation || '',
+            String(t.debit || ''),
+            String(t.credit || '')
+          ]);
+        }
+      }
+
+      // Pré-sélection intelligente de la colonne complémentaire
+      if (selectedComplementColIdx === -1 && availableCsvHeaders.length > 0) {
+        const idx = availableCsvHeaders.findIndex(h => {
+          const norm = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+          return !norm.includes('dat') && (norm.includes('inf') || norm.includes('complement') || norm.includes('detail') || norm.includes('motif') || norm.includes('payeur') || norm.includes('tireur'));
+        });
+        if (idx !== -1) {
+          selectedComplementColIdx = idx;
+        } else if (availableCsvHeaders.length > 2) {
+          selectedComplementColIdx = 2;
+        }
+      }
+    } catch (err) {
+      console.error("Erreur refreshConcatHeaders:", err);
+    }
+  }
+
+  let effectiveSampleRows = $derived((() => {
+    if (concatSampleRows.length > 0) return concatSampleRows;
+    const txCells = currentStructureTx.filter(t => t.rawCells && t.rawCells.length > 0);
+    if (txCells.length > 0) return txCells.slice(0, 5).map(t => t.rawCells);
+    return currentStructureTx.slice(0, 5).map(t => [
+      formatDateFr(t.date),
+      t.rawLibelle || t.libelle.split('—')[0].trim(),
+      t.info || t.typeOperation || '',
+      String(t.debit || ''),
+      String(t.credit || '')
+    ]);
+  })());
+
+  function openConcatModal() {
+    refreshConcatHeaders();
+    showConcatModal = true;
   }
 
   function appliquerConcatenationAssistee() {
@@ -503,6 +689,7 @@
     showPedagogicalModal = false;
     loadHistory();
     Categorizer.reappliquerReglesAuxTransactionsEnAttente();
+    refreshConcatHeaders();
   });
 
   // Recharger l'historique et réinitialiser les sélections en cours quand on change de structure
@@ -511,6 +698,7 @@
       loadHistory();
       selectedCategoryMap = {};
       lastStateTransactions = null;
+      refreshConcatHeaders();
     }
   });
 
@@ -538,9 +726,17 @@
    */
   function effacerToutesOperations() {
     if (currentStructureTx.length === 0) return;
-    if (confirm(`Voulez-vous effacer l'ensemble des ${currentStructureTx.length} écritures bancaires de cet espace ?`)) {
+    if (confirm(`Voulez-vous effacer l'ensemble des ${currentStructureTx.length} écritures bancaires de cet espace ?\n\nToutes les opérations seront supprimées de votre espace et de la base de données. Vous pourrez réimporter un relevé bancaire propre immédiatement.`)) {
       updateTransactions([]);
       saveImportsHistory([]);
+      localStorage.removeItem(`saas_compta_last_csv_text_${$activeEntityId}`);
+      localStorage.removeItem(`saas_compta_csv_headers_${$activeEntityId}`);
+      localStorage.removeItem(`saas_compta_concat_sample_rows_${$activeEntityId}`);
+      localStorage.removeItem(`saas_compta_last_csv_name_${$activeEntityId}`);
+      saveCsvMetadata($activeEntityId, [], '', '');
+      concatRawText = '';
+      availableCsvHeaders = [];
+      concatSampleRows = [];
       showToast('Toutes les opérations de cet espace ont été effacées.');
     }
   }
@@ -580,10 +776,6 @@
       showToast("Attribution annulée.");
     }
   }
-
-  // Reactive transaction lists filtrées strictement par structure
-  let activeEntityModel = $derived($entities.find((e) => e.id === $activeEntityId)?.model || 'micro');
-  let currentStructureTx = $derived($transactions.filter((t) => (!t.entityId || t.entityId === $activeEntityId)));
 
   /** @param {any} [tx] */
   function openTitoChatForTx(tx = null) {
@@ -764,6 +956,12 @@
         label: 'Cotisations, adhésions et mécénat',
         icon: 'fa-hand-holding-heart',
         codes: ['756', '758', '740']
+      },
+      {
+        id: 'rec_indemnites',
+        label: 'Indemnités, CPAM et remboursements perçus',
+        icon: 'fa-shield-halved',
+        codes: ['791']
       },
       {
         id: 'rec_virements',
@@ -1046,15 +1244,18 @@
         <InfoTip text="Glissez ici le relevé téléchargé depuis votre banque en ligne (Boursorama, BNP, Crédit Agricole, Qonto, etc.)." width="240px" />
       </h3>
 
-      <!-- Action Annuler sobre et discrète -->
+      <!-- Action Vider le relevé -->
       {#if currentStructureTx.length > 0}
         <button 
           type="button" 
           onclick={effacerToutesOperations}
-          style="display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 0.74rem; padding: 3px 9px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 6px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; flex-shrink: 0;"
-          title="Annuler et réinitialiser le relevé bancaire"
+          style="display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: 0.74rem; padding: 4px 10px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; border-radius: 6px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; flex-shrink: 0;"
+          title="Effacer l'ensemble des opérations bancaires de cet espace pour réimporter à neuf"
+          onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'rgba(239, 68, 68, 0.2)'; }}
+          onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'rgba(239, 68, 68, 0.1)'; }}
         >
-          Annuler
+          <i class="fa-solid fa-trash-can" style="font-size: 0.72rem;"></i>
+          <span>Vider le relevé</span>
         </button>
       {/if}
     </div>
@@ -1142,9 +1343,9 @@
     <div style="padding: 20px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; gap: 12px; flex: 1; min-height: 145px; box-sizing: border-box;">
       <button
         type="button"
-        style="flex: 1; padding: 12px 14px; border-radius: 10px; font-size: 0.86rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'pending' && nonTriees.length > 0 ? 'background: #4f46e5; color: #ffffff; border: 1.5px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color);'}"
+        style="flex: 1; padding: 12px 14px; border-radius: 10px; font-size: 0.86rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'pending' ? 'background: #4f46e5; color: #ffffff; border: 1.5px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color);'}"
         onclick={() => {
-          activeTab = activeTab === 'pending' ? null : 'pending';
+          activeTab = 'pending';
         }}
       >
         À attribuer ({nonTriees.length})
@@ -1152,12 +1353,12 @@
 
       <button
         type="button"
-        style="flex: 1; padding: 12px 14px; border-radius: 10px; font-size: 0.86rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'categorized' && triees.length > 0 ? 'background: #4f46e5; color: #ffffff; border: 1.5px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color);'}"
+        style="flex: 1; padding: 12px 14px; border-radius: 10px; font-size: 0.86rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'categorized' ? 'background: #4f46e5; color: #ffffff; border: 1.5px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color);'}"
         onclick={() => {
-          activeTab = activeTab === 'categorized' ? null : 'categorized';
+          activeTab = 'categorized';
         }}
       >
-        Voir ({triees.length})
+        Attribué ({triees.length})
       </button>
     </div>
   </div>
@@ -1167,7 +1368,7 @@
 <!-- ======================================================= -->
 <!-- CONTENEUR DU TABLEAU DE TRAITEMENT DES OPÉRATIONS       -->
 <!-- ======================================================= -->
-{#if (activeTab === 'pending' && nonTriees.length > 0) || (activeTab === 'categorized' && triees.length > 0)}
+{#if activeTab === 'pending' || activeTab === 'categorized'}
   <div style="margin-bottom: 30px; background: var(--table-container-bg); border: 1.5px solid var(--border-container); border-radius: 20px; padding: 20px; box-shadow: var(--shadow-card);">
     <div style="padding: 6px; background: transparent; width: 100%; box-sizing: border-box;">
         
@@ -1323,7 +1524,7 @@
                               style="background: var(--bg-subtle); color: var(--text-main); border: 1px solid var(--border-color); font-size: 0.78rem; font-weight: 700; padding: 5px 12px; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"
                             >
                               <i class="fa-solid fa-magnifying-glass" style="color: var(--color-primary);"></i>
-                              <span>Choisir la catégorie</span>
+                              <span>Attribuer manuellement</span>
                             </button>
                           {/if}
 
@@ -1367,7 +1568,7 @@
                           <!-- Bouton Ajouter détails (actif) -->
                           <button
                             type="button"
-                            onclick={() => showConcatModal = true}
+                            onclick={openConcatModal}
                             style="background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.72rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;"
                             title="Ajouter des détails / associer une colonne de votre relevé"
                             onmouseenter={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.color = 'var(--text-main)'; }}
@@ -1384,6 +1585,14 @@
                 {/each}
               </tbody>
             </table>
+          </div>
+        {:else}
+          <div style="padding: 36px 20px; text-align: center; background: var(--bg-subtle); border: 1px dashed var(--border-color); border-radius: 14px; margin-top: 10px;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(34, 197, 94, 0.12); color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin: 0 auto 10px auto;">
+              <i class="fa-solid fa-check"></i>
+            </div>
+            <strong style="font-size: 0.98rem; color: var(--text-main); display: block; margin-bottom: 4px;">Toutes les opérations sont attribuées !</strong>
+            <span style="font-size: 0.82rem; color: var(--text-muted);">Aucune opération en attente. Retrouvez l'ensemble de vos écritures dans l'onglet « Attribué ».</span>
           </div>
         {/if}
       {:else}
@@ -1466,7 +1675,7 @@
                           <!-- Bouton Ajouter détails (actif) -->
                           <button
                             type="button"
-                            onclick={() => showConcatModal = true}
+                            onclick={openConcatModal}
                             style="background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.72rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;"
                             title="Ajouter des détails / associer une colonne de votre relevé"
                             onmouseenter={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.color = 'var(--text-main)'; }}
@@ -1551,7 +1760,7 @@
       </div>
 
       <p style="font-size: 0.92rem; color: rgba(255, 255, 255, 0.9); line-height: 1.5; margin-bottom: 16px;">
-        Le système a identifié <strong>{matchingSimilarTxList.length} autre(s) opération(s) similaire(s)</strong> à <em>"{pendingPrimaryTx ? pendingPrimaryTx.libelle : ''}"</em>.<br/>
+       <strong>Tito a trouvé {matchingSimilarTxList.length} autre(s) opération(s) similaire(s)</strong> à <em><br/> "{pendingPrimaryTx ? pendingPrimaryTx.libelle : ''}"</em>.<br/>
         Souhaitez-vous les attribuer également au compte <strong>{formatAccountLabel(targetSimilarCategory)}</strong> ?
       </p>
 
@@ -1601,17 +1810,17 @@
 <!-- Modale Dédiée d'Attribution de Compte (Accordéon épuré) -->
 {#if showCategorizeModal && selectedTxForCategorization}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="modal-backdrop" onclick={() => showCategorizeModal = false} role="presentation" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 20px;">
+  <div class="modal-backdrop" onclick={() => showCategorizeModal = false} role="presentation" style="position: fixed; inset: 0; background: rgba(5, 10, 20, 0.78); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 20px;">
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_interactive_supports_focus -->
-    <div class="modal-content" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1" style="max-width: 580px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; background: #ffffff !important; border: 1px solid #cbd5e1 !important; border-radius: 14px; padding: 20px 22px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2); color: #0f172a !important;">
+    <div class="modal-content" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1" style="max-width: 580px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; background: #0c1527 !important; border: 1.5px solid rgba(56, 189, 248, 0.25) !important; border-radius: 16px; padding: 22px 24px; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75); color: #f8fafc !important;">
       
       <!-- Modal Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 12px;">
         <div>
-          <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.15rem; color: #0f172a !important; display: flex; align-items: center; gap: 8px; font-weight: 800;">
-            <i class="fa-solid fa-tags" style="color: #2563eb; font-size: 0.95rem;"></i> Attribuer un compte comptable
+          <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.15rem; color: #ffffff !important; font-weight: 800;">
+            Attribuer un compte comptable
           </h3>
-          <div style="font-size: 0.8rem; color: #64748b !important; margin-top: 2px;">
+          <div style="font-size: 0.8rem; color: #94a3b8 !important; margin-top: 2px;">
             Sélectionnez la catégorie comptable à associer à cette opération
           </div>
         </div>
@@ -1621,40 +1830,41 @@
           title="Fermer"
           onclick={() => showCategorizeModal = false} 
           style="background: none; border: none; color: #94a3b8; font-size: 1.25rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: color 0.15s ease;"
+          onmouseenter={(e) => { e.currentTarget.style.color = '#ffffff'; }}
+          onmouseleave={(e) => { e.currentTarget.style.color = '#94a3b8'; }}
         >✕</button>
       </div>
 
       <!-- Transaction Card Summary -->
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
+      <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
           <div style="min-width: 0; flex: 1;">
-            <div style="font-weight: 700; color: #0f172a !important; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={selectedTxForCategorization.libelle}>
+            <div style="font-weight: 700; color: #ffffff !important; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={selectedTxForCategorization.libelle}>
               {cleanTransactionLibelle(selectedTxForCategorization.libelle, selectedTxForCategorization)}
             </div>
-            <div style="font-size: 0.76rem; color: #64748b !important; margin-top: 2px;">
+            <div style="font-size: 0.76rem; color: #94a3b8 !important; margin-top: 2px;">
               {selectedTxForCategorization.date ? new Date(selectedTxForCategorization.date).toLocaleDateString("fr-FR") : ''} &bull; {selectedTxForCategorization.debit > 0 ? "Dépense" : "Recette"}
               {selectedTxForCategorization.reference ? ` • Ref: ${selectedTxForCategorization.reference}` : ''}
             </div>
           </div>
-          <div style="font-weight: 800; font-size: 1.1rem; color: {selectedTxForCategorization.debit > 0 ? '#b91c1c' : '#15803d'}; font-family: var(--font-title); white-space: nowrap;">
+          <div style="font-weight: 800; font-size: 1.1rem; color: {selectedTxForCategorization.debit > 0 ? '#f87171' : '#34d399'}; font-family: var(--font-title); white-space: nowrap;">
             {selectedTxForCategorization.debit > 0 ? "-" : "+"}
             {(Number(selectedTxForCategorization.debit || selectedTxForCategorization.credit || 0)).toFixed(2)} €
           </div>
         </div>
 
-        <!-- AI Suggestion if available -->
+        <!-- Suggestion if available -->
         {#if getSuggestionForTx(selectedTxForCategorization)}
           {@const sug = getSuggestionForTx(selectedTxForCategorization)}
           {#if sug}
-            <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: 6px;">
-              <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem;">
-                <i class="fa-solid fa-wand-magic-sparkles" style="color: #2563eb; font-size: 0.78rem;"></i>
-                <span style="color: #64748b; font-weight: 600;">Suggestion :</span>
-                <strong style="color: #0f172a;">{sug?.label}</strong>
+            <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); padding: 7px 11px; border-radius: 8px;">
+              <div style="font-size: 0.8rem;">
+                <span style="color: #94a3b8; font-weight: 600;">Suggestion : </span>
+                <strong style="color: #ffffff;">{sug?.label}</strong>
               </div>
               <button 
                 type="button" 
-                style="padding: 3px 8px; font-size: 0.75rem; background: #0f172a; color: #ffffff; border: none; border-radius: 4px; font-weight: 700; cursor: pointer;"
+                style="padding: 4px 10px; font-size: 0.75rem; background: #38bdf8; color: #080e1a; border: none; border-radius: 6px; font-weight: 800; cursor: pointer; transition: opacity 0.15s ease;"
                 onclick={() => {
                   if (sug && selectedTxForCategorization) {
                     selectAccount(selectedTxForCategorization.id, sug.compte);
@@ -1670,241 +1880,163 @@
         {/if}
       </div>
 
-      <!-- Search input inside modal -->
-      <div style="position: relative; margin-bottom: 12px;">
-        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.8rem; pointer-events: none;"></i>
-        <input 
-          type="text" 
-          placeholder="Filtrer les comptes (ex: 606, Honoraires, Logiciels...)" 
-          bind:value={modalSearchQuery}
-          style="width: 100%; padding: 8px 12px 8px 32px; background: #ffffff !important; border: 1.5px solid #e2e8f0 !important; border-radius: 8px; color: #0f172a !important; font-size: 0.85rem; box-sizing: border-box; transition: border-color 0.15s;"
-        />
-        {#if modalSearchQuery}
-          <button 
-            type="button" 
-            aria-label="Effacer la recherche"
-            title="Effacer la recherche"
-            onclick={() => modalSearchQuery = ''} 
-            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.8rem; padding: 2px;"
-          >
-            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-            <span style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;">Effacer la recherche</span>
-          </button>
-        {/if}
-      </div>
-
-      <!-- Scrollable Body -->
+      <!-- Scrollable Body (Accordéon direct Recettes / Dépenses épuré sans icônes) -->
       <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 2px; margin-bottom: 14px;">
         
-        {#if modalSearchQuery.trim().length > 0}
-          <!-- VUE RÉSULTATS DE RECHERCHE DIRECTE -->
-          {#if modalSearchResults.length === 0}
-            <div style="text-align: center; padding: 28px 16px; color: #64748b; font-size: 0.85rem;">
-              Aucune catégorie ne correspond à « {modalSearchQuery} »
-            </div>
-          {:else}
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-              {#each modalSearchResults as c}
-                {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === c.compte}
-                <button 
-                  type="button"
-                  onclick={() => {
-                    selectedCategoryMap[selectedTxForCategorization.id] = c.compte;
-                  }}
-                  style="text-align: left; padding: 8px 12px; border-radius: 8px; cursor: pointer; border: 1.5px solid {isSelected ? '#2563eb' : '#e2e8f0'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: #0f172a; display: flex; justify-content: space-between; align-items: center; gap: 10px; transition: all 0.12s ease; width: 100%;"
-                >
-                  <div style="flex: 1; min-width: 0;">
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <span style="font-weight: 700; font-size: 0.86rem; color: #0f172a;">{formatAccountLabel(c.compte)}</span>
-                      <span style="font-size: 0.72rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; background: {isSelected ? '#2563eb' : '#f1f5f9'}; color: {isSelected ? '#ffffff' : '#475569'}; border: 1px solid {isSelected ? '#2563eb' : '#e2e8f0'};">
-                        Compte {c.compte}
-                      </span>
+        <!-- 1. ACCORDÉON RECETTES -->
+        <div style="border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; overflow: hidden; background: rgba(255, 255, 255, 0.02);">
+          <button 
+            type="button"
+            onclick={() => {
+              activeAccordionSection = activeAccordionSection === 'recettes' ? null : 'recettes';
+              activeSubMenuKey = null;
+            }}
+            style="width: 100%; padding: 11px 14px; background: {activeAccordionSection === 'recettes' ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.03)'}; border: none; border-bottom: {activeAccordionSection === 'recettes' ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; transition: background 0.15s ease;"
+          >
+            <span style="font-weight: 800; font-size: 0.92rem; color: #ffffff !important;">Recettes</span>
+            <span style="color: #94a3b8; font-size: 0.75rem; font-weight: 700;">{activeAccordionSection === 'recettes' ? '▲' : '▼'}</span>
+          </button>
+
+          {#if activeAccordionSection === 'recettes'}
+            <div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: rgba(0, 0, 0, 0.25);">
+              {#each modalAccordionGroups.recettes as sub}
+                {@const isSubOpen = activeSubMenuKey === sub.id}
+                {@const hasSelectedInSub = subHasSelectedAccount(sub, selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué)}
+                
+                <div style="border: 1px solid {hasSelectedInSub ? 'rgba(56, 189, 248, 0.45)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.03);">
+                  <button 
+                    type="button"
+                    onclick={() => activeSubMenuKey = isSubOpen ? null : sub.id}
+                    style="width: 100%; padding: 9px 12px; background: {isSubOpen ? 'rgba(56, 189, 248, 0.12)' : 'transparent'}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; gap: 8px;"
+                  >
+                    <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+                      <span style="font-weight: 700; font-size: 0.84rem; color: #ffffff !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={sub.label}>{sub.label}</span>
+                      {#if hasSelectedInSub}
+                        <span style="font-size: 0.68rem; font-weight: 800; color: #38bdf8; background: rgba(56, 189, 248, 0.18); padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.35); flex-shrink: 0;">Sélectionné</span>
+                      {/if}
                     </div>
-                    {#if c.desc}
-                      <div style="font-size: 0.76rem; color: #64748b; margin-top: 2px; line-height: 1.3;">
-                        {c.desc}
-                      </div>
-                    {/if}
-                  </div>
-                  {#if isSelected}
-                    <i class="fa-solid fa-circle-check" style="color: #2563eb; font-size: 1.05rem; flex-shrink: 0;"></i>
-                  {:else}
-                    <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 0.95rem; flex-shrink: 0;"></i>
+                    <span style="color: #94a3b8; font-size: 0.7rem; font-weight: 700;">{isSubOpen ? '▾' : '▸'}</span>
+                  </button>
+
+                  {#if isSubOpen}
+                    <div style="padding: 6px 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 4px; background: rgba(0, 0, 0, 0.2);">
+                      {#each sub.accounts as acc}
+                        {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === acc.compte}
+                        <button 
+                          type="button"
+                          onclick={() => {
+                            selectedCategoryMap[selectedTxForCategorization.id] = acc.compte;
+                          }}
+                          style="text-align: left; padding: 8px 12px; border-radius: 6px; cursor: pointer; border: 1px solid {isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)'}; background: {isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.02)'}; color: #ffffff; display: flex; justify-content: space-between; align-items: center; gap: 8px; transition: all 0.1s ease; width: 100%;"
+                        >
+                          <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                              <span style="font-weight: 600; font-size: 0.83rem; color: #ffffff !important;">{acc.libelle || formatAccountLabel(acc.compte)}</span>
+                              <span style="font-size: 0.7rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: {isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)'}; color: {isSelected ? '#080e1a' : '#cbd5e1'}; border: 1px solid {isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.12)'};">
+                                {acc.compte}
+                              </span>
+                            </div>
+                            {#if acc.desc}
+                              <div style="font-size: 0.74rem; color: #94a3b8; margin-top: 2px;">
+                                {acc.desc}
+                              </div>
+                            {/if}
+                          </div>
+                          {#if isSelected}
+                            <span style="font-size: 0.7rem; font-weight: 800; color: #38bdf8; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 7px; border-radius: 4px; flex-shrink: 0;">Sélectionné</span>
+                          {/if}
+                        </button>
+                      {/each}
+                    </div>
                   {/if}
-                </button>
+                </div>
               {/each}
             </div>
           {/if}
+        </div>
 
-        {:else}
-          <!-- VUE ACCORDÉON RECETTE / DÉPENSE -->
+        <!-- 2. ACCORDÉON DÉPENSES -->
+        <div style="border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; overflow: hidden; background: rgba(255, 255, 255, 0.02);">
+          <button 
+            type="button"
+            onclick={() => {
+              activeAccordionSection = activeAccordionSection === 'depenses' ? null : 'depenses';
+              activeSubMenuKey = null;
+            }}
+            style="width: 100%; padding: 11px 14px; background: {activeAccordionSection === 'depenses' ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.03)'}; border: none; border-bottom: {activeAccordionSection === 'depenses' ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; transition: background 0.15s ease;"
+          >
+            <span style="font-weight: 800; font-size: 0.92rem; color: #ffffff !important;">Dépenses</span>
+            <span style="color: #94a3b8; font-size: 0.75rem; font-weight: 700;">{activeAccordionSection === 'depenses' ? '▲' : '▼'}</span>
+          </button>
 
-          <!-- 1. ACCORDÉON RECETTES -->
-          <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; background: #ffffff;">
-            <button 
-              type="button"
-              onclick={() => {
-                activeAccordionSection = activeAccordionSection === 'recettes' ? null : 'recettes';
-                activeSubMenuKey = null;
-              }}
-              style="width: 100%; padding: 10px 14px; background: {activeAccordionSection === 'recettes' ? '#f8fafc' : '#ffffff'}; border: none; border-bottom: {activeAccordionSection === 'recettes' ? '1px solid #e2e8f0' : 'none'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; transition: background 0.15s ease;"
-            >
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <i class="fa-solid fa-arrow-down-left" style="color: #2563eb; font-size: 0.85rem;"></i>
-                <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a;">Recettes</span>
-              </div>
-              <i class="fa-solid fa-chevron-down" style="color: #64748b; font-size: 0.75rem; transform: {activeAccordionSection === 'recettes' ? 'rotate(180deg)' : 'none'}; transition: transform 0.2s ease;"></i>
-            </button>
+          {#if activeAccordionSection === 'depenses'}
+            <div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: rgba(0, 0, 0, 0.25);">
+              {#each modalAccordionGroups.depenses as sub}
+                {@const isSubOpen = activeSubMenuKey === sub.id}
+                {@const hasSelectedInSub = subHasSelectedAccount(sub, selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué)}
+                
+                <div style="border: 1px solid {hasSelectedInSub ? 'rgba(56, 189, 248, 0.45)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.03);">
+                  <button 
+                    type="button"
+                    onclick={() => activeSubMenuKey = isSubOpen ? null : sub.id}
+                    style="width: 100%; padding: 9px 12px; background: {isSubOpen ? 'rgba(56, 189, 248, 0.12)' : 'transparent'}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; gap: 8px;"
+                  >
+                    <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+                      <span style="font-weight: 700; font-size: 0.84rem; color: #ffffff !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={sub.label}>{sub.label}</span>
+                      {#if hasSelectedInSub}
+                        <span style="font-size: 0.68rem; font-weight: 800; color: #38bdf8; background: rgba(56, 189, 248, 0.18); padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.35); flex-shrink: 0;">Sélectionné</span>
+                      {/if}
+                    </div>
+                    <span style="color: #94a3b8; font-size: 0.7rem; font-weight: 700;">{isSubOpen ? '▾' : '▸'}</span>
+                  </button>
 
-            {#if activeAccordionSection === 'recettes'}
-              <div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: #fafafa;">
-                {#each modalAccordionGroups.recettes as sub}
-                  {@const isSubOpen = activeSubMenuKey === sub.id}
-                  {@const hasSelectedInSub = subHasSelectedAccount(sub, selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué)}
-                  
-                  <div style="border: 1px solid {hasSelectedInSub ? '#93c5fd' : '#e2e8f0'}; border-radius: 8px; overflow: hidden; background: #ffffff;">
-                    <button 
-                      type="button"
-                      onclick={() => activeSubMenuKey = isSubOpen ? null : sub.id}
-                      style="width: 100%; padding: 8px 12px; background: {isSubOpen ? '#f1f5f9' : '#ffffff'}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; gap: 8px;"
-                    >
-                      <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
-                        <i class="fa-solid {sub.icon}" style="color: #2563eb; font-size: 0.8rem; flex-shrink: 0;"></i>
-                        <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={sub.label}>{sub.label}</span>
-                        {#if hasSelectedInSub}
-                          <span style="font-size: 0.68rem; font-weight: 800; color: #2563eb; background: #eff6ff; padding: 1px 5px; border-radius: 4px; border: 1px solid #bfdbfe; flex-shrink: 0;">Sélectionné</span>
-                        {/if}
-                      </div>
-                      <i class="fa-solid fa-chevron-right" style="color: #94a3b8; font-size: 0.7rem; transform: {isSubOpen ? 'rotate(90deg)' : 'none'}; transition: transform 0.15s ease; flex-shrink: 0;"></i>
-                    </button>
-
-                    {#if isSubOpen}
-                      <div style="padding: 6px 8px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px; background: #ffffff;">
-                        {#each sub.accounts as acc}
-                          {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === acc.compte}
-                          <button 
-                            type="button"
-                            onclick={() => {
-                              selectedCategoryMap[selectedTxForCategorization.id] = acc.compte;
-                            }}
-                            style="text-align: left; padding: 7px 10px; border-radius: 6px; cursor: pointer; border: 1px solid {isSelected ? '#2563eb' : '#f1f5f9'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: #0f172a; display: flex; justify-content: space-between; align-items: center; gap: 8px; transition: all 0.1s ease; width: 100%;"
-                          >
-                            <div style="flex: 1; min-width: 0;">
-                              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                <span style="font-weight: 600; font-size: 0.83rem; color: #0f172a;">{formatAccountLabel(acc.compte)}</span>
-                                <span style="font-size: 0.7rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: {isSelected ? '#2563eb' : '#f1f5f9'}; color: {isSelected ? '#ffffff' : '#475569'}; border: 1px solid {isSelected ? '#2563eb' : '#e2e8f0'};">
-                                  {acc.compte}
-                                </span>
-                              </div>
-                              {#if acc.desc}
-                                <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">
-                                  {acc.desc}
-                                </div>
-                              {/if}
+                  {#if isSubOpen}
+                    <div style="padding: 6px 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 4px; background: rgba(0, 0, 0, 0.2);">
+                      {#each sub.accounts as acc}
+                        {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === acc.compte}
+                        <button 
+                          type="button"
+                          onclick={() => {
+                            selectedCategoryMap[selectedTxForCategorization.id] = acc.compte;
+                          }}
+                          style="text-align: left; padding: 8px 12px; border-radius: 6px; cursor: pointer; border: 1px solid {isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)'}; background: {isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.02)'}; color: #ffffff; display: flex; justify-content: space-between; align-items: center; gap: 8px; transition: all 0.1s ease; width: 100%;"
+                        >
+                          <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                              <span style="font-weight: 600; font-size: 0.83rem; color: #ffffff !important;">{acc.libelle || formatAccountLabel(acc.compte)}</span>
+                              <span style="font-size: 0.7rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: {isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)'}; color: {isSelected ? '#080e1a' : '#cbd5e1'}; border: 1px solid {isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.12)'};">
+                                {acc.compte}
+                              </span>
                             </div>
-                            {#if isSelected}
-                              <i class="fa-solid fa-circle-check" style="color: #2563eb; font-size: 0.95rem; flex-shrink: 0;"></i>
-                            {:else}
-                              <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 0.85rem; flex-shrink: 0;"></i>
-                            {/if}
-                          </button>
-                        {/each}
-                      </div>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </div>
-
-          <!-- 2. ACCORDÉON DÉPENSES -->
-          <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; background: #ffffff;">
-            <button 
-              type="button"
-              onclick={() => {
-                activeAccordionSection = activeAccordionSection === 'depenses' ? null : 'depenses';
-                activeSubMenuKey = null;
-              }}
-              style="width: 100%; padding: 10px 14px; background: {activeAccordionSection === 'depenses' ? '#f8fafc' : '#ffffff'}; border: none; border-bottom: {activeAccordionSection === 'depenses' ? '1px solid #e2e8f0' : 'none'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; transition: background 0.15s ease;"
-            >
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <i class="fa-solid fa-arrow-up-right" style="color: #2563eb; font-size: 0.85rem;"></i>
-                <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a;">Dépenses</span>
-              </div>
-              <i class="fa-solid fa-chevron-down" style="color: #64748b; font-size: 0.75rem; transform: {activeAccordionSection === 'depenses' ? 'rotate(180deg)' : 'none'}; transition: transform 0.2s ease;"></i>
-            </button>
-
-            {#if activeAccordionSection === 'depenses'}
-              <div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: #fafafa;">
-                {#each modalAccordionGroups.depenses as sub}
-                  {@const isSubOpen = activeSubMenuKey === sub.id}
-                  {@const hasSelectedInSub = subHasSelectedAccount(sub, selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué)}
-                  
-                  <div style="border: 1px solid {hasSelectedInSub ? '#93c5fd' : '#e2e8f0'}; border-radius: 8px; overflow: hidden; background: #ffffff;">
-                    <button 
-                      type="button"
-                      onclick={() => activeSubMenuKey = isSubOpen ? null : sub.id}
-                      style="width: 100%; padding: 8px 12px; background: {isSubOpen ? '#f1f5f9' : '#ffffff'}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; text-align: left; gap: 8px;"
-                    >
-                      <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
-                        <i class="fa-solid {sub.icon}" style="color: #2563eb; font-size: 0.8rem; flex-shrink: 0;"></i>
-                        <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={sub.label}>{sub.label}</span>
-                        {#if hasSelectedInSub}
-                          <span style="font-size: 0.68rem; font-weight: 800; color: #2563eb; background: #eff6ff; padding: 1px 5px; border-radius: 4px; border: 1px solid #bfdbfe; flex-shrink: 0;">Sélectionné</span>
-                        {/if}
-                      </div>
-                      <i class="fa-solid fa-chevron-right" style="color: #94a3b8; font-size: 0.7rem; transform: {isSubOpen ? 'rotate(90deg)' : 'none'}; transition: transform 0.15s ease; flex-shrink: 0;"></i>
-                    </button>
-
-                    {#if isSubOpen}
-                      <div style="padding: 6px 8px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px; background: #ffffff;">
-                        {#each sub.accounts as acc}
-                          {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === acc.compte}
-                          <button 
-                            type="button"
-                            onclick={() => {
-                              selectedCategoryMap[selectedTxForCategorization.id] = acc.compte;
-                            }}
-                            style="text-align: left; padding: 7px 10px; border-radius: 6px; cursor: pointer; border: 1px solid {isSelected ? '#2563eb' : '#f1f5f9'}; background: {isSelected ? '#eff6ff' : '#ffffff'}; color: #0f172a; display: flex; justify-content: space-between; align-items: center; gap: 8px; transition: all 0.1s ease; width: 100%;"
-                          >
-                            <div style="flex: 1; min-width: 0;">
-                              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                <span style="font-weight: 600; font-size: 0.83rem; color: #0f172a;">{acc.libelle || formatAccountLabel(acc.compte)}</span>
-                                <span style="font-size: 0.7rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: {isSelected ? '#2563eb' : '#f1f5f9'}; color: {isSelected ? '#ffffff' : '#475569'}; border: 1px solid {isSelected ? '#2563eb' : '#e2e8f0'};">
-                                  {acc.compte}
-                                </span>
+                            {#if acc.desc}
+                              <div style="font-size: 0.74rem; color: #94a3b8; margin-top: 2px;">
+                                {acc.desc}
                               </div>
-                              {#if acc.desc}
-                                <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">
-                                  {acc.desc}
-                                </div>
-                              {/if}
-                            </div>
-                            {#if isSelected}
-                              <i class="fa-solid fa-circle-check" style="color: #2563eb; font-size: 0.95rem; flex-shrink: 0;"></i>
-                            {:else}
-                              <i class="fa-regular fa-circle" style="color: #cbd5e1; font-size: 0.85rem; flex-shrink: 0;"></i>
                             {/if}
-                          </button>
-                        {/each}
-                      </div>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </div>
-
-        {/if}
+                          </div>
+                          {#if isSelected}
+                            <span style="font-size: 0.7rem; font-weight: 800; color: #38bdf8; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 7px; border-radius: 4px; flex-shrink: 0;">Sélectionné</span>
+                          {/if}
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
 
       </div>
 
       <!-- Modal Footer Actions -->
-      <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+      <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 14px;">
         <button 
           type="button" 
           onclick={() => showCategorizeModal = false} 
-          style="padding: 8px 16px; border-radius: 7px; color: #475569 !important; background: #ffffff; border: 1px solid #cbd5e1; font-size: 0.84rem; font-weight: 600; cursor: pointer;"
+          style="padding: 8px 16px; border-radius: 7px; color: #cbd5e1 !important; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease;"
+          onmouseenter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.color = '#ffffff'; }}
+          onmouseleave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'; e.currentTarget.style.color = '#cbd5e1'; }}
         >
           Annuler
         </button>
@@ -1914,9 +2046,11 @@
             validerLigneSeule(selectedTxForCategorization);
             showCategorizeModal = false;
           }}
-          style="padding: 8px 18px; font-weight: 700; background: #0f172a; color: #ffffff; border: none; border-radius: 7px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.84rem;"
+          style="padding: 8px 18px; font-weight: 700; background: #4f46e5; color: #ffffff; border: none; border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.84rem; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35); transition: all 0.15s ease;"
+          onmouseenter={(e) => { e.currentTarget.style.background = '#4338ca'; }}
+          onmouseleave={(e) => { e.currentTarget.style.background = '#4f46e5'; }}
         >
-          <i class="fa-solid fa-check" style="font-size: 0.8rem;"></i> Valider l'attribution
+          Valider l'attribution
         </button>
       </div>
 
@@ -2258,21 +2392,21 @@
 {#if showConcatModal}
   <div 
     class="modal-backdrop" 
-    style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px;"
+    style="position: fixed; inset: 0; background: rgba(5, 10, 20, 0.78); backdrop-filter: blur(8px); z-index: 100000; display: flex; align-items: center; justify-content: center; padding: 16px;"
     onclick={(e) => { if (e.target === e.currentTarget) showConcatModal = false; }}
     role="presentation"
   >
     <div 
       class="modal-card" 
-      style="background: var(--bg-modal); border: 1px solid var(--border-color); border-radius: 14px; width: 100%; max-width: 620px; box-shadow: var(--shadow-card); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;"
+      style="background: #0c1527 !important; border: 1.5px solid rgba(56, 189, 248, 0.25) !important; border-radius: 16px; width: 100%; max-width: 620px; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; color: #f8fafc !important;"
     >
       <!-- En-tête -->
-      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--bg-modal);">
+      <div style="padding: 18px 22px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: space-between;">
         <div>
-          <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.1rem; color: var(--text-main); font-weight: 800;">
+          <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.15rem; color: #ffffff !important; font-weight: 800;">
             Associer un complément d'information
           </h3>
-          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">
+          <div style="font-size: 0.8rem; color: #94a3b8 !important; margin-top: 3px;">
             Mixez le libellé avec la colonne de votre choix (nom du payeur, motif, détail...)
           </div>
         </div>
@@ -2280,21 +2414,23 @@
           type="button" 
           aria-label="Fermer" 
           onclick={() => showConcatModal = false}
-          style="background: none; border: none; color: #94a3b8; font-size: 1.25rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 6px;"
+          style="background: none; border: none; color: #94a3b8; font-size: 1.25rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: color 0.15s ease;"
+          onmouseenter={(e) => { e.currentTarget.style.color = '#ffffff'; }}
+          onmouseleave={(e) => { e.currentTarget.style.color = '#94a3b8'; }}
         >✕</button>
       </div>
 
       <!-- Corps défilable -->
-      <div style="padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+      <div style="padding: 20px 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
         
         {#if availableCsvHeaders.length === 0}
           <!-- Si pas de colonnes en mémoire, invitation à charger le fichier CSV -->
-          <div style="text-align: center; padding: 28px 16px; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px;">
-            <i class="fa-solid fa-file-csv" style="font-size: 2.2rem; color: #2563eb; margin-bottom: 10px;"></i>
-            <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a; margin-bottom: 4px;">
+          <div style="text-align: center; padding: 28px 16px; background: rgba(255, 255, 255, 0.03); border: 1.5px dashed rgba(255, 255, 255, 0.15); border-radius: 12px;">
+            <i class="fa-solid fa-file-csv" style="font-size: 2.2rem; color: #38bdf8; margin-bottom: 10px;"></i>
+            <div style="font-weight: 800; font-size: 0.95rem; color: #ffffff; margin-bottom: 4px;">
               Chargez votre fichier CSV bancaire
             </div>
-            <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 14px; max-width: 380px; margin-left: auto; margin-right: auto;">
+            <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 14px; max-width: 380px; margin-left: auto; margin-right: auto;">
               Sélectionnez votre relevé bancaire pour détecter automatiquement toutes ses colonnes et afficher le nom des payeurs.
             </div>
             <button 
@@ -2354,48 +2490,36 @@
           </div>
 
           <!-- Live Preview Box -->
-          {#if concatSampleRows.length > 0 && selectedComplementColIdx !== -1}
+          {#if effectiveSampleRows.length > 0 && selectedComplementColIdx !== -1}
             {@const libColIdx = availableCsvHeaders.findIndex(h => h.toLowerCase().includes('libelle')) !== -1 ? availableCsvHeaders.findIndex(h => h.toLowerCase().includes('libelle')) : 1}
-            <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
-              <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px;">
-                Aperçu du libellé enrichi
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 16px;">
+              <div style="font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-eye" style="color: #38bdf8;"></i>
+                Aperçu du libellé enrichi ({availableCsvHeaders[selectedComplementColIdx] || ''})
               </div>
               <div style="display: flex; flex-direction: column; gap: 10px;">
-                {#each concatSampleRows.slice(0, 3) as row}
-                  {@const lib = row[libColIdx] || 'Libellé'}
+                {#each effectiveSampleRows.slice(0, 3) as row}
+                  {@const lib = row[libColIdx] || row[1] || 'Libellé'}
                   {@const comp = row[selectedComplementColIdx] || ''}
-                  <div style="background: var(--bg-card); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px;">
+                  <div style="background: rgba(255, 255, 255, 0.04); padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 8px;">
                     <!-- Ligne 1 : Ce qui est concaténé -->
                     <div style="display: flex; align-items: center; font-size: 0.82rem; gap: 8px; flex-wrap: wrap;">
-                      <span style="color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{lib}">{lib}</span>
-                      <span style="color: var(--color-accent); font-weight: 800; font-size: 0.95rem; flex-shrink: 0; line-height: 1;">+</span>
-                      <span style="color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.14); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{comp || '(vide)'}">
+                      <span style="color: #cbd5e1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{lib}">{lib}</span>
+                      <span style="color: #38bdf8; font-weight: 800; font-size: 0.95rem; flex-shrink: 0; line-height: 1;">+</span>
+                      <span style="color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.16); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{comp || '(vide)'}">
                         {comp || '(vide)'}
                       </span>
                     </div>
                     <!-- Ligne 2 : Visualisation du résultat final -->
-                    <div style="display: flex; align-items: baseline; gap: 6px; font-size: 0.86rem; padding-top: 8px; border-top: 1px dashed var(--border-color);">
-                      <span style="color: var(--text-muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; flex-shrink: 0;">Affichage :</span>
-                      <strong style="color: var(--text-main); word-break: break-word;">
+                    <div style="display: flex; align-items: baseline; gap: 6px; font-size: 0.86rem; padding-top: 8px; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
+                      <span style="color: #94a3b8; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; flex-shrink: 0;">Affichage :</span>
+                      <strong style="color: #ffffff; word-break: break-word;">
                         {comp ? `${lib} — ${comp}` : lib}
                       </strong>
                     </div>
                   </div>
                 {/each}
               </div>
-            </div>
-          {:else if selectedComplementColIdx !== -1}
-            <div style="background: var(--bg-subtle); border: 1.5px dashed var(--border-color); border-radius: 10px; padding: 14px 16px; text-align: center;">
-              <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px;">
-                Rechargez votre relevé bancaire pour afficher l'aperçu du résultat en direct :
-              </div>
-              <button 
-                type="button" 
-                onclick={() => concatFileInput && concatFileInput.click()}
-                style="padding: 6px 14px; background: #2563eb; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"
-              >
-                <i class="fa-solid fa-file-csv"></i> Charger l'aperçu en direct
-              </button>
             </div>
           {/if}
         {/if}

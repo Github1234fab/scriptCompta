@@ -43,6 +43,18 @@ export const showCancelModal = writable(false);
 export const showHelpGuideModal = writable(false);
 export const helpGuideSection = writable('intro'); // 'intro' | 'accueil' | 'attribution' | 'recettes' | 'obligations'
 export const showCguModal = writable(false);
+export const showDeleteStructureModal = writable(false);
+export const structureToDelete = writable(null); // { id: string, name: string, model: string }
+
+export function openDeleteStructureModal(structure) {
+  structureToDelete.set(structure);
+  showDeleteStructureModal.set(true);
+}
+
+export function closeDeleteStructureModal() {
+  structureToDelete.set(null);
+  showDeleteStructureModal.set(false);
+}
 
 export function openCguModal() {
   showCguModal.set(true);
@@ -367,6 +379,9 @@ export function loadEntityData(entityId) {
   if (!resolvedPlan.some(p => p.compte === '487')) {
     resolvedPlan.push({ compte: "487", libelle: "Produits constatés d'avance (Inscriptions saison future / Reports)", type: "Transfert", group: "transferts", desc: "Inscriptions et cotisations perçues par avance pour le prochain exercice ou la saison suivante." });
   }
+  if (!resolvedPlan.some(p => p.compte === '791')) {
+    resolvedPlan.push({ compte: "791", libelle: "Remboursements Sécurité Sociale (IJSS) & Assurances", type: "Produit", group: "entrees", desc: "Indemnités journalières de la CPAM (arrêt de travail, subrogation) ou remboursements de prévoyance / assurance." });
+  }
   const extraSubAccounts = [
     { compte: "7061", libelle: "Honoraires au temps passé (Taux horaire)", type: "Produit", group: "entrees", desc: "Facturation au temps passé selon le taux horaire." },
     { compte: "7062", libelle: "Honoraires de résultat", type: "Produit", group: "entrees", desc: "Honoraires complémentaires de résultat (success fees)." },
@@ -466,6 +481,12 @@ export function loadEntityData(entityId) {
           fiscalEndDate.set(remoteData.fiscalEndDate || '');
           localStorage.setItem(`saas_compta_fiscal_end_${entityId}`, remoteData.fiscalEndDate || '');
         }
+        if (Array.isArray(remoteData.csvHeaders) && remoteData.csvHeaders.length > 0) {
+          localStorage.setItem(`saas_compta_csv_headers_${entityId}`, JSON.stringify(remoteData.csvHeaders));
+        }
+        if (remoteData.lastCsvName) {
+          localStorage.setItem(`saas_compta_last_csv_name_${entityId}`, remoteData.lastCsvName);
+        }
       });
     });
   }
@@ -473,6 +494,31 @@ export function loadEntityData(entityId) {
 
 // Trigger initial load
 loadEntityData(get(activeEntityId));
+
+// Persistance permanente des métadonnées CSV (Local + Firestore)
+export function saveCsvMetadata(entId, headers, fileName = '', rawText = '') {
+  if (!entId) return;
+  if (Array.isArray(headers) && headers.length > 0) {
+    localStorage.setItem(`saas_compta_csv_headers_${entId}`, JSON.stringify(headers));
+  }
+  if (fileName) {
+    localStorage.setItem(`saas_compta_last_csv_name_${entId}`, fileName);
+  }
+  if (rawText) {
+    localStorage.setItem(`saas_compta_last_csv_text_${entId}`, rawText);
+  }
+  const uid = auth.currentUser?.uid;
+  if (uid) {
+    import('./firestoreService.js').then(({ saveStructureKey }) => {
+      if (Array.isArray(headers) && headers.length > 0) {
+        saveStructureKey(uid, entId, 'csvHeaders', headers);
+      }
+      if (fileName) {
+        saveStructureKey(uid, entId, 'lastCsvName', fileName);
+      }
+    });
+  }
+}
 
 // Nettoyage complet du cache LocalStorage lié à ScriptCompta
 export function clearAllLocalComptaData() {
@@ -488,6 +534,65 @@ export function clearAllLocalComptaData() {
   } catch (e) {
     console.warn("Erreur nettoyage LocalStorage:", e);
   }
+}
+
+// Nettoyage ciblé du cache LocalStorage lié à une entité spécifique
+export function clearEntityLocalData(entityId) {
+  if (!entityId) return;
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.includes(`_${entityId}`)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch (e) {
+    console.warn("Erreur nettoyage LocalStorage entité:", e);
+  }
+}
+
+// Suppression complète d'une entité (Firestore + LocalStorage + Stores)
+export async function deleteEntity(entityId) {
+  if (!entityId) return false;
+  
+  const allEnts = get(entities);
+  const target = allEnts.find(e => e.id === entityId);
+  const targetName = target ? target.name : 'Structure';
+
+  // 1. Supprimer le document dans Firestore
+  const uid = auth.currentUser?.uid;
+  if (uid) {
+    try {
+      const { deleteStructureData } = await import('./firestoreService.js');
+      await deleteStructureData(uid, entityId);
+    } catch (err) {
+      console.error("Erreur suppression distante de la structure:", err);
+    }
+  }
+
+  // 2. Nettoyer tout le cache local lié à cette entité
+  clearEntityLocalData(entityId);
+
+  // 3. Mettre à jour la liste des entités
+  const remaining = allEnts.filter(e => e.id !== entityId);
+  updateEntities(remaining);
+
+  // 4. Si c'était la structure active, basculer ou réinitialiser
+  if (get(activeEntityId) === entityId) {
+    if (remaining.length > 0) {
+      updateActiveEntityId(remaining[0].id);
+    } else {
+      updateActiveEntityId('');
+      transactions.set([]);
+      rules.set([]);
+      members.set([]);
+    }
+  }
+
+  showToast(`La structure « ${targetName} » a été supprimée.`);
+  return true;
 }
 
 // Réinitialisation de tous les stores et caches

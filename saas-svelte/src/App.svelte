@@ -40,6 +40,7 @@
   import CancelSubscriptionModal from './components/CancelSubscriptionModal.svelte';
   import HelpGuideModal from './components/HelpGuideModal.svelte';
   import CguModal from './components/CguModal.svelte';
+  import DeleteStructureModal from './components/DeleteStructureModal.svelte';
   import TitoChatDrawer from './components/TitoChatDrawer.svelte';
   import Header from './components/Header.svelte';
   import Sidebar from './components/Sidebar.svelte';
@@ -430,5 +431,6 @@
   </div>
 {/if}
 
+<DeleteStructureModal />
 <HelpGuideModal {startTour} />
 <CguModal />

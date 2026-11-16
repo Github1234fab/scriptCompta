@@ -17,14 +17,17 @@
   let memberFilter = $state("tous"); // 'tous', 'payes', 'impayes'
   let searchQuery = $state("");
 
-  // Modales
+  // Modales & Sections
   let showImportModal = $state(false);
+  let showImportSection = $state(false);
   let showDrawerModal = $state(false);
   /** @type {any} */
   let selectedMemberForDrawer = $state(null);
   let isDropHover = $state(false);
   /** @type {HTMLInputElement | null} */
   let memberFileInput = $state(null);
+  /** @type {HTMLInputElement | null} */
+  let memberFileInputDirect = $state(null);
   /** @type {HTMLInputElement | null} */
   let memberFileInputModal = $state(null);
 
@@ -295,15 +298,15 @@
   let importedRows = $state([]);
 
   function telechargerModeleCSV() {
-    const csvContent = "Nom_Eleve_ou_Adherent;Tarif_Annuel_Contractuel\nDupont Marc;450.00\nMartin Sophie;600.00\nPetit Thomas;320.00\n";
+    const csvContent = "Nom de l'adherent ou eleve;Tarif annuel attendu\nDupont Marc;450.00\nMartin Sophie;600.00\nPetit Thomas;320.00\n";
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "modele_tarifs_inscrits.csv";
+    link.download = "modele_fichier_temoin_cotisations.csv";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("Modèle CSV téléchargé !");
+    showToast("Modèle CSV témoin téléchargé !");
   }
 
   /** @param {any} e */
@@ -314,6 +317,25 @@
     const reader = new FileReader();
     reader.onload = (evt) => {
       parseCSVMembers(/** @type {string} */ (evt.target?.result || ""));
+    };
+    reader.readAsText(file, "UTF-8");
+    if (e.target) e.target.value = "";
+  }
+
+  /** @param {any} e */
+  function handleFileSelectDirect(e) {
+    const file = e.target?.files?.[0] || e.dataTransfer?.files?.[0];
+    if (!file) return;
+    importFileName = file.name;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = /** @type {string} */ (evt.target?.result || "");
+      parseCSVMembers(text);
+      if (importedRows.length > 0) {
+        validerImportTarifs();
+      } else {
+        showToast("Aucun adhérent détecté dans ce fichier.");
+      }
     };
     reader.readAsText(file, "UTF-8");
     if (e.target) e.target.value = "";
@@ -376,6 +398,7 @@
 
     updateMembers(newMembers);
     showImportModal = false;
+    showImportSection = false;
     displayMode = "pointage";
     showToast(`${newMembers.length} adhérents importés avec succès ! Pointage activé.`);
   }
@@ -383,15 +406,16 @@
   function supprimerFichierAdherents() {
     const totalAdherents = $members.length;
     const msg = totalAdherents > 0
-      ? `Voulez-vous vraiment supprimer les ${totalAdherents} adhérents importés et réinitialiser le suivi ?`
-      : "Voulez-vous réinitialiser la liste des adhérents ?";
+      ? `Voulez-vous vraiment supprimer les ${totalAdherents} adhérents du fichier témoin et réinitialiser le pointage ?`
+      : "Voulez-vous réinitialiser le fichier témoin ?";
     if (confirm(msg)) {
       updateMembers([]);
       importedRows = [];
       importFileName = "";
       rawPasteText = "";
-      displayMode = "pointage";
-      showToast("Fichier d'adhérents supprimé avec succès.");
+      showImportSection = false;
+      displayMode = "releve";
+      showToast("Fichier témoin supprimé avec succès.");
     }
   }
 </script>
@@ -413,268 +437,356 @@
   }
 </style>
 
-<!-- BLOC DE CONTRÔLE ET INDICATEURS (FOND DÉDIÉ) -->
-<div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 18px;">
-  <!-- SÉLECTEUR DE VUE PRINCIPAL : RELEVÉ BANCAIRE / SUIVI INDIVIDUEL + ACTIONS CSV -->
-  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-    <div style="display: inline-flex; background: var(--bg-subtle); padding: 4px; border-radius: 10px; gap: 4px; border: 1px solid var(--border-color);">
-      <button 
-        type="button"
-        onclick={() => displayMode = 'releve'}
-        style="padding: 9px 18px; border-radius: 7px; border: none; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 8px; {displayMode === 'releve' ? 'background: #4f46e5; color: #ffffff; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);' : 'background: transparent; color: var(--text-muted);'}"
-      >
-        Relevé bancaire réel
-        <span style="font-size: 0.75rem; padding: 1px 7px; border-radius: 10px; {displayMode === 'releve' ? 'background: rgba(255,255,255,0.22); color: #ffffff;' : 'background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-color);'}">
-          {allAssoTransactions.length}
-        </span>
-      </button>
-
-      <button 
-        type="button"
-        onclick={() => displayMode = 'pointage'}
-        style="padding: 9px 18px; border-radius: 7px; border: none; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 8px; {displayMode === 'pointage' ? 'background: #4f46e5; color: #ffffff; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);' : 'background: transparent; color: var(--text-muted);'}"
-      >
-        Suivi individuel des cotisations
-        {#if $members.length > 0}
-          <span style="font-size: 0.75rem; padding: 1px 7px; border-radius: 10px; {displayMode === 'pointage' ? 'background: rgba(255,255,255,0.22); color: #ffffff;' : 'background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-color);'}">
-            {$members.length}
-          </span>
-        {/if}
-      </button>
-    </div>
-
-    <!-- Actions Import & Annulation / Suppression de fichier -->
-    <div style="display: flex; align-items: center; gap: 8px;">
+<!-- BLOC 1 : OUTILS DE RAPPROCHEMENTS -->
+<div style="background: var(--bg-card); border: 1.5px solid var(--border-color); border-radius: 16px; padding: 22px 24px; margin-bottom: 24px; box-shadow: var(--shadow-sm);">
+  <!-- En-tête du bloc -->
+  <div style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border-color);">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title, sans-serif); letter-spacing: -0.2px;">
+          Outils de rapprochements
+        </h3>
+        <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: var(--text-muted); line-height: 1.45;">
+          Comparez vos encaissements bancaires réels (comptes 756 et 706) avec vos forfaits annuels attendus pour pointer les cotisations réglées et isoler les impayés.
+        </p>
+      </div>
       {#if $members.length > 0}
-        <button 
-          type="button"
-          onclick={supprimerFichierAdherents}
-          style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 0.82rem; font-weight: 700; color: #f87171; background: var(--bg-card); border: 1.5px solid rgba(239, 68, 68, 0.35); border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
-          title="Supprimer la liste importée si le fichier comporte des erreurs"
-        >
-          <i class="fa-solid fa-trash-can"></i>
-          <span>Supprimer le fichier</span>
-        </button>
-
-        <button 
-          type="button"
-          onclick={() => showImportModal = true}
-          style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.82rem; font-weight: 700; color: #ffffff; background: #4f46e5; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);"
-          title="Importer un nouveau fichier CSV pour remplacer la liste"
-        >
-          <i class="fa-solid fa-cloud-arrow-up"></i>
-          <span>Nouveau CSV</span>
-        </button>
-      {:else}
-        <button 
-          type="button"
-          onclick={() => { displayMode = 'pointage'; showImportModal = true; }}
-          style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.82rem; font-weight: 700; color: #ffffff; background: #4f46e5; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);"
-          title="Importer un fichier CSV d'adhérents pour activer le pointage"
-          onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#4338ca'; }}
-          onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = '#4f46e5'; }}
-        >
-          <i class="fa-solid fa-cloud-arrow-up"></i>
-          <span>Importer un CSV cotisations</span>
-        </button>
+        <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.78rem; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+          Fichier témoin actif ({$members.length} inscrits)
+        </span>
       {/if}
     </div>
   </div>
 
-  <!-- KPI CARDS SUPÉRIEURES -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
-  
-  {#if displayMode === "releve"}
+  <!-- Contenu en 2 colonnes : Modèle & Didactique à gauche / Gestion du fichier témoin à droite -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px;">
+    
+    <!-- Colonne Gauche : Import du fichier témoin & Téléchargement du modèle -->
+    <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px;">
+      <div>
+        <div style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          <span>Import du fichier témoin</span>
+          <InfoTip text="Le fichier témoin liste vos adhérents/élèves et leur tarif attendu pour l'exercice. Tito fait le rapprochement automatique avec les virements reçus." width="280px" />
+        </div>
+        <p style="margin: 0; font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;">
+          Téléchargez notre modèle CSV standardisé à 2 colonnes (<strong>Nom de l'adhérent</strong> et <strong>Tarif annuel attendu</strong>) pour préparer vos inscriptions sans erreur.
+        </p>
+        <div style="margin-top: 10px; font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4;">
+          Format : fichier CSV (séparateur virgule, point-virgule ou tabulation)
+        </div>
+      </div>
+
+      <div>
+        <button 
+          type="button"
+          onclick={telechargerModeleCSV}
+          style="display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); font-weight: 700; font-size: 0.82rem; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
+          title="Télécharger le modèle CSV témoin exemple"
+        >
+          <i class="fa-solid fa-download" style="color: #4f46e5;"></i>
+          <span>Télécharger le modèle CSV témoin</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Colonne Droite : Dépôt ou Remplacement / Suppression du fichier témoin -->
+    <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: center;">
+      {#if $members.length === 0}
+        <!-- Dropzone active quand aucun fichier n'est chargé -->
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+        <div 
+          class="dropzone {isDropHover ? 'dragover' : ''}"
+          onclick={() => memberFileInputDirect && memberFileInputDirect.click()}
+          ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = true; }}
+          ondragover={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = true; }}
+          ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = false; }}
+          ondrop={(e) => { 
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            isDropHover = false; 
+            handleFileSelectDirect(e);
+          }}
+          style="border: 2px dashed {isDropHover ? '#4f46e5' : 'var(--border-color)'}; border-radius: 10px; padding: 22px 16px; background: {isDropHover ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-card)'}; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center;"
+        >
+          <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-subtle); border: 1px solid var(--border-color); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; pointer-events: none;">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </div>
+          <div>
+            <div style="font-weight: 800; font-size: 0.92rem; color: var(--text-main); pointer-events: none;">
+              Déposez votre fichier témoin (CSV) ici
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; pointer-events: none;">
+              ou cliquez pour parcourir vos fichiers
+            </div>
+          </div>
+          <button 
+            type="button" 
+            style="background: #4f46e5; color: #ffffff; border: none; padding: 6px 18px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; pointer-events: none; margin-top: 4px;"
+          >
+            Parcourir
+          </button>
+        </div>
+      {:else}
+        <!-- État Fichier témoin actif avec boutons explicites de Remplacement et Suppression -->
+        <div style="display: flex; flex-direction: column; gap: 14px; justify-content: space-between; height: 100%;">
+          <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-weight: 800; font-size: 0.95rem; color: var(--text-main);">
+                Fichier témoin actuellement chargé
+              </span>
+              <span style="font-size: 0.78rem; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.1); padding: 2px 8px; border-radius: 6px;">
+                {$members.length} adhérents
+              </span>
+            </div>
+            <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.45;">
+              Total attendu au registre : <strong>{kpiTotalAttendu.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong><br />
+              Reste à recouvrer : <strong style="color: {kpiRestant > 0 ? '#dc2626' : '#10b981'};">{kpiRestant.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong> ({report.filter(m => m.resteAPayer > 0).length} adhérents en retard)
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <button 
+              type="button"
+              onclick={() => memberFileInputDirect && memberFileInputDirect.click()}
+              style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 0.82rem; font-weight: 700; color: #ffffff; background: #4f46e5; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);"
+              title="Sélectionner un nouveau fichier CSV pour remplacer le fichier témoin existant"
+            >
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <span>Remplacer le fichier témoin</span>
+            </button>
+
+            <button 
+              type="button"
+              onclick={supprimerFichierAdherents}
+              style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 0.82rem; font-weight: 700; color: #f87171; background: var(--bg-card); border: 1.5px solid rgba(239, 68, 68, 0.35); border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
+              title="Supprimer le fichier témoin actuel de la mémoire"
+            >
+              <i class="fa-solid fa-trash-can"></i>
+              <span>Supprimer le fichier témoin ({$members.length})</span>
+            </button>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Input invisible direct pour le fichier témoin -->
+      <input 
+        type="file" 
+        bind:this={memberFileInputDirect} 
+        onchange={handleFileSelectDirect} 
+        style="display: none;" 
+        accept=".csv,text/csv"
+      />
+    </div>
+
+  </div>
+</div>
+
+<!-- BLOC 2 : KPIS (INDICATEURS CLÉS) -->
+<div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+  <div style="margin-bottom: 14px;">
+    <h3 style="margin: 0; font-size: 1.08rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title, sans-serif); letter-spacing: -0.2px;">
+      Indicateurs clés (756 & 706)
+    </h3>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px;">
     <!-- KPI 1 : Total Encaissé en 756 & 706 -->
     <div class="kpi-box">
       <div>
-        <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">TOTAL ENCAISSÉ (756 & 706)</span>
+        <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">TOTAL ENCAISSÉ (756 & 706)</span>
       </div>
       <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+        <div style="font-size: 1.65rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
           {totalGlobalRecettes.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
         </div>
-        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">{allAssoTransactions.length} règlements</div>
+        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">{allAssoTransactions.length} règlements réels</div>
       </div>
     </div>
 
     <!-- KPI 2 : Cotisations 756 -->
     <div class="kpi-box">
       <div style="display: flex; align-items: center; justify-content: space-between;">
-        <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">COTISATIONS & ADHÉSIONS (756)</span>
-        <InfoTip text="Ventilation automatique entre ce qui relève de l'adhésion pure (756) et des prestations/cours (706)." width="250px" />
+        <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">COTISATIONS (756)</span>
+        <InfoTip text="Cotisations pures et adhésions statutaires." width="220px" />
       </div>
       <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+        <div style="font-size: 1.65rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
           {totalRecettes756.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
         </div>
-        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">{countTx756} règlements</div>
+        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">{countTx756} règlements</div>
       </div>
     </div>
 
-    <!-- KPI 3 : Cours & Activités 706 -->
+    <!-- KPI 3 : Cours & Forfaits 706 -->
     <div class="kpi-box">
       <div>
-        <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">COURS & FORFAITS (706)</span>
+        <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">COURS & FORFAITS (706)</span>
       </div>
       <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+        <div style="font-size: 1.65rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
           {totalRecettes706.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
         </div>
-        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">{countTx706} règlements</div>
+        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">{countTx706} règlements</div>
       </div>
     </div>
 
-    <!-- KPI 4 : Reports saison future 487 -->
+    <!-- KPI 4 : Reports saison suivante 487 -->
     <div class="kpi-box">
       <div>
-        <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">REPORTS SAISON SUIVANTE (487)</span>
+        <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">REPORTS SAISON SUIVANTE (487)</span>
       </div>
       <div>
-        <div style="font-size: 1.75rem; font-weight: 800; color: {totalRecettes487 > 0 ? '#f59e0b' : 'var(--text-main)'}; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
+        <div style="font-size: 1.65rem; font-weight: 800; color: {totalRecettes487 > 0 ? '#f59e0b' : 'var(--text-main)'}; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -0.5px;">
           {totalRecettes487.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
         </div>
-        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
+        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">
           {countTx487} règlement{countTx487 > 1 ? 's' : ''} neutralisé{countTx487 > 1 ? 's' : ''}
         </div>
       </div>
     </div>
 
-  {:else}
-    <!-- KPIs DU MODE POINTAGE INDIVIDUEL (SANS ICÔNES) -->
-    <div class="kpi-box">
-      <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">TOTAL ATTENDU FACTURÉ</span>
-      <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, monospace;">
-        {kpiTotalAttendu.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+    {#if $members.length > 0}
+      <!-- KPI 5 : Total Attendu Témoin -->
+      <div class="kpi-box">
+        <div>
+          <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">TOTAL ATTENDU (TÉMOIN)</span>
+        </div>
+        <div>
+          <div style="font-size: 1.65rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, monospace;">
+            {kpiTotalAttendu.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">{$members.length} inscrits au registre</div>
+        </div>
       </div>
-    </div>
 
-    <div class="kpi-box">
-      <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">DÉJÀ ENCAISSÉ</span>
-      <div style="font-size: 1.75rem; font-weight: 800; color: #166534; font-family: ui-monospace, monospace;">
-        {kpiTotalEncaissePointage.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+      <!-- KPI 6 : Reste à Recouvrer -->
+      <div class="kpi-box">
+        <div>
+          <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">RESTE À RECOUVRER</span>
+        </div>
+        <div>
+          <div style="font-size: 1.65rem; font-weight: 800; color: {kpiRestant > 0 ? '#dc2626' : '#10b981'}; font-family: ui-monospace, monospace;">
+            {kpiRestant.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">{report.filter(m => m.resteAPayer > 0).length} adhérents concernés</div>
+        </div>
       </div>
-    </div>
 
-    <div class="kpi-box">
-      <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">RESTE À RECOUVRER</span>
-      <div style="font-size: 1.75rem; font-weight: 800; color: {kpiRestant > 0 ? '#dc2626' : 'var(--text-main)'}; font-family: ui-monospace, monospace;">
-        {kpiRestant.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+      <!-- KPI 7 : Adhérents en Retard -->
+      <div class="kpi-box">
+        <div>
+          <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">ADHÉRENTS EN RETARD</span>
+        </div>
+        <div>
+          <div style="font-size: 1.65rem; font-weight: 800; color: {kpiImpayesCount > 0 ? '#dc2626' : 'var(--text-main)'}; font-family: ui-monospace, monospace;">
+            {kpiImpayesCount} <span style="font-size: 0.95rem; color: var(--text-muted);">personne{kpiImpayesCount > 1 ? 's' : ''}</span>
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">{report.filter(m => m.statut === 'IMPAYÉ').length} impayés complets</div>
+        </div>
       </div>
-    </div>
-
-    <div class="kpi-box">
-      <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;">PAYEURS EN RETARD</span>
-      <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); font-family: ui-monospace, monospace;">
-        {kpiImpayesCount} <span style="font-size: 1rem; color: var(--text-muted);">personne{kpiImpayesCount > 1 ? 's' : ''}</span>
-      </div>
-    </div>
-  {/if}
-
+    {/if}
   </div>
 </div>
 
-<!-- ZONE D'IMPORT QUAND AUCUN ADHÉRENT N'EST IMPORTÉ (MODE POINTAGE) -->
-{#if displayMode === "pointage" && $members.length === 0}
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 36px 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); text-align: center;">
-    <div 
-      class="dropzone {isDropHover ? 'dragover' : ''}"
-      onclick={() => memberFileInput && memberFileInput.click()}
-      ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = true; }}
-      ondragover={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = true; }}
-      ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); isDropHover = false; }}
-      ondrop={(e) => { 
-        e.preventDefault(); 
-        e.stopPropagation(); 
-        isDropHover = false; 
-        handleFileSelect(e);
-        showImportModal = true;
-      }}
-      style="border: 2px dashed {isDropHover ? '#4f46e5' : '#cbd5e1'}; border-radius: 16px; padding: 32px 24px; background: {isDropHover ? 'rgba(79, 70, 229, 0.04)' : '#f8fafc'}; cursor: pointer; transition: all 0.2s ease; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;"
-    >
-      <div style="width: 50px; height: 50px; border-radius: 50%; background: #ffffff; border: 1px solid #e2e8f0; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); pointer-events: none;">
-        <i class="fa-solid fa-cloud-arrow-up"></i>
-      </div>
-      <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a; pointer-events: none;">
-        Glissez ou importez
-      </div>
-      <button 
-        type="button" 
-        style="background: #4f46e5; color: #ffffff; border: none; padding: 6px 20px; border-radius: 20px; font-weight: 700; font-size: 0.8rem; cursor: pointer; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);"
-      >
-        Parcourir
-      </button>
-      <input 
-        type="file" 
-        bind:this={memberFileInput} 
-        onchange={(e) => { handleFileSelect(e); showImportModal = true; }} 
-        style="display: none;" 
-        accept=".csv,text/csv"
-      />
-    </div>
-  </div>
-{/if}
-
-<!-- CONTENEUR DU TABLEAU DE GESTION -->
-<div style="background: var(--bg-card); border: 1.5px solid var(--border-color); border-radius: 14px; padding: 24px; box-shadow: var(--shadow-sm);">
+<!-- BLOC 3 : TABLEAU DE GESTION DES COMPTES 756 ET 706 -->
+<div style="background: var(--bg-card); border: 1.5px solid var(--border-color); border-radius: 16px; padding: 24px; box-shadow: var(--shadow-sm);">
   
-  <!-- BARRE D'OUTILS -->
+  <!-- En-tête officiel du tableau de gestion -->
+  <div style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
+    <h3 style="margin: 0; font-size: 1.18rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title, sans-serif); letter-spacing: -0.2px;">
+      Tableau de gestion des comptes 756 et 706
+    </h3>
+    <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: var(--text-muted); line-height: 1.45;">
+      Consultez le relevé bancaire des encaissements réels ou basculez sur le pointage individuel par adhérent.
+    </p>
+  </div>
+
+  <!-- BARRE D'OUTILS : SÉLECTEUR DE PERSPECTIVE + FILTRES + RECHERCHE + EXPORT -->
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 16px;">
     
-    <!-- Filtres par pastilles -->
-    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-      {#if displayMode === "releve"}
+    <!-- À GAUCHE : Sélecteur de perspective + Pastilles de filtre contextuelles -->
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <!-- Perspective Switcher -->
+      <div style="display: inline-flex; background: var(--bg-subtle); padding: 3px; border-radius: 10px; gap: 4px; border: 1px solid var(--border-color);">
         <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === 'tous' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
-          onclick={() => txFilter = 'tous'}
+          type="button"
+          onclick={() => displayMode = 'releve'}
+          style="padding: 7px 14px; border-radius: 7px; border: none; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 6px; {displayMode === 'releve' ? 'background: #4f46e5; color: #ffffff; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);' : 'background: transparent; color: var(--text-muted);'}"
+          title="Consulter les écritures bancaires affectées aux comptes 756 et 706"
         >
-          Tous <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({allAssoTransactions.length})</span>
+          <span>Écritures bancaires</span>
+          <span style="font-size: 0.74rem; padding: 1px 6px; border-radius: 10px; {displayMode === 'releve' ? 'background: rgba(255,255,255,0.22); color: #ffffff;' : 'background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-color);'}">
+            {allAssoTransactions.length}
+          </span>
         </button>
 
         <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === '756' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
-          onclick={() => txFilter = '756'}
+          type="button"
+          onclick={() => displayMode = 'pointage'}
+          style="padding: 7px 14px; border-radius: 7px; border: none; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 6px; {displayMode === 'pointage' ? 'background: #4f46e5; color: #ffffff; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);' : 'background: transparent; color: var(--text-muted);'}"
+          title="Consulter le rapprochement individuel par adhérent"
         >
-          756 · Cotisations <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({countTx756})</span>
+          <span>Pointage par adhérent</span>
+          <span style="font-size: 0.74rem; padding: 1px 6px; border-radius: 10px; {displayMode === 'pointage' ? 'background: rgba(255,255,255,0.22); color: #ffffff;' : 'background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-color);'}">
+            {$members.length}
+          </span>
         </button>
+      </div>
 
-        <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === '706' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
-          onclick={() => txFilter = '706'}
-        >
-          706 · Cours <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({countTx706})</span>
-        </button>
+      <!-- Filtres par pastilles adaptés au mode sélectionné -->
+      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+        {#if displayMode === "releve"}
+          <button 
+            style="padding: 6px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === 'tous' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5;' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
+            onclick={() => txFilter = 'tous'}
+          >
+            Tous ({allAssoTransactions.length})
+          </button>
+          <button 
+            style="padding: 6px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === '756' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5;' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
+            onclick={() => txFilter = '756'}
+          >
+            756 · Cotisations ({countTx756})
+          </button>
+          <button 
+            style="padding: 6px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === '706' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5;' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
+            onclick={() => txFilter = '706'}
+          >
+            706 · Cours ({countTx706})
+          </button>
+          <button 
+            style="padding: 6px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === '487' ? 'background: #d97706; color: #ffffff; border: 1px solid #d97706;' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
+            onclick={() => txFilter = '487'}
+          >
+            487 · Reports ({countTx487})
+          </button>
+        {:else}
+          <button 
+            style="padding: 6px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; cursor: pointer; {memberFilter === 'tous' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5;' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
+            onclick={() => memberFilter = 'tous'}
+          >
+            Tous ({report.length})
+          </button>
+          <button 
+            style="padding: 6px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; cursor: pointer; {memberFilter === 'payes' ? 'background: #16a34a; color: #ffffff; border: 1px solid #16a34a;' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
+            onclick={() => memberFilter = 'payes'}
+          >
+            À jour ({report.filter(m => m.resteAPayer === 0).length})
+          </button>
+          <button 
+            style="padding: 6px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; cursor: pointer; {memberFilter === 'impayes' ? 'background: #dc2626; color: #ffffff; border: 1px solid #dc2626;' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
+            onclick={() => memberFilter = 'impayes'}
+          >
+            Impayés ({kpiImpayesCount})
+          </button>
+        {/if}
+      </div>
+    </div>
 
-        <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.15s; {txFilter === '487' ? 'background: #d97706; color: #ffffff; border: 1px solid #d97706; box-shadow: 0 2px 6px rgba(217, 119, 6, 0.25);' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
-          onclick={() => txFilter = '487'}
-        >
-          487 · Reports <span style="font-weight: 700; font-size: 0.75rem; margin-left: 4px;">({countTx487})</span>
-        </button>
-      {:else}
-        <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; {memberFilter === 'tous' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
-          onclick={() => memberFilter = 'tous'}
-        >
-          Tous ({report.length})
-        </button>
-        <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; {memberFilter === 'payes' ? 'background: #16a34a; color: #ffffff; border: 1px solid #16a34a;' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
-          onclick={() => memberFilter = 'payes'}
-        >
-          À jour ({report.filter(m => m.resteAPayer === 0).length})
-        </button>
-        <button 
-          style="padding: 7px 14px; border-radius: 20px; font-size: 0.84rem; font-weight: 700; cursor: pointer; {memberFilter === 'impayes' ? 'background: #dc2626; color: #ffffff; border: 1px solid #dc2626;' : 'background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-color);'}"
-          onclick={() => memberFilter = 'impayes'}
-        >
-          Impayés ({kpiImpayesCount})
-        </button>
-      {/if}
-
-      <!-- Switcher Feuillets / Scroll -->
-      <div style="display: flex; background: var(--bg-subtle); padding: 2px; border-radius: 18px; border: 1px solid var(--border-color); margin-left: 8px;">
+    <!-- À DROITE : Feuillets / Scroll + Recherche + Exporter CSV -->
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <!-- Feuillets / Scroll -->
+      <div style="display: flex; background: var(--bg-subtle); padding: 2px; border-radius: 18px; border: 1px solid var(--border-color);">
         <button 
           type="button"
           style="padding: 5px 11px; font-size: 0.78rem; font-weight: 600; border-radius: 14px; border: none; cursor: pointer; {viewMode === 'pagination' ? 'background: var(--bg-card); color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: var(--text-muted);'}"
@@ -690,51 +802,30 @@
           <i class="fa-solid fa-scroll"></i> Scroll
         </button>
       </div>
-    </div>
 
-    <!-- Recherche & Export CSV -->
-    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <!-- Recherche -->
       <div style="position: relative; display: flex; align-items: center;">
-        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; color: var(--text-muted); font-size: 0.85rem; pointer-events: none;"></i>
+        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; color: var(--text-muted); font-size: 0.82rem; pointer-events: none;"></i>
         <input 
           type="text" 
           placeholder="Rechercher par nom / libellé..." 
           bind:value={searchQuery}
-          style="padding: 9px 14px 9px 38px; border-radius: 8px; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); font-size: 0.88rem; width: 250px; outline: none;"
+          style="padding: 7px 12px 7px 34px; border-radius: 8px; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); font-size: 0.84rem; width: 220px; outline: none;"
         />
       </div>
 
-      {#if displayMode === "pointage" && $members.length > 0}
-        <button 
-          type="button"
-          onclick={supprimerFichierAdherents}
-          style="padding: 9px 14px; font-weight: 600; font-size: 0.88rem; background: var(--bg-card); border: 1.5px solid #fecaca; color: #dc2626; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s ease;"
-          title="Supprimer la liste importée en cas d'erreurs"
-        >
-          <i class="fa-solid fa-trash-can"></i>
-          <span>Supprimer le fichier</span>
-        </button>
-
-        <button 
-          type="button"
-          onclick={() => showImportModal = true}
-          style="padding: 9px 16px; font-weight: 700; font-size: 0.88rem; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s ease;"
-          title="Importer un nouveau fichier CSV pour remplacer la liste"
-        >
-          <i class="fa-solid fa-cloud-arrow-up" style="color: #4f46e5;"></i>
-          <span>Nouveau CSV</span>
-        </button>
-      {/if}
-
+      <!-- Exporter CSV -->
       <button 
         type="button"
         onclick={exporterCSV}
-        style="padding: 9px 16px; font-weight: 700; font-size: 0.88rem; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
-        title="Exporter en fichier CSV Excel"
+        style="padding: 7px 14px; font-weight: 700; font-size: 0.84rem; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;"
+        title="Exporter les données affichées en fichier CSV Excel"
       >
-        <i class="fa-solid fa-file-export" style="color: #2563eb;"></i> Exporter CSV
+        <i class="fa-solid fa-file-export" style="color: #2563eb;"></i>
+        <span>Exporter CSV</span>
       </button>
     </div>
+
   </div>
 
   <!-- TABLEAU (MODE RELEVÉ BANCAIRE PAR DÉFAUT) -->
@@ -894,7 +985,27 @@
           </tr>
         </thead>
         <tbody>
-          {#if displayedMembers.length === 0}
+          {#if $members.length === 0}
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 50px 20px;">
+                <div style="max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                  <div style="font-size: 1.05rem; font-weight: 800; color: var(--text-main);">
+                    Aucun fichier témoin chargé
+                  </div>
+                  <p style="margin: 0; font-size: 0.86rem; color: var(--text-muted); line-height: 1.5;">
+                    Pour afficher le pointage individuel et détecter les écarts ou impayés, déposez votre fichier témoin (CSV) dans le bloc « Outils de rapprochements » ci-dessus.
+                  </p>
+                  <button 
+                    type="button"
+                    onclick={() => memberFileInputDirect && memberFileInputDirect.click()}
+                    style="margin-top: 6px; padding: 8px 18px; border-radius: 8px; background: #4f46e5; color: #ffffff; font-weight: 700; font-size: 0.84rem; border: none; cursor: pointer;"
+                  >
+                    Importer le fichier témoin
+                  </button>
+                </div>
+              </td>
+            </tr>
+          {:else if displayedMembers.length === 0}
             <tr>
               <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 45px 10px;">
                 Aucun adhérent ne correspond aux critères.
@@ -995,23 +1106,24 @@
     role="dialog"
     aria-modal="true"
     onkeydown={(e) => { if (e.key === 'Escape') showImportModal = false; }}
-    style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px;"
+    style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px;"
   >
-    <div style="background: #ffffff; border-radius: 16px; width: 100%; max-width: 600px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden; display: flex; flex-direction: column;">
+    <div style="background: var(--bg-card); border: 1.5px solid var(--border-color); border-radius: 16px; width: 100%; max-width: 600px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column;">
       
       <!-- En-tête -->
-      <div style="padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+      <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-subtle);">
         <div>
-          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #0f172a;">
-            <i class="fa-solid fa-file-import" style="color: #2563eb; margin-right: 8px;"></i> Importer les tarifs annuels des inscrits
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-main);">
+            Importer la liste des adhérents & forfaits attendus
           </h3>
-          <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: #64748b;">
-            Permet de calculer les restes à payer en comparant avec les virements reçus.
+          <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: var(--text-muted);">
+            Compare les montants attendus avec les règlements reçus sur vos comptes 756 et 706.
           </p>
         </div>
         <button 
           onclick={() => showImportModal = false}
-          style="background: none; border: none; font-size: 1.25rem; color: #64748b; cursor: pointer; padding: 4px;"
+          style="background: none; border: none; font-size: 1.25rem; color: var(--text-muted); cursor: pointer; padding: 4px;"
+          aria-label="Fermer"
         >
           &times;
         </button>
@@ -1020,15 +1132,15 @@
       <!-- Corps -->
       <div style="padding: 24px; display: flex; flex-direction: column; gap: 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">
-            Fichier CSV
+          <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);">
+            Fichier CSV (2 colonnes)
           </span>
           <button 
             type="button"
             onclick={telechargerModeleCSV}
-            style="background: none; border: none; color: #2563eb; font-weight: 600; font-size: 0.82rem; cursor: pointer; text-decoration: underline; display: flex; align-items: center; gap: 6px;"
+            style="background: none; border: none; color: #38bdf8; font-weight: 600; font-size: 0.82rem; cursor: pointer; text-decoration: underline; display: flex; align-items: center; gap: 6px;"
           >
-            <i class="fa-solid fa-download"></i> Télécharger modèle exemple
+            <i class="fa-solid fa-download"></i> Télécharger le modèle CSV
           </button>
         </div>
 
@@ -1045,19 +1157,19 @@
             isDropHover = false; 
             handleFileSelect(e);
           }}
-          style="border: 2px dashed {isDropHover ? '#4f46e5' : '#cbd5e1'}; border-radius: 14px; padding: 32px 20px; background: {isDropHover ? 'rgba(79, 70, 229, 0.04)' : '#f8fafc'}; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;"
+          style="border: 2px dashed {isDropHover ? '#4f46e5' : 'var(--border-color)'}; border-radius: 14px; padding: 32px 20px; background: {isDropHover ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-subtle)'}; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;"
         >
-          <div style="width: 48px; height: 48px; border-radius: 50%; background: #ffffff; border: 1px solid #e2e8f0; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin-bottom: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); pointer-events: none;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--bg-card); border: 1px solid var(--border-color); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin-bottom: 2px; box-shadow: var(--shadow-sm); pointer-events: none;">
             <i class="fa-solid fa-cloud-arrow-up"></i>
           </div>
-          <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a; pointer-events: none;">
-            {importFileName ? importFileName : "Glissez ou importez"}
+          <div style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); pointer-events: none;">
+            {importFileName ? importFileName : "Glissez votre fichier ici ou parcourez"}
           </div>
           <span style="background: #4f46e5; color: #ffffff; padding: 6px 20px; border-radius: 20px; font-weight: 700; font-size: 0.78rem; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25); pointer-events: none;">
             Parcourir
           </span>
-          <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px; pointer-events: none;">
-            2 colonnes attendues : Nom de l'élève / adhérent et Tarif annuel
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; pointer-events: none;">
+            Colonnes : Nom de l'adhérent / élève et Montant annuel attendu
           </div>
           <input 
             type="file" 
@@ -1069,21 +1181,21 @@
         </div>
 
         {#if importedRows.length > 0}
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; font-size: 0.86rem; color: #166534; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+          <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px 16px; font-size: 0.86rem; color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-check"></i> {importedRows.length} adhérents détectés avec leurs forfaits annuels.
           </div>
         {/if}
       </div>
 
       <!-- Pied de modale -->
-      <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; flex-wrap: wrap; gap: 10px;">
+      <div style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-subtle); flex-wrap: wrap; gap: 10px;">
         <div>
           {#if $members.length > 0}
             <button 
               type="button" 
               onclick={() => { showImportModal = false; supprimerFichierAdherents(); }}
-              style="padding: 8px 12px; border-radius: 8px; background: #ffffff; border: 1px solid #fecaca; color: #dc2626; font-weight: 600; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px;"
-              title="Supprimer la liste actuelle si elle comporte des erreurs"
+              style="padding: 8px 12px; border-radius: 8px; background: var(--bg-card); border: 1px solid rgba(239, 68, 68, 0.35); color: #f87171; font-weight: 600; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+              title="Supprimer la liste actuelle sans toucher à votre relevé"
             >
               <i class="fa-solid fa-trash-can"></i> Supprimer la liste ({$members.length})
             </button>
@@ -1094,7 +1206,7 @@
           <button 
             type="button" 
             onclick={() => showImportModal = false}
-            style="padding: 9px 16px; border-radius: 8px; background: #ffffff; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; cursor: pointer;"
+            style="padding: 9px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); font-weight: 600; cursor: pointer;"
           >
             Annuler
           </button>
