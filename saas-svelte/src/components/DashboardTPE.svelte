@@ -44,10 +44,10 @@
   let piecesManquantesCount = $derived(debitsTotaux.filter((/** @type {any} */ t) => !t.factureUrl).length);
 
   let dashboardTitle = $derived((() => {
-    if (accountingModel === 'bnc') return 'Accueil · Profession Libérale (BNC)';
-    if (accountingModel === 'sci') return 'Accueil · SCI Familiale';
-    if (accountingModel === 'copro') return 'Accueil · Copropriété';
-    return 'Accueil · Société & TPE';
+    if (accountingModel === 'bnc') return 'Profession Libérale (BNC)';
+    if (accountingModel === 'sci') return 'SCI Familiale';
+    if (accountingModel === 'copro') return 'Copropriété';
+    return 'Société & TPE';
   })());
 
   let dashboardSubtitle = $derived((() => {
@@ -156,6 +156,82 @@
     })()
   );
 
+  // Helper pour raccourcir les libellés de badges sur mobile avec le numéro de compte en premier
+  function formatMobileAccountBadge(compte, defaultNom = '') {
+    if (!compte || String(compte) === '699') return defaultNom || 'Non attribué';
+    const cpt = String(compte).trim();
+
+    const SHORT_LABELS = {
+      '706': 'Prestations',
+      '707': 'Ventes',
+      '708': 'Produits annexes',
+      '606': 'Fournitures',
+      '6061': 'Électricité & Eau',
+      '6063': 'Petit matériel',
+      '6064': 'Fournitures bureau',
+      '613': 'Locations',
+      '615': 'Entretien',
+      '616': 'Assurances',
+      '622': 'Honoraires',
+      '623': 'Publicité & Com',
+      '625': 'Déplacements',
+      '626': 'Télécom & Poste',
+      '627': 'Frais bancaires',
+      '641': 'Rémunérations',
+      '645': 'Cotisations soc.',
+      '651': 'Logiciels & SaaS',
+      '512': 'Banque'
+    };
+
+    if (SHORT_LABELS[cpt]) return `${cpt} · ${SHORT_LABELS[cpt]}`;
+    const nom = defaultNom ? defaultNom.slice(0, 14) : cpt;
+    return `${cpt} · ${nom}`;
+  }
+
+  // Helper pour nettoyer les libellés bancaires bruts façon app fintech
+  function formatCleanLibelle(raw) {
+    if (!raw) return 'Opération bancaire';
+    let s = String(raw).trim();
+    if (s.includes('|')) s = s.split('|')[0].trim();
+
+    const upper = s.toUpperCase();
+    if (upper.includes('AMZN') || upper.includes('AMAZON')) return 'Amazon';
+    if (upper.includes('LEROY MERLIN')) {
+      if (/vourles/i.test(s)) return 'Leroy Merlin Vourles';
+      return 'Leroy Merlin';
+    }
+    if (/frais\s+(?:de\s+)?pr[eé]l[eè]vement/i.test(s)) return 'Frais prélèvement SEPA';
+    if (/frais\s+tenue\s+de\s+compte/i.test(s)) return 'Frais tenue de compte';
+    if (/frais\s+bancaire/i.test(s)) return 'Frais bancaires';
+    if (/cotisation\s+(?:carte|bancaire)/i.test(s)) return 'Cotisation bancaire';
+
+    s = s.replace(/^(?:PRLV\s+SEPA|PRLV|PRELEVEMENT\s+SEPA|PRELEVEMENT\s+SDD|PRELEVEMENT|VIR\s+INST|VIR\s+SEPA|VIREMENT\s+SEPA|VIREMENT\s+INST|VIREMENT|PAIEMENT\s+PAR\s+CARTE\s+DU|PAIEMENT\s+PAR\s+CARTE|PAIEMENT\s+CB\s+DU|PAIEMENT\s+CB|ACHAT\s+CB|CB\s+DU|CB|CHEQUE\s+N°|CHEQUE)\s*[:-]?\s*/i, '');
+    s = s.replace(/^(?:M(?:R|\.)?\s*(?:OU|ET|\/)\s*MME\.?|MME\.?|MLLE\.?|MR?\.?)\s+/i, '');
+
+    if (/[-–—]/.test(s)) {
+      const parts = s.split(/\s*[-–—]\s*/);
+      if (parts.length >= 2) {
+        const p0 = parts[0].trim();
+        const p1 = parts[1].trim();
+        if (/^(?:vir|prlv|virement|prelevement|loyer|fact|ref|paiement|cb|sepa|achat)\b/i.test(p1) || p0.length >= 3) {
+          s = p0;
+        } else if (/^(?:vir|prlv|virement|prelevement)\b/i.test(p0) && p1.length >= 3) {
+          s = p1;
+        }
+      }
+    }
+
+    s = s.replace(/\s+(?:BILU|MKTP|PAYMENTS|EU|FR)\b.*$/i, '');
+    s = s.replace(/\s+(?:VIR|VIREM|VIREMENT|PRLV|PRELEVEMENT)\b.*$/i, '');
+    s = s.replace(/[-/]\s*\d{6,}[A-Z0-9_-]*/i, '');
+    s = s.replace(/\s+\d+\s+EURO\s+[\d,.]+/i, '');
+    s = s.replace(/\s+(REF|ID|EMETTEUR|MANDAT|ICS)\s*[:=]\s*[A-Z0-9]+/i, '');
+    s = s.replace(/\s+\d{2}\/\d{2}(\/\d{2,4})?$/i, '');
+    s = s.replace(/^[-–—\s]+|[-–—\s]+$/g, '').trim();
+
+    return s || raw;
+  }
+
   let totalPages = $derived(Math.max(1, Math.ceil(filteredTx.length / itemsPerPage)));
 
   let displayedTx = $derived(
@@ -190,6 +266,7 @@
   <!-- PAGE HEADER -->
   <PageHeader 
     title={dashboardTitle} 
+    mobileTitle="Trésorerie"
     subtitle={dashboardSubtitle} 
     buttonLabel={buttonLabel}
     buttonIcon={buttonIcon}
@@ -200,9 +277,7 @@
       onclick={() => openHelpGuide('accueil')}
       title="Guide d'utilisation pour l'accueil"
       aria-label="Guide d'utilisation pour l'accueil"
-      style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #ffffff; border: 1.5px solid #cbd5e1; color: #2563eb; font-size: 0.95rem; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.04); flex-shrink: 0;"
-      onmouseenter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.background = '#eff6ff'; }}
-      onmouseleave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff'; }}
+      class="page-help-btn"
     >
       <i class="fa-solid fa-question"></i>
     </button>
@@ -210,7 +285,7 @@
 
   <!-- 1. VOTRE ENTREPRISE / STRUCTURE (Indicateurs clés) -->
   <div style="margin-bottom: 30px;">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+    <div class="tpe-section-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
       <h2 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">
         {structureSectionTitle} <span style="color: #2563eb; background: rgba(37, 99, 235, 0.09); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2); font-size: 0.95rem; margin-left: 6px;">{activeEntity.name}</span>
       </h2>
@@ -220,8 +295,8 @@
     </div>
 
     <!-- 1. BLOC GÉNÉRAL INDICATEURS (ENGLOBANT LE TITRE) -->
-    <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+    <div class="tpe-section-box" style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px;">
+      <div class="tpe-kpi-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
         <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
           <i class="fa-solid fa-chart-line" style="color: #2563eb; font-size: 0.95rem;"></i> Indicateurs
         </h3>
@@ -418,7 +493,7 @@
       </div>
     </div>
 
-    <div class="table-container" style="border: none; border-radius: 12px; overflow: hidden; background: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);">
+    <div class="table-container desktop-tx-table" style="border: none; border-radius: 12px; overflow: hidden; background: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);">
       <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="background: var(--bg-container); border-bottom: 1.5px solid var(--border-container);">
@@ -453,6 +528,66 @@
           {/if}
         </tbody>
       </table>
+    </div>
+
+    <!-- Vue Liste unifiée fintech (Mobile < 768px) -->
+    <div class="mobile-tx-cards">
+      {#if displayedTx.length === 0}
+        <div style="text-align: center; padding: 24px 14px; color: var(--text-muted); font-size: 0.88rem; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color);">
+          {activeTx.length === 0 ? "Aucune opération bancaire enregistrée pour cette structure." : "Aucune opération ne correspond à votre recherche."}
+        </div>
+      {:else}
+        <div class="mobile-tx-list">
+          {#each displayedTx as tx}
+            {@const isCredit = tx.credit > 0}
+            <div class="mobile-tx-item" title={tx.libelle}>
+              <!-- Pastille circulaire directionnelle 32x32px fintech -->
+              <div 
+                class="mobile-tx-icon-pill" 
+                style="background: {isCredit ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.10)'}; color: {isCredit ? '#10b981' : '#ef4444'};"
+                aria-hidden="true"
+              >
+                {#if isCredit}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="17" y1="7" x2="7" y2="17"></line>
+                    <polyline points="17 17 7 17 7 7"></polyline>
+                  </svg>
+                {:else}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="7" y1="17" x2="17" y2="7"></line>
+                    <polyline points="7 7 17 7 17 17"></polyline>
+                  </svg>
+                {/if}
+              </div>
+
+              <div class="mobile-tx-content">
+                <!-- Ligne 1 : Nom nettoyé + Montant -->
+                <div class="mobile-tx-row-top">
+                  <span class="mobile-tx-name" title={tx.libelle}>
+                    {formatCleanLibelle(tx.libelle)}
+                  </span>
+                  <span 
+                    class="mobile-tx-amount" 
+                    style="color: {isCredit ? 'var(--color-success, #34d399)' : 'var(--color-danger, #f87171)'};"
+                  >
+                    {isCredit ? '+ ' : '- '}{Math.abs(tx.credit || -tx.debit).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                  </span>
+                </div>
+
+                <!-- Ligne 2 : Date + Badge de compte court (code devant) -->
+                <div class="mobile-tx-row-bottom">
+                  <span class="mobile-tx-date">
+                    {formatDateFr(tx.date)}
+                  </span>
+                  <span class="mobile-tx-badge attributed">
+                    {formatMobileAccountBadge(tx.compteAttribué, tx.compteNom)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     {#if showAllTransactions && totalPages > 1}
@@ -566,4 +701,146 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .desktop-tx-table {
+    display: block;
+  }
+
+  .mobile-tx-cards {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .tpe-section-header,
+    .tpe-kpi-header {
+      display: none !important;
+    }
+
+    .tpe-section-box {
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      margin-bottom: 20px !important;
+    }
+
+    /* Bascule Tableau -> Liste Fintech unifiée sur mobile */
+    .desktop-tx-table {
+      display: none !important;
+    }
+
+    .mobile-tx-cards {
+      display: block !important;
+    }
+
+    .mobile-tx-list {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .mobile-tx-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-color, rgba(226, 232, 240, 0.6));
+      background: transparent;
+      transition: background 0.12s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-tx-item:last-child {
+      border-bottom: none;
+    }
+
+    .mobile-tx-item:active {
+      background: var(--bg-subtle, rgba(0, 0, 0, 0.04));
+    }
+
+    .mobile-tx-icon-pill {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .mobile-tx-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .mobile-tx-row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      width: 100%;
+      min-width: 0;
+      flex-wrap: nowrap !important;
+    }
+
+    .mobile-tx-name {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: var(--text-main, #0f172a);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap !important;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .mobile-tx-amount {
+      font-weight: 800;
+      font-size: 0.92rem;
+      white-space: nowrap !important;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0 !important;
+      font-family: var(--font-title, sans-serif);
+      margin-left: auto;
+      text-align: right;
+    }
+
+    .mobile-tx-row-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mobile-tx-date {
+      font-size: 0.74rem;
+      color: var(--text-muted, #64748b);
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .mobile-tx-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+      flex-shrink: 0;
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+  }
+</style>
 

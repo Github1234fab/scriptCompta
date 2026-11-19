@@ -118,6 +118,15 @@ export function closeTitoChat() {
   focusedChatTx.set(null);
 }
 
+// État de la barre latérale sur mobile / tablette
+export const isMobileSidebarOpen = writable(false);
+export function toggleMobileSidebar() {
+  isMobileSidebarOpen.update(v => !v);
+}
+export function closeMobileSidebar() {
+  isMobileSidebarOpen.set(false);
+}
+
 // Visual states
 export const activeView = writable('dashboard');
 export const toastMessage = writable('');

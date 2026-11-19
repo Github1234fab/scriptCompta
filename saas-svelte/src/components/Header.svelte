@@ -13,7 +13,8 @@
     showCancelModal,
     openCguModal,
     appTheme,
-    setAppTheme
+    setAppTheme,
+    toggleMobileSidebar
   } from '../lib/store.js';
   import { currentUser, logoutUser, sendResetPassword } from '../lib/auth.js';
   import InfoTip from './InfoTip.svelte';
@@ -104,33 +105,50 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<header class="content-header" style="gap: 15px; padding: 12px 24px; background: var(--bg-header); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between;">
-  <!-- Gauche : Fil d'Ariane épuré sans redondance -->
-  <div style="display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--text-muted);">
-    <span style="font-weight: 600;">{activeEntity ? activeEntity.name : 'Mon Espace'}</span>
-    <span style="opacity: 0.35;">/</span>
-    <span style="color: var(--text-main); font-weight: 700;">
-      {#if $activeView === 'dashboard'}
-        Accueil
-      {:else if $activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces'}
-        Attribution
-      {:else if $activeView === 'activity' || $activeView.startsWith('workspace_')}
-        {activityLabel}
-      {:else if $activeView === 'books' || $activeView === 'recettes'}
-        Obligation
-      {:else}
-        Côme
-      {/if}
-    </span>
+<header class="content-header" style="background: var(--bg-header); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+  <!-- Gauche : Hamburger (mobile) + Fil d'Ariane épuré -->
+  <div class="header-left" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-width: 0;">
+    <button 
+      type="button" 
+      class="mobile-menu-toggle-btn"
+      onclick={toggleMobileSidebar}
+      aria-label="Ouvrir le menu de navigation"
+      title="Ouvrir le menu"
+    >
+      <i class="fa-solid fa-bars"></i>
+    </button>
+
+    <div class="header-breadcrumb" style="display: flex; align-items: center; gap: 6px; font-size: 0.84rem; color: var(--text-muted); min-width: 0;">
+      <!-- Logo Tito visible sur smartphone à côté du burger -->
+      <span class="header-mobile-brand" style="display: none; font-size: 1.35rem; font-weight: 900; letter-spacing: -0.03em; color: var(--text-main); user-select: none;">
+        Ti<span style="color: #38bdf8;">t</span>o
+      </span>
+      <span class="header-entity-name" style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px;">{activeEntity ? activeEntity.name : 'Mon Espace'}</span>
+      <span class="header-breadcrumb-sep" style="opacity: 0.35;">/</span>
+      <span class="header-page-title" style="color: var(--text-main); font-weight: 700; white-space: nowrap;">
+        {#if $activeView === 'dashboard'}
+          Accueil
+        {:else if $activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces'}
+          Attribution
+        {:else if $activeView === 'activity' || $activeView.startsWith('workspace_')}
+          {activityLabel}
+        {:else if $activeView === 'books' || $activeView === 'recettes'}
+          Obligation
+        {:else}
+          Côme
+        {/if}
+      </span>
+    </div>
   </div>
 
   <!-- Right Header Actions -->
-  <div style="display: flex; align-items: center; gap: 12px;">
+  <div class="header-right-actions" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
 
     <!-- CTA Passer en illimité bien visible en haut si compte gratuit -->
     {#if !$isPremium && !$isAdmin}
       <button 
         type="button" 
+        class="btn-upgrade-header"
         onclick={() => showUpgradeModal.set(true)}
         style="background: #2563eb; color: #ffffff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 7px; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28); transition: background 0.15s ease;"
         onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1d4ed8'}
@@ -142,7 +160,7 @@
       </button>
     {/if}
 
-    <!-- Sélecteur Thème Clair / Sombre direct en 1 clic -->
+    <!-- Sélecteur Thème Clair / Sombre direct en 1 clic (Icônes universelles) -->
     <div 
       class="theme-segmented-control"
       style="display: inline-flex; align-items: center; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 9999px; padding: 2px; gap: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
@@ -150,16 +168,20 @@
       <button 
         type="button"
         onclick={() => setAppTheme('light')}
-        style="border: none; border-radius: 9999px; padding: 4px 12px; font-size: 0.74rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; {$appTheme === 'light' ? 'background: #2563eb; color: #ffffff; box-shadow: 0 1px 4px rgba(37,99,235,0.3);' : 'background: transparent; color: var(--text-muted);'}"
+        class="theme-toggle-btn {$appTheme === 'light' ? 'active' : ''}"
+        aria-label="Activer le thème clair"
+        title="Thème clair"
       >
-        Clair
+        <i class="fa-solid fa-sun"></i>
       </button>
       <button 
         type="button"
         onclick={() => setAppTheme('dark')}
-        style="border: none; border-radius: 9999px; padding: 4px 12px; font-size: 0.74rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; {$appTheme === 'dark' ? 'background: #2563eb; color: #ffffff; box-shadow: 0 1px 4px rgba(37,99,235,0.3);' : 'background: transparent; color: var(--text-muted);'}"
+        class="theme-toggle-btn {$appTheme === 'dark' ? 'active' : ''}"
+        aria-label="Activer le thème sombre"
+        title="Thème sombre"
       >
-        Sombre
+        <i class="fa-solid fa-moon"></i>
       </button>
     </div>
 
@@ -169,15 +191,15 @@
       <div 
         class="user-badge" 
         onclick={() => showUserDropdown = !showUserDropdown}
-        style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: pointer; user-select: none; transition: all 0.15s ease;"
+        style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 5px 12px; border-radius: 8px; display: flex; align-items: center; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: pointer; user-select: none; transition: all 0.15s ease;"
         title="Gestion de mon compte et abonnement"
         onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = '#94a3b8'}
         onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = 'var(--border-color)'}
       >
-        <div class="user-avatar" style="background: #4f46e5; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">
+        <div class="user-avatar" style="background: #4f46e5; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0;">
           {userInitials}
         </div>
-        <div style="display: flex; flex-direction: column; text-align: left;">
+        <div class="user-badge-info" style="display: flex; flex-direction: column; text-align: left;">
           <div style="display: flex; align-items: center; gap: 6px;">
             <span style="font-size: 0.84rem; font-weight: 700; color: var(--text-main); line-height: 1.2;">
               {$currentUser?.displayName || activeEntity?.name || 'Mon Espace'}
@@ -190,13 +212,18 @@
               <span style="font-size: 0.65rem; font-weight: 700; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; padding: 1px 5px; border-radius: 4px;">Gratuit</span>
             {/if}
           </div>
-          <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500; text-overflow: ellipsis; max-width: 130px; overflow: hidden; white-space: nowrap;">
+          <span 
+            title={$currentUser?.email || 'Connecté'}
+            style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500; text-overflow: ellipsis; max-width: 140px; overflow: hidden; white-space: nowrap;"
+          >
             {$currentUser?.email || 'Connecté'}
           </span>
         </div>
-        <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; color: #94a3b8; transition: transform 0.2s; transform: {showUserDropdown ? 'rotate(180deg)' : 'none'};"></i>
+        <i class="fa-solid fa-chevron-down user-badge-chevron" style="font-size: 0.7rem; color: #94a3b8; transition: transform 0.2s; transform: {showUserDropdown ? 'rotate(180deg)' : 'none'};"></i>
       </div>
-      <InfoTip text="Accédez à vos factures, à la sécurité de votre compte et à la gestion de votre abonnement." position="bottom" width="220px" />
+      <div class="header-user-infotip">
+        <InfoTip text="Accédez à vos factures, à la sécurité de votre compte et à la gestion de votre abonnement." position="bottom" width="220px" />
+      </div>
 
       <!-- Menu déroulant Gestion de Compte & Abonnement -->
       {#if showUserDropdown}
@@ -223,16 +250,20 @@
               <button 
                 type="button"
                 onclick={() => setAppTheme('light')}
-                style="border: none; border-radius: 9999px; padding: 3px 10px; font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; {$appTheme === 'light' ? 'background: #ffffff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.12);' : 'background: transparent; color: var(--text-muted);'}"
+                class="theme-toggle-btn {$appTheme === 'light' ? 'active' : ''}"
+                title="Thème clair"
+                aria-label="Thème clair"
               >
-                Clair
+                <i class="fa-solid fa-sun"></i>
               </button>
               <button 
                 type="button"
                 onclick={() => setAppTheme('dark')}
-                style="border: none; border-radius: 9999px; padding: 3px 10px; font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; {$appTheme === 'dark' ? 'background: #1e293b; color: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1);' : 'background: transparent; color: var(--text-muted);'}"
+                class="theme-toggle-btn {$appTheme === 'dark' ? 'active' : ''}"
+                title="Thème sombre"
+                aria-label="Thème sombre"
               >
-                Sombre
+                <i class="fa-solid fa-moon"></i>
               </button>
             </div>
           </div>
@@ -414,3 +445,101 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .content-header {
+    padding: 10px 18px;
+    gap: 12px;
+  }
+
+  .mobile-menu-toggle-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    font-size: 1rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+  }
+  .mobile-menu-toggle-btn:hover {
+    background: var(--bg-subtle);
+    border-color: var(--border-hover);
+  }
+
+  .theme-toggle-btn {
+    border: none;
+    border-radius: 9999px;
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.15s ease;
+  }
+  .theme-toggle-btn:hover {
+    color: var(--text-main);
+  }
+  .theme-toggle-btn.active {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.35);
+  }
+
+  @media (max-width: 1024px) {
+    .mobile-menu-toggle-btn {
+      display: inline-flex !important;
+    }
+    .content-header {
+      padding: 8px 12px !important;
+      margin-bottom: 16px !important;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .header-mobile-brand {
+      display: inline-flex !important;
+      align-items: center;
+      margin-left: 2px;
+    }
+    .header-entity-name,
+    .header-breadcrumb-sep,
+    .header-page-title {
+      display: none !important;
+    }
+    .btn-upgrade-header {
+      display: none !important;
+    }
+    .btn-logout {
+      display: none !important;
+    }
+    .header-user-infotip {
+      display: none !important;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .theme-segmented-control button {
+      padding: 3px 7px !important;
+      font-size: 0.68rem !important;
+    }
+    .user-badge {
+      padding: 3px !important;
+      gap: 0 !important;
+      border-radius: 50% !important;
+    }
+    .user-badge-info,
+    .user-badge-chevron {
+      display: none !important;
+    }
+  }
+</style>

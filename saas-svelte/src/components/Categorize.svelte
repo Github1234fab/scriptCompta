@@ -148,6 +148,7 @@
 
   // CSV Dropzone state
   let dragover = $state(false);
+  let isImporting = $state(false);
   /** @type {HTMLInputElement | null} */
   let fileInput = $state(null);
 
@@ -171,88 +172,102 @@
 
   /** @param {File} file */
   function processCSVFile(file) {
+    isImporting = true;
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const rawText = /** @type {string} */ (evt.target?.result || "");
-      handleRawCsvUpload(rawText, file.name);
+      setTimeout(() => {
+        try {
+          const rawText = /** @type {string} */ (evt.target?.result || "");
+          handleRawCsvUpload(rawText, file.name);
 
-      const mappingConfig = selectedComplementColIdx !== -1 ? { indexInfo: selectedComplementColIdx } : null;
-      const parsed = CSVParser.parse(rawText, mappingConfig);
-      if (!parsed || parsed.length === 0) {
-        showToast("Fichier CSV vide ou format non reconnu.");
-        return;
-      }
+          const mappingConfig = selectedComplementColIdx !== -1 ? { indexInfo: selectedComplementColIdx } : null;
+          const parsed = CSVParser.parse(rawText, mappingConfig);
+          if (!parsed || parsed.length === 0) {
+            showToast("Fichier CSV vide ou format non reconnu.");
+            return;
+          }
 
-      const importId = 'import_' + Date.now();
-      const currentEntId = $activeEntityId;
+          const importId = 'import_' + Date.now();
+          const currentEntId = $activeEntityId;
 
-      // Préparation et assignation des métadonnées
-      const rawTxList = parsed.map((t, idx) => ({
-        id: `imported_${Date.now()}_${idx}`,
-        entityId: currentEntId,
-        importId,
-        date: t.date || new Date().toISOString().split('T')[0],
-        libelle: t.libelle || "Opération sans libellé",
-        debit: t.debit || 0,
-        credit: t.credit || 0,
-        compteAttribué: "699",
-        statut: "non_attribue",
-        info: t.info || "",
-        typeOperation: t.typeOperation || "",
-        reference: t.reference || "",
-        rawCells: t.rawCells || []
-      }));
+          // Préparation et assignation des métadonnées
+          const rawTxList = parsed.map((t, idx) => ({
+            id: `imported_${Date.now()}_${idx}`,
+            entityId: currentEntId,
+            importId,
+            date: t.date || new Date().toISOString().split('T')[0],
+            libelle: t.libelle || "Opération sans libellé",
+            debit: t.debit || 0,
+            credit: t.credit || 0,
+            compteAttribué: "699",
+            statut: "non_attribue",
+            info: t.info || "",
+            typeOperation: t.typeOperation || "",
+            reference: t.reference || "",
+            rawCells: t.rawCells || []
+          }));
 
-      // Déduplication intelligente basée sur date + libelle + montant
-      const currentStructureTx = $transactions.filter(t => !t.entityId || t.entityId === currentEntId);
-      const existingHashes = new Set(currentStructureTx.map(tx => {
-        const amount = (tx.debit > 0 ? -tx.debit : tx.credit).toFixed(2);
-        return `${tx.date}_${tx.libelle}_${amount}`;
-      }));
+          // Déduplication intelligente basée sur date + libelle + montant
+          const currentStructureTx = $transactions.filter(t => !t.entityId || t.entityId === currentEntId);
+          const existingHashes = new Set(currentStructureTx.map(tx => {
+            const amount = (tx.debit > 0 ? -tx.debit : tx.credit).toFixed(2);
+            return `${tx.date}_${tx.libelle}_${amount}`;
+          }));
 
-      /** @type {any[]} */
-      const newTxList = [];
-      rawTxList.forEach(tx => {
-        const amount = (tx.debit > 0 ? -tx.debit : tx.credit).toFixed(2);
-        const hash = `${tx.date}_${tx.libelle}_${amount}`;
-        if (!existingHashes.has(hash)) {
-          newTxList.push(tx);
+          /** @type {any[]} */
+          const newTxList = [];
+          rawTxList.forEach(tx => {
+            const amount = (tx.debit > 0 ? -tx.debit : tx.credit).toFixed(2);
+            const hash = `${tx.date}_${tx.libelle}_${amount}`;
+            if (!existingHashes.has(hash)) {
+              newTxList.push(tx);
+            }
+          });
+
+          if (newTxList.length === 0) {
+            showToast("Toutes les écritures de ce fichier ont déjà été importées (doublons ignorés).");
+            return;
+          }
+
+          // Contrôle Quota Freemium (Max 50 écritures en gratuit)
+          const totalAfterImport = currentStructureTx.length + newTxList.length;
+          let userIsPremium = false;
+          isPremium.subscribe(v => userIsPremium = v)();
+
+          if (!userIsPremium && totalAfterImport > FREE_TIER_MAX_TRANSACTIONS) {
+            showUpgradeModal.set(true);
+            showToast(`Limite gratuite atteinte (${totalAfterImport} / ${FREE_TIER_MAX_TRANSACTIONS} écritures). Passez en formule illimitée.`);
+            return;
+          }
+
+          // Enregistrer dans l'historique d'import
+          const history = getImportsHistory();
+          history.unshift({
+            id: importId,
+            fileName: file.name,
+            date: new Date().toISOString(),
+            size: (file.size / 1024).toFixed(1) + ' KB',
+            linesCount: newTxList.length,
+            importedBy: 'Fabien Marceau'
+          });
+          saveImportsHistory(history);
+
+          // Categorize using rules & dictionary
+          const recatted = Categorizer.categoriserTransactions([...newTxList, ...currentStructureTx]);
+          updateTransactions(recatted);
+          activeTab = 'pending';
+          showToast(`${newTxList.length} opération(s) importée(s) avec succès depuis "${file.name}".`);
+        } catch (err) {
+          console.error("Erreur lors de l'import CSV :", err);
+          showToast("Erreur lors de la lecture du fichier bancaire.");
+        } finally {
+          isImporting = false;
         }
-      });
-
-      if (newTxList.length === 0) {
-        showToast("Toutes les écritures de ce fichier ont déjà été importées (doublons ignorés).");
-        return;
-      }
-
-      // Contrôle Quota Freemium (Max 50 écritures en gratuit)
-      const totalAfterImport = currentStructureTx.length + newTxList.length;
-      let userIsPremium = false;
-      isPremium.subscribe(v => userIsPremium = v)();
-
-      if (!userIsPremium && totalAfterImport > FREE_TIER_MAX_TRANSACTIONS) {
-        showUpgradeModal.set(true);
-        showToast(`Limite gratuite atteinte (${totalAfterImport} / ${FREE_TIER_MAX_TRANSACTIONS} écritures). Passez en formule illimitée.`);
-        return;
-      }
-
-      // Enregistrer dans l'historique d'import
-      const history = getImportsHistory();
-      history.unshift({
-        id: importId,
-        fileName: file.name,
-        date: new Date().toISOString(),
-        size: (file.size / 1024).toFixed(1) + ' KB',
-        linesCount: newTxList.length,
-        importedBy: 'Fabien Marceau'
-      });
-      saveImportsHistory(history);
-
-      // Categorize using rules & dictionary
-      const recatted = Categorizer.categoriserTransactions([...newTxList, ...currentStructureTx]);
-      updateTransactions(recatted);
-      activeTab = 'pending';
-      showToast(`${newTxList.length} opération(s) importée(s) avec succès depuis "${file.name}".`);
+      }, 200);
+    };
+    reader.onerror = () => {
+      isImporting = false;
+      showToast("Impossible de lire ce fichier.");
     };
     reader.readAsText(file);
   }
@@ -855,45 +870,129 @@
     return Categorizer.obtenirLibelleCompte(numCompte);
   }
 
+  // Helper pour raccourcir les libellés de badges sur mobile avec le numéro de compte en premier
+  /** @param {string|number|null|undefined} [compte] */
+  function formatMobileAccountBadge(compte) {
+    if (!compte || String(compte) === '699') return 'Non attribué';
+    const cpt = String(compte).trim();
+
+    /** @type {Record<string, string>} */
+    const SHORT_LABELS = {
+      '756': 'Cotisations',
+      '706': 'Cours & Ateliers',
+      '754': 'Dons',
+      '707': 'Ventes',
+      '708': 'Prestations',
+      '740': 'Subventions',
+      '606': 'Fournitures',
+      '6061': 'Électricité & Eau',
+      '6063': 'Petit matériel',
+      '6064': 'Fournitures bureau',
+      '6068': 'Fournitures diverses',
+      '613': 'Locations',
+      '615': 'Entretien',
+      '616': 'Assurances',
+      '618': 'Documentation',
+      '622': 'Honoraires',
+      '623': 'Publicité & Com',
+      '625': 'Déplacements',
+      '6251': 'Voyages & Dépl.',
+      '6256': 'Repas & Missions',
+      '6257': 'Réceptions',
+      '626': 'Télécom & Poste',
+      '627': 'Frais bancaires',
+      '628': 'Divers',
+      '641': 'Salaires',
+      '645': 'Cotisations soc.',
+      '6453': 'Mutuelle',
+      '651': 'Logiciels & SaaS',
+      '658': 'Charges diverses',
+      '681': 'Amortissements',
+      '487': 'Reports',
+      '512': 'Banque',
+      '530': 'Espèces'
+    };
+
+    if (SHORT_LABELS[cpt]) return `${cpt} · ${SHORT_LABELS[cpt]}`;
+
+    for (const prefix of ['6453', '625', '606', '756', '706', '754', '627', '651']) {
+      if (cpt.startsWith(prefix) && SHORT_LABELS[prefix]) {
+        return `${cpt} · ${SHORT_LABELS[prefix]}`;
+      }
+    }
+
+    const full = Categorizer.obtenirLibelleCompte(cpt) || '';
+    const shortText = full.length > 15 ? full.slice(0, 14).trim() + '…' : full;
+    return shortText ? `${cpt} · ${shortText}` : cpt;
+  }
+
   // Helper to clean banking transaction labels & extract readable name
   /** @param {string} [libelle] @param {any} [tx] */
   function cleanTransactionLibelle(libelle, tx = null) {
     if (!libelle && (!tx || !tx.libelle)) return "Opération sans libellé";
     const fullLibelle = libelle || tx?.libelle || "";
-    const parts = fullLibelle.split('|').map((/** @type {string} */ s) => s.trim()).filter(Boolean);
-    let main = parts[0] || fullLibelle;
 
-    // Détection de complément d'information (payeur, motif, etc.)
-    let complement = '';
-    if (tx?.rawCells && selectedComplementColIdx !== -1 && tx.rawCells[selectedComplementColIdx]) {
-      complement = String(tx.rawCells[selectedComplementColIdx]).trim();
-    } else if (tx?.info && String(tx.info).trim()) {
-      complement = String(tx.info).trim();
-    } else if (parts.length > 2) {
-      const p = parts[2].trim();
-      if (!/^\d{2}[/\-.]\d{2}[/\-.]\d{2,4}$/.test(p)) complement = p;
-    } else if (parts.length === 2 && !/^[A-Z0-9]{5,20}$/.test(parts[1])) {
-      const p = parts[1].trim();
-      if (!/^\d{2}[/\-.]\d{2}[/\-.]\d{2,4}$/.test(p)) complement = p;
+    let s = fullLibelle.trim();
+    if (s.includes('|')) {
+      const parts = s.split('|').map((/** @type {string} */ p) => p.trim()).filter(Boolean);
+      s = parts[0] || s;
     }
 
-    // Vérifier si le libellé principal est un intitulé bancaire générique (Option 2 : REMISE EUROPRELEVEMENT — Nom)
-    const isGeneric = /^(REMISE EUROPRELEVEMENT|REMISE SDD|PRLV SEPA|PRELEVEMENT SDD|VIREMENT SEPA|REMISE CHEQUE)$/i.test(main);
-    if (isGeneric && complement) {
-      return `${main} — ${complement}`;
+    // Détection ciblée des marchands et opérations courantes
+    const upper = s.toUpperCase();
+    if (upper.includes('AMZN') || upper.includes('AMAZON')) {
+      return 'Amazon';
+    }
+    if (upper.includes('LEROY MERLIN')) {
+      const matchLM = s.match(/leroy\s+merlin(?:\s+([a-zA-ZÀ-ÿ-]+))?/i);
+      if (matchLM && matchLM[1] && !/^(cb|du|fr|paiement|vourles)/i.test(matchLM[1])) {
+        return `Leroy Merlin ${matchLM[1].charAt(0).toUpperCase() + matchLM[1].slice(1).toLowerCase()}`;
+      }
+      if (/vourles/i.test(s)) return 'Leroy Merlin Vourles';
+      return 'Leroy Merlin';
+    }
+    if (/frais\s+(?:de\s+)?pr[eé]l[eè]vement/i.test(s)) {
+      return 'Frais prélèvement SEPA';
+    }
+    if (/frais\s+tenue\s+de\s+compte/i.test(s)) {
+      return 'Frais tenue de compte';
+    }
+    if (/frais\s+bancaire/i.test(s)) {
+      return 'Frais bancaires';
+    }
+    if (/cotisation\s+(?:carte|bancaire)/i.test(s)) {
+      return 'Cotisation bancaire';
     }
 
-    // Nettoyage standard pour les opérations habituelles (retirer préfixes techniques)
-    let cleaned = main.replace(/^(PRLV SEPA|PRLV|VIR SEPA|VIR|PAIEMENT CB|CB|CHEQUE|PRLV HARMONIE)\s+/i, '').trim();
-    cleaned = cleaned.replace(/^SA-/, '').trim();
-    if (!cleaned) cleaned = main;
+    // Supprimer préfixes bancaires courants et civilités
+    s = s.replace(/^(?:PRLV\s+SEPA|PRLV|PRELEVEMENT\s+SEPA|PRELEVEMENT\s+SDD|PRELEVEMENT|VIR\s+INST|VIR\s+SEPA|VIREMENT\s+SEPA|VIREMENT\s+INST|VIREMENT|PAIEMENT\s+PAR\s+CARTE\s+DU|PAIEMENT\s+PAR\s+CARTE|PAIEMENT\s+CB\s+DU|PAIEMENT\s+CB|ACHAT\s+CB|CB\s+DU|CB|CHEQUE\s+N°|CHEQUE|PRLV\s+HARMONIE|SA-)\s*[:-]?\s*/i, '');
+    s = s.replace(/^(?:M(?:R|\.)?\s*(?:OU|ET|\/)\s*MME\.?|MME\.?|MLLE\.?|MR?\.?)\s+/i, '');
 
-    // Si on a un complément pertinent qui n'est pas déjà dans le libellé nettoyé
-    if (complement && !cleaned.toLowerCase().includes(complement.toLowerCase())) {
-      return `${cleaned} — ${complement}`;
+    // Règle tiret : isoler l'entité propre (ex: Rose Trujillo - Virement... -> Rose Trujillo)
+    if (/[-–—]/.test(s)) {
+      const parts = s.split(/\s*[-–—]\s*/);
+      if (parts.length >= 2) {
+        const p0 = parts[0].trim();
+        const p1 = parts[1].trim();
+        if (/^(?:vir|prlv|virement|prelevement|cotis|adh|loyer|fact|ref|paiement|cb|sepa|achat|don)\b/i.test(p1) || p0.length >= 3) {
+          s = p0;
+        } else if (/^(?:vir|prlv|virement|prelevement)\b/i.test(p0) && p1.length >= 3) {
+          s = p1;
+        }
+      }
     }
 
-    return cleaned || main;
+    // Résidus techniques bancaires
+    s = s.replace(/\s+(?:BILU|MKTP|PAYMENTS|EU|FR)\b.*$/i, '');
+    s = s.replace(/\s+(?:VIR|VIREM|VIREMENT|PRLV|PRELEVEMENT)\b.*$/i, '');
+    s = s.replace(/[-/]\s*\d{6,}[A-Z0-9_-]*/i, '');
+    s = s.replace(/\s+\d+\s+EURO\s+[\d,.]+/i, '');
+    s = s.replace(/\s+(TAUX|DEVISE|CHANGE).*$/i, '');
+    s = s.replace(/\s+(REF|ID|EMETTEUR|MANDAT|ICS)\s*[:=]\s*[A-Z0-9]+/i, '');
+    s = s.replace(/\s+\d{2}\/\d{2}(\/\d{2,4})?$/i, '');
+    s = s.replace(/^[-–—\s]+|[-–—\s]+$/g, '').trim();
+
+    return s || fullLibelle;
   }
 
   // Helper for subtitle info (e.g. "07/09/2026 • Prélèvement SEPA")
@@ -1214,9 +1313,7 @@
       onclick={() => openHelpGuide('attribution')}
       title="Guide d'utilisation pour l'attribution"
       aria-label="Guide d'utilisation pour l'attribution"
-      style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #ffffff; border: 1.5px solid #cbd5e1; color: #2563eb; font-size: 0.95rem; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.04);"
-      onmouseenter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.background = '#eff6ff'; }}
-      onmouseleave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff'; }}
+      class="page-help-btn"
     >
       <i class="fa-solid fa-question"></i>
     </button>
@@ -1233,28 +1330,36 @@
 <!-- ======================================================= -->
 <!-- ======================================================= -->
 <!-- GRILLE DU HAUT (3 CARTES CÔTE À CÔTE DE MÊME HAUTEUR) -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px; align-items: stretch;">
+<div class="categorize-top-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px; align-items: stretch;">
   
   <!-- CARTE 1 : IMPORT DE RELEVÉ BANCAIRE (CSV) -->
   <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; height: 100%; box-sizing: border-box;">
     <!-- En-tête du bloc -->
-    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px;">
-      <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap;">
+    <div class="categorize-card-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; min-height: 32px;">
+      <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 7px;">
         <span>Import de relevé bancaire</span>
         <InfoTip text="Glissez ici le relevé téléchargé depuis votre banque en ligne (Boursorama, BNP, Crédit Agricole, Qonto, etc.)." width="240px" />
       </h3>
 
-      <!-- Action Vider le relevé -->
+      <!-- Action Vider le relevé : discrète et non anxiogène -->
       {#if currentStructureTx.length > 0}
         <button 
           type="button" 
           onclick={effacerToutesOperations}
-          style="display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: 0.74rem; padding: 4px 10px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; border-radius: 6px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; flex-shrink: 0;"
-          title="Effacer l'ensemble des opérations bancaires de cet espace pour réimporter à neuf"
-          onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'rgba(239, 68, 68, 0.2)'; }}
-          onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'rgba(239, 68, 68, 0.1)'; }}
+          style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; font-size: 0.72rem; padding: 3px 8px; background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 6px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; flex-shrink: 0;"
+          title="Vider le relevé actuel ({currentStructureTx.length} écritures) pour réimporter à neuf"
+          onmouseenter={(e) => { 
+            /** @type {HTMLElement} */ (e.currentTarget).style.color = '#ef4444';
+            /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = 'rgba(239, 68, 68, 0.35)';
+            /** @type {HTMLElement} */ (e.currentTarget).style.background = 'rgba(239, 68, 68, 0.08)';
+          }}
+          onmouseleave={(e) => { 
+            /** @type {HTMLElement} */ (e.currentTarget).style.color = 'var(--text-muted)';
+            /** @type {HTMLElement} */ (e.currentTarget).style.borderColor = 'var(--border-color)';
+            /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent';
+          }}
         >
-          <i class="fa-solid fa-trash-can" style="font-size: 0.72rem;"></i>
+          <i class="fa-solid fa-trash-can" style="font-size: 0.7rem;"></i>
           <span>Vider le relevé</span>
         </button>
       {/if}
@@ -1264,26 +1369,40 @@
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div 
       class="dropzone {dragover ? 'dragover' : ''}" 
-      onclick={() => fileInput && fileInput.click()}
-      ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
-      ondragover={(e) => { e.preventDefault(); e.stopPropagation(); dragover = true; }}
+      onclick={() => !isImporting && fileInput && fileInput.click()}
+      ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); if (!isImporting) dragover = true; }}
+      ondragover={(e) => { e.preventDefault(); e.stopPropagation(); if (!isImporting) dragover = true; }}
       ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); dragover = false; }}
-      ondrop={handleCSVDrop}
-      style="cursor: pointer; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 20px 16px; background: {dragover ? 'rgba(79, 70, 229, 0.08)' : 'var(--bg-card)'}; border: 2px dashed {dragover ? '#4f46e5' : 'var(--border-color)'}; border-radius: 14px; transition: all 0.2s ease; box-sizing: border-box; flex: 1; min-height: 145px;"
-      onmouseenter={(e) => { e.currentTarget.style.borderColor = '#4f46e5'; }}
-      onmouseleave={(e) => { if (!dragover) { e.currentTarget.style.borderColor = 'var(--border-color)'; } }}
+      ondrop={(e) => {
+        if (!isImporting) handleCSVDrop(e);
+      }}
+      style="cursor: {isImporting ? 'wait' : 'pointer'}; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 20px 16px; background: {dragover ? 'rgba(79, 70, 229, 0.08)' : (isImporting ? 'rgba(79, 70, 229, 0.04)' : 'var(--bg-card)')}; border: 2px dashed {dragover ? '#4f46e5' : (isImporting ? '#6366f1' : 'var(--border-color)')}; border-radius: 14px; transition: all 0.2s ease; box-sizing: border-box; flex: 1; min-height: 145px;"
+      onmouseenter={(e) => { if (!isImporting) e.currentTarget.style.borderColor = '#4f46e5'; }}
+      onmouseleave={(e) => { if (!dragover && !isImporting) { e.currentTarget.style.borderColor = 'var(--border-color)'; } }}
     >
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-subtle); border: 1px solid var(--border-color); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; pointer-events: none; box-shadow: var(--shadow-sm);">
-        <i class="fa-solid fa-cloud-arrow-up"></i>
-      </div>
-      
-      <div style="pointer-events: none; font-weight: 800; font-size: 0.92rem; color: var(--text-main);">
-        Glissez ou importez
-      </div>
-      
-      <span style="background: #4f46e5; color: #ffffff; padding: 5px 18px; border-radius: 20px; font-weight: 700; font-size: 0.76rem; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25); pointer-events: none;">
-        Parcourir
-      </span>
+      {#if isImporting}
+        <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(79, 70, 229, 0.12); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+        </div>
+        <div style="font-weight: 800; font-size: 0.92rem; color: #4f46e5;">
+          Importation en cours...
+        </div>
+        <div style="font-size: 0.78rem; color: var(--text-muted);">
+          Lecture et catégorisation des écritures bancaires
+        </div>
+      {:else}
+        <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-subtle); border: 1px solid var(--border-color); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; pointer-events: none; box-shadow: var(--shadow-sm);">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+        </div>
+        
+        <div style="pointer-events: none; font-weight: 800; font-size: 0.92rem; color: var(--text-main);">
+          Glissez ou importez
+        </div>
+        
+        <span style="background: #4f46e5; color: #ffffff; padding: 5px 18px; border-radius: 20px; font-weight: 700; font-size: 0.76rem; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25); pointer-events: none;">
+          Parcourir
+        </span>
+      {/if}
 
       <input 
         type="file" 
@@ -1340,7 +1459,7 @@
     </div>
 
     <!-- Carte intérieure avec deux boutons bien distincts et alignés -->
-    <div style="padding: 20px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; gap: 12px; flex: 1; min-height: 145px; box-sizing: border-box;">
+    <div class="attribution-tabs-row" style="padding: 20px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; gap: 12px; flex: 1; min-height: 145px; box-sizing: border-box;">
       <button
         type="button"
         style="flex: 1; padding: 12px 14px; border-radius: 10px; font-size: 0.86rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'pending' ? 'background: #4f46e5; color: #ffffff; border: 1.5px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color);'}"
@@ -1369,35 +1488,33 @@
 <!-- CONTENEUR DU TABLEAU DE TRAITEMENT DES OPÉRATIONS       -->
 <!-- ======================================================= -->
 {#if activeTab === 'pending' || activeTab === 'categorized'}
-  <div style="margin-bottom: 30px; background: var(--table-container-bg); border: 1.5px solid var(--border-container); border-radius: 20px; padding: 20px; box-shadow: var(--shadow-card);">
-    <div style="padding: 6px; background: transparent; width: 100%; box-sizing: border-box;">
+  <div class="categorize-table-section">
+    <div class="categorize-table-inner">
         
         {#if activeTab === 'pending'}
           {#if recognizedList.length > 0}
             <!-- Action Tout valider au-dessus du tableau avec libellé direct et court -->
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
+            <div class="pending-bulk-actions">
               <button 
                 type="button"
                 onclick={validerToutEnUnClic}
-                style="padding: 8px 18px; font-size: 0.84rem; font-weight: 700; background: #16a34a; color: #ffffff; border: none; border-radius: 9999px; cursor: pointer; display: flex; align-items: center; gap: 7px; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35); transition: all 0.15s ease;"
-                onmouseenter={(e) => { e.currentTarget.style.background = '#15803d'; }}
-                onmouseleave={(e) => { e.currentTarget.style.background = '#16a34a'; }}
+                class="pending-validate-all-btn"
                 title="Valider toutes les suggestions d'un clic"
               >
                 <i class="fa-solid fa-check-double"></i>
-                Tout valider ({recognizedList.length})
+                <span>Tout valider ({recognizedList.length})</span>
               </button>
             </div>
           {/if}
         {:else}
           <!-- Barre d'outils de tri et de filtrage pour les opérations attribuées -->
-          <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+          <div class="categorized-toolbar">
             <!-- Sélecteur de compte -->
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted);">Compte :</span>
+            <div class="categorized-filter-item">
+              <span class="categorized-filter-label">Compte :</span>
               <select 
                 bind:value={categorizedFilterAccount}
-                style="padding: 6px 10px; font-size: 0.82rem; font-weight: 600; background: var(--bg-card); border: 1.5px solid var(--border-color); border-radius: 8px; color: var(--text-main); cursor: pointer;"
+                class="categorized-select"
               >
                 <option value="all">Tous les comptes ({triees.length})</option>
                 {#each attributedAccountsList as acc}
@@ -1407,11 +1524,11 @@
             </div>
 
             <!-- Sélecteur de tri -->
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted);">Ordre :</span>
+            <div class="categorized-filter-item">
+              <span class="categorized-filter-label">Ordre :</span>
               <select 
                 bind:value={categorizedSortBy}
-                style="padding: 6px 10px; font-size: 0.82rem; font-weight: 600; background: var(--bg-card); border: 1.5px solid var(--border-color); border-radius: 8px; color: var(--text-main); cursor: pointer;"
+                class="categorized-select"
               >
                 <option value="account">Regrouper par compte comptable</option>
                 <option value="date_desc">Date (du plus récent au plus ancien)</option>
@@ -1421,13 +1538,13 @@
             </div>
 
             <!-- Champ de recherche rapide -->
-            <div style="position: relative; display: flex; align-items: center;">
-              <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 9px; color: var(--text-muted); font-size: 0.75rem; pointer-events: none;"></i>
+            <div class="categorized-search-box">
+              <i class="fa-solid fa-magnifying-glass categorized-search-icon"></i>
               <input 
                 type="text"
                 placeholder="Rechercher..."
                 bind:value={categorizedSearch}
-                style="padding: 6px 10px 6px 26px; font-size: 0.82rem; border: 1.5px solid var(--border-color); border-radius: 8px; width: 140px; background: var(--bg-card); color: var(--text-main);"
+                class="categorized-search-input"
               />
             </div>
           </div>
@@ -1436,7 +1553,7 @@
       {#if activeTab === 'pending'}
         {#if nonTriees.length > 0}
           <!-- Tableau épuré à 2 colonnes (Date + Carte d'opération & Contrôle Tito) -->
-          <div class="table-container" style="width: 100%; overflow-x: auto; background: transparent !important; border: none !important; box-shadow: none !important;">
+          <div class="table-container desktop-tx-table" style="width: 100%; overflow-x: auto; background: transparent !important; border: none !important; box-shadow: none !important;">
             <table class="custom-table" style="width: 100%; border-collapse: separate; border-spacing: 0 10px; background: transparent !important;">
               <thead>
                 <tr>
@@ -1586,6 +1703,129 @@
               </tbody>
             </table>
           </div>
+
+          <!-- VUE LISTE MOBILE UNIFIÉE FINTECH (< 768px) POUR OPÉRATIONS EN ATTENTE -->
+          <div class="mobile-tx-cards">
+            <div class="mobile-tx-list">
+              {#each nonTriees as tx}
+                {@const sug = getSuggestionForTx(tx)}
+                {@const manualCat = selectedCategoryMap[tx.id]}
+                {@const isStateA = Boolean(sug) && !manualCat}
+                {@const isStateC = Boolean(manualCat)}
+                {@const isStateB = !isStateA && !isStateC}
+                {@const titoInfo = getTitoRowExplanation(tx, activeEntityModel, sug)}
+                {@const amtVal = Number(tx.debit || tx.credit || 0)}
+                {@const isCredit = !(tx.debit > 0)}
+                <div class="mobile-tx-item" title={tx.libelle}>
+                  <!-- Pastille circulaire directionnelle 32x32px fintech -->
+                  <div 
+                    class="mobile-tx-icon-pill" 
+                    style="background: {isCredit ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.10)'}; color: {isCredit ? '#10b981' : '#ef4444'};"
+                    aria-hidden="true"
+                  >
+                    {#if isCredit}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="17" y1="7" x2="7" y2="17"></line>
+                        <polyline points="17 17 7 17 7 7"></polyline>
+                      </svg>
+                    {:else}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="7" y1="17" x2="17" y2="7"></line>
+                        <polyline points="7 7 17 7 17 17"></polyline>
+                      </svg>
+                    {/if}
+                  </div>
+
+                  <div class="mobile-tx-content">
+                    <!-- Ligne 1 : Nom nettoyé + Montant -->
+                    <div class="mobile-tx-row-top">
+                      <span class="mobile-tx-name" title={tx.libelle}>
+                        {cleanTransactionLibelle(tx.libelle, tx)}
+                      </span>
+                      <span class="mobile-tx-amount" style="color: {tx.debit > 0 ? '#f87171' : '#34d399'};">
+                        {tx.debit > 0 ? "- " : "+ "}{amtVal.toFixed(2).replace('.', ',')} €
+                      </span>
+                    </div>
+
+                    <!-- Ligne 2 : Date + Attribution / Action 1-clic -->
+                    <div class="mobile-tx-row-bottom">
+                      <span class="mobile-tx-date">{formatDateFr(tx.date)}</span>
+
+                      <div style="display: flex; align-items: center; gap: 6px; margin-left: auto;">
+                        {#if isStateA && sug}
+                          {#if titoInfo.isCertain}
+                            <span class="mobile-tx-badge attributed" title={sug.label}>
+                              {formatMobileAccountBadge(sug.compte)}
+                            </span>
+                            <button
+                              type="button"
+                              class="mobile-action-btn confirm-btn"
+                              onclick={() => {
+                                selectAccount(tx.id, sug.compte);
+                                validerLigneSeule(tx);
+                              }}
+                              title="Confirmer cette attribution"
+                            >
+                              <i class="fa-solid fa-check"></i> Valider
+                            </button>
+                          {:else}
+                            <button
+                              type="button"
+                              class="mobile-action-btn validate-btn"
+                              onclick={() => {
+                                selectAccount(tx.id, sug.compte);
+                                validerLigneSeule(tx);
+                              }}
+                              title="Valider en 1 clic au compte {sug.compte}"
+                            >
+                              <i class="fa-solid fa-bolt"></i> {formatMobileAccountBadge(sug.compte)}
+                            </button>
+                          {/if}
+                          <button
+                            type="button"
+                            class="mobile-action-btn"
+                            onclick={() => openCategorizeModal(tx)}
+                            title="Modifier la catégorie"
+                          >
+                            <i class="fa-solid fa-pen"></i>
+                          </button>
+                        {:else if isStateC}
+                          <span class="mobile-tx-badge attributed" title={formatAccountLabel(manualCat)}>
+                            {formatMobileAccountBadge(manualCat)}
+                          </span>
+                          <button
+                            type="button"
+                            class="mobile-action-btn confirm-btn"
+                            onclick={() => validerLigneSeule(tx)}
+                            title="Confirmer cette attribution"
+                          >
+                            <i class="fa-solid fa-check"></i> Valider
+                          </button>
+                          <button
+                            type="button"
+                            class="mobile-action-btn"
+                            onclick={() => openCategorizeModal(tx)}
+                            title="Modifier la catégorie"
+                          >
+                            <i class="fa-solid fa-pen"></i>
+                          </button>
+                        {:else}
+                          <span class="mobile-tx-badge pending">À catégoriser</span>
+                          <button
+                            type="button"
+                            class="mobile-action-btn validate-btn"
+                            onclick={() => openCategorizeModal(tx)}
+                          >
+                            <i class="fa-solid fa-tag"></i> Attribuer
+                          </button>
+                        {/if}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
         {:else}
           <div style="padding: 36px 20px; text-align: center; background: var(--bg-subtle); border: 1px dashed var(--border-color); border-radius: 14px; margin-top: 10px;">
             <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(34, 197, 94, 0.12); color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin: 0 auto 10px auto;">
@@ -1606,7 +1846,7 @@
             <span style="font-size: 0.82rem; color: var(--text-muted);">Importez un relevé bancaire ou classez vos écritures pour les retrouver ici.</span>
           </div>
         {:else}
-          <div class="table-container" style="width: 100%; overflow-x: auto; background: transparent !important; border: none !important; box-shadow: none !important;">
+          <div class="table-container desktop-tx-table" style="width: 100%; overflow-x: auto; background: transparent !important; border: none !important; box-shadow: none !important;">
             <table class="custom-table" style="width: 100%; border-collapse: separate; border-spacing: 0 10px; background: transparent !important;">
               <thead>
                 <tr>
@@ -1692,6 +1932,67 @@
               </tbody>
             </table>
           </div>
+
+          <!-- VUE LISTE MOBILE UNIFIÉE FINTECH (< 768px) POUR OPÉRATIONS ATTRIBUÉES -->
+          <div class="mobile-tx-cards">
+            <div class="mobile-tx-list">
+              {#each displayedCategorizedTxList as tx}
+                {@const amtVal = Number(tx.debit || tx.credit || 0)}
+                {@const isCredit = !(tx.debit > 0)}
+                <div class="mobile-tx-item" title={tx.libelle}>
+                  <!-- Pastille circulaire directionnelle 32x32px fintech -->
+                  <div 
+                    class="mobile-tx-icon-pill" 
+                    style="background: {isCredit ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.10)'}; color: {isCredit ? '#10b981' : '#ef4444'};"
+                    aria-hidden="true"
+                  >
+                    {#if isCredit}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="17" y1="7" x2="7" y2="17"></line>
+                        <polyline points="17 17 7 17 7 7"></polyline>
+                      </svg>
+                    {:else}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="7" y1="17" x2="17" y2="7"></line>
+                        <polyline points="7 7 17 7 17 17"></polyline>
+                      </svg>
+                    {/if}
+                  </div>
+
+                  <div class="mobile-tx-content">
+                    <!-- Ligne 1 : Nom nettoyé + Montant -->
+                    <div class="mobile-tx-row-top">
+                      <span class="mobile-tx-name" title={tx.libelle}>
+                        {cleanTransactionLibelle(tx.libelle, tx)}
+                      </span>
+                      <span class="mobile-tx-amount" style="color: {tx.debit > 0 ? '#f87171' : '#34d399'};">
+                        {tx.debit > 0 ? "- " : "+ "}{amtVal.toFixed(2).replace('.', ',')} €
+                      </span>
+                    </div>
+
+                    <!-- Ligne 2 : Date + Badge Compte court (code en premier) + Bouton Modifier -->
+                    <div class="mobile-tx-row-bottom">
+                      <span class="mobile-tx-date">{formatDateFr(tx.date)}</span>
+                      <div class="mobile-tx-actions-group">
+                        <span class="mobile-tx-badge attributed" title="{tx.compteAttribué} · {formatAccountLabel(tx.compteAttribué)}">
+                          {formatMobileAccountBadge(tx.compteAttribué)}
+                        </span>
+                        <button
+                          type="button"
+                          class="mobile-action-btn"
+                          onclick={() => openCategorizeModal(tx)}
+                          title="Modifier l'attribution"
+                          aria-label="Modifier l'attribution"
+                        >
+                          <i class="fa-solid fa-pen"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
         {/if}
       {/if}
     </div>
@@ -1744,7 +2045,6 @@
     </div>
   </div>
 {/if}
-
 
 <!-- Similar Transactions Detection Modal -->
 {#if showSimilarTxModal && pendingPrimaryTx}
@@ -2062,7 +2362,7 @@
 {#if showDictionaryModal}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div 
-    class="modal-backdrop" 
+    class="dict-modal-backdrop" 
     role="dialog" 
     aria-modal="true" 
     aria-label="Dictionnaire d'attribution"
@@ -2072,23 +2372,21 @@
       Categorizer.reappliquerReglesAuxTransactionsEnAttente();
       selectedCategoryMap = {};
     }}
-    style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;"
   >
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div 
-      class="modal-card" 
+      class="dict-modal-card" 
       onclick={(e) => e.stopPropagation()}
-      style="background: #ffffff; width: 100%; max-width: 820px; max-height: 88vh; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; animation: zoomIn 0.2s ease-out;"
     >
       <!-- En-tête -->
-      <div style="padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: flex-start; background: #f8fafc;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 38px; height: 38px; border-radius: 8px; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;">
+      <div class="dict-modal-header">
+        <div class="dict-header-title-group">
+          <div class="dict-header-icon">
             <i class="fa-solid fa-book-bookmark"></i>
           </div>
           <div>
-            <h2 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: #0f172a; font-family: var(--font-title);">Dictionnaire d'attribution</h2>
-            <p style="margin: 2px 0 0 0; font-size: 0.82rem; color: #64748b;">
+            <h2 class="dict-modal-title">Dictionnaire d'attribution</h2>
+            <p class="dict-modal-subtitle">
               Vos mots-clés mémorisés pour reconnaître et classer automatiquement vos opérations lors des imports.
             </p>
           </div>
@@ -2101,58 +2399,58 @@
             selectedCategoryMap = {};
           }}
           aria-label="Fermer"
-          style="background: transparent; border: none; font-size: 1.2rem; color: #94a3b8; cursor: pointer; padding: 4px;"
+          class="dict-modal-close-btn"
         >
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
       <!-- Corps défilable -->
-      <div style="padding: 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px;">
+      <div class="dict-modal-body">
         
         <!-- Bloc formulaire : Ajouter un nouveau mot-clé -->
-        <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px;">
-          <div style="font-weight: 700; font-size: 0.92rem; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        <div class="dict-add-box">
+          <div class="dict-add-box-title">
             <i class="fa-solid fa-circle-plus" style="color: #6366f1;"></i>
-            Ajouter un mot-clé au dictionnaire
+            <span>Ajouter un mot-clé au dictionnaire</span>
           </div>
 
-          <div style="display: grid; grid-template-columns: 2fr 1.1fr 2.5fr auto; gap: 10px; align-items: flex-end;">
-            <div>
-              <label for="dict-kw" style="display: block; font-size: 0.76rem; font-weight: 700; color: #475569; margin-bottom: 4px;">
+          <div class="dict-add-grid">
+            <div class="dict-field-group dict-field-keyword">
+              <label for="dict-kw" class="dict-field-label">
                 Quand le libellé contient :
               </label>
               <input 
                 id="dict-kw"
                 type="text" 
                 bind:value={newRuleKeyword}
-                placeholder="Ex : SPOTIFY, TOTAL, BOULANGERIE..."
-                style="width: 100%; padding: 9px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem; font-weight: 600; color: #0f172a; box-sizing: border-box;"
+                placeholder="Ex : SPOTIFY, TOTAL, UBER..."
+                class="dict-input"
               />
             </div>
 
-            <div>
-              <label for="dict-type" style="display: block; font-size: 0.76rem; font-weight: 700; color: #475569; margin-bottom: 4px;">
+            <div class="dict-field-group dict-field-type">
+              <label for="dict-type" class="dict-field-label">
                 Sens :
               </label>
               <select 
                 id="dict-type"
                 bind:value={newRuleType}
-                style="width: 100%; padding: 9px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem; font-weight: 600; background: #ffffff; color: #0f172a; box-sizing: border-box;"
+                class="dict-select"
               >
                 <option value="debit">Dépense (-)</option>
                 <option value="credit">Recette (+)</option>
               </select>
             </div>
 
-            <div>
-              <label for="dict-acc" style="display: block; font-size: 0.76rem; font-weight: 700; color: #475569; margin-bottom: 4px;">
+            <div class="dict-field-group dict-field-account">
+              <label for="dict-acc" class="dict-field-label">
                 Attribuer à la catégorie :
               </label>
               <select 
                 id="dict-acc"
                 bind:value={newRuleAccount}
-                style="width: 100%; padding: 9px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem; font-weight: 600; background: #ffffff; color: #0f172a; box-sizing: border-box;"
+                class="dict-select"
               >
                 {#if newRuleType === 'credit'}
                   <optgroup label="Entrées & Recettes">
@@ -2185,54 +2483,58 @@
               </select>
             </div>
 
-            <button 
-              type="button" 
-              onclick={handleAddDictionaryRule}
-              style="padding: 10px 18px; background: #0f172a; color: #ffffff; border: none; border-radius: 8px; font-weight: 700; font-size: 0.86rem; cursor: pointer; white-space: nowrap; height: 40px; display: inline-flex; align-items: center; gap: 6px;"
-            >
-              <i class="fa-solid fa-plus"></i> Ajouter
-            </button>
+            <div class="dict-field-group dict-field-submit">
+              <button 
+                type="button" 
+                onclick={handleAddDictionaryRule}
+                class="dict-submit-btn"
+              >
+                <i class="fa-solid fa-plus"></i>
+                <span>Ajouter</span>
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- En-tête de liste & barre de recherche -->
-        <div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;">
-            <div style="font-weight: 800; font-size: 0.92rem; color: #0f172a;">
-              Mots-clés enregistrés ({filteredRules.length})
+        <div class="dict-list-section">
+          <div class="dict-search-header">
+            <div class="dict-count-title">
+              Mots-clés enregistrés <span class="dict-count-badge">({filteredRules.length})</span>
             </div>
 
-            <div style="position: relative; width: 260px;">
-              <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.8rem;"></i>
+            <div class="dict-search-input-box">
+              <i class="fa-solid fa-magnifying-glass dict-search-icon"></i>
               <input 
                 type="text" 
                 bind:value={dictionarySearch}
-                placeholder="Rechercher un mot-clé..."
-                style="width: 100%; padding: 7px 10px 7px 30px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.82rem; box-sizing: border-box;"
+                placeholder="Rechercher un mot-clé ou catégorie..."
+                class="dict-search-input"
               />
             </div>
           </div>
 
-          <!-- Tableau des règles -->
+          <!-- Tableau ou Cartes des règles -->
           {#if filteredRules.length === 0}
-            <div style="text-align: center; padding: 36px 20px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; color: #64748b;">
-              <i class="fa-solid fa-book-open" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 10px; display: block;"></i>
-              <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">
+            <div class="dict-empty-state">
+              <i class="fa-solid fa-book-open dict-empty-icon"></i>
+              <div class="dict-empty-title">
                 {dictionarySearch ? 'Aucun mot-clé ne correspond à votre recherche.' : 'Aucun mot-clé enregistré pour cette structure.'}
               </div>
-              <p style="font-size: 0.82rem; margin: 4px 0 0 0;">
+              <p class="dict-empty-desc">
                 {dictionarySearch ? 'Essayez un autre terme de recherche.' : 'Ajoutez vos fournisseurs ou clients habituels ci-dessus, ou classez simplement vos écritures : elles s\'enregistrent automatiquement ici !'}
               </p>
             </div>
           {:else}
-            <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
-              <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <!-- Vue Tableau Desktop -->
+            <div class="dict-desktop-table-container">
+              <table class="dict-table">
                 <thead>
-                  <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: left; color: #475569; font-weight: 700; font-size: 0.78rem; text-transform: uppercase;">
-                    <th style="padding: 10px 14px;">Mot-clé détecté</th>
-                    <th style="padding: 10px 14px;">Sens</th>
-                    <th style="padding: 10px 14px;">Catégorie attribuée</th>
-                    <th style="padding: 10px 14px; text-align: right;">Action</th>
+                  <tr>
+                    <th>Mot-clé détecté</th>
+                    <th>Sens</th>
+                    <th>Catégorie attribuée</th>
+                    <th style="text-align: right;">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2243,29 +2545,30 @@
                     
                     {#if isEditing}
                       <!-- LIGNE EN COURS DE MODIFICATION -->
-                      <tr style="border-bottom: 2px solid #6366f1; background: #f8fafc;">
-                        <td style="padding: 10px 14px;">
+                      <tr class="dict-table-row is-editing">
+                        <td>
                           <input 
                             type="text" 
                             bind:value={editingKeyword}
                             onkeydown={(e) => { if (e.key === 'Enter') saveEditRule(); if (e.key === 'Escape') cancelEditRule(); }}
                             placeholder="Mot-clé..."
-                            style="padding: 7px 10px; border: 1.5px solid #6366f1; border-radius: 6px; font-size: 0.85rem; font-weight: 700; width: 100%; box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, monospace; color: #0f172a; background: #ffffff;"
+                            class="dict-input dict-input-sm"
+                            style="font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 700;"
                           />
                         </td>
-                        <td style="padding: 10px 14px;">
+                        <td>
                           <select 
                             bind:value={editingType}
-                            style="padding: 7px 8px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem; font-weight: 600; background: #ffffff; color: #0f172a; width: 100%; box-sizing: border-box;"
+                            class="dict-select dict-select-sm"
                           >
                             <option value="debit">Dépense (-)</option>
                             <option value="credit">Recette (+)</option>
                           </select>
                         </td>
-                        <td style="padding: 10px 14px;">
+                        <td>
                           <select 
                             bind:value={editingAccount}
-                            style="padding: 7px 8px; border: 1.5px solid #6366f1; border-radius: 6px; font-size: 0.82rem; font-weight: 600; background: #ffffff; color: #0f172a; width: 100%; box-sizing: border-box;"
+                            class="dict-select dict-select-sm"
                           >
                             {#if editingType === 'credit'}
                               <optgroup label="Entrées & Recettes">
@@ -2297,13 +2600,13 @@
                             {/if}
                           </select>
                         </td>
-                        <td style="padding: 10px 14px; text-align: right; white-space: nowrap;">
+                        <td style="text-align: right; white-space: nowrap;">
                           <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
                             <button 
                               type="button" 
                               onclick={saveEditRule}
                               title="Enregistrer les modifications"
-                              style="background: #16a34a; border: none; color: #ffffff; cursor: pointer; padding: 6px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(22, 163, 74, 0.25);"
+                              class="dict-save-btn"
                             >
                               <i class="fa-solid fa-check"></i> Enregistrer
                             </button>
@@ -2312,7 +2615,7 @@
                               onclick={cancelEditRule}
                               title="Annuler"
                               aria-label="Annuler la modification"
-                              style="background: #ffffff; border: 1px solid #cbd5e1; color: #64748b; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem;"
+                              class="dict-cancel-btn"
                             >
                               <i class="fa-solid fa-xmark"></i>
                             </button>
@@ -2321,40 +2624,37 @@
                       </tr>
                     {:else}
                       <!-- LIGNE NORMALE -->
-                      <tr style="border-bottom: 1px solid #f1f5f9; background: #ffffff;">
-                        <td style="padding: 10px 14px; font-weight: 800; color: #0f172a; font-family: ui-monospace, SFMono-Regular, monospace;">
-                          <span style="background: #f1f5f9; padding: 3px 8px; border-radius: 6px; border: 1px solid #e2e8f0; display: inline-block;">
+                      <tr class="dict-table-row">
+                        <td>
+                          <span class="dict-code-pill">
                             {r.motCle}
                           </span>
                         </td>
-                        <td style="padding: 10px 14px;">
-                          <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.74rem; background: {isDebit ? '#fee2e2' : '#dcfce7'}; color: {isDebit ? '#991b1b' : '#166534'};">
+                        <td>
+                          <span class="dict-sens-pill {isDebit ? 'debit' : 'credit'}">
                             {isDebit ? 'Dépense (-)' : 'Recette (+)'}
                           </span>
                         </td>
-                        <td style="padding: 10px 14px; color: #334155; font-weight: 600;">
-                          {formatAccountLabel(accountNum)} <span style="color: #64748b; font-size: 0.78rem;">({accountNum})</span>
+                        <td>
+                          <span class="dict-acc-label">{formatAccountLabel(accountNum)}</span>
+                          <span class="dict-acc-num">({accountNum})</span>
                         </td>
-                        <td style="padding: 10px 14px; text-align: right; white-space: nowrap;">
+                        <td style="text-align: right; white-space: nowrap;">
                           <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
                             <button 
                               type="button" 
                               onclick={() => startEditRule(r)}
                               title="Corriger l'intitulé ou la catégorie"
-                              style="background: #ffffff; border: 1px solid #cbd5e1; color: #475569; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"
-                              onmouseenter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }}
-                              onmouseleave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#475569'; }}
+                              class="dict-edit-btn"
                             >
-                              <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i> Modifier
+                              <i class="fa-solid fa-pen" style="font-size: 0.72rem;"></i> Modifier
                             </button>
                             <button 
                               type="button" 
                               onclick={() => handleDeleteDictionaryRule(r.motCle)}
                               title="Supprimer ce mot-clé du dictionnaire"
                               aria-label="Supprimer ce mot-clé du dictionnaire"
-                              style="background: transparent; border: 1px solid transparent; color: #dc2626; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem;"
-                              onmouseenter={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.borderColor = '#fca5a5'; }}
-                              onmouseleave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
+                              class="dict-delete-btn"
                             >
                               <i class="fa-solid fa-trash-can"></i>
                             </button>
@@ -2366,17 +2666,155 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- Vue Cartes Mobile -->
+            <div class="dict-mobile-cards-list">
+              {#each filteredRules as r}
+                {@const accountNum = r.debit || r.credit}
+                {@const isDebit = Boolean(r.debit)}
+                {@const isEditing = editingRuleOriginalMotCle === r.motCle}
+
+                <div class="dict-mobile-card {isEditing ? 'is-editing' : ''}">
+                  {#if isEditing}
+                    <!-- Formulaire d'édition dans la carte mobile -->
+                    <div class="dict-mobile-edit-form">
+                      <div class="dict-mobile-edit-field">
+                        <label for="mob-edit-kw" class="dict-field-label">Mot-clé :</label>
+                        <input 
+                          id="mob-edit-kw"
+                          type="text" 
+                          bind:value={editingKeyword}
+                          class="dict-input"
+                          placeholder="Mot-clé..."
+                          style="font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 700;"
+                        />
+                      </div>
+
+                      <div class="dict-mobile-edit-row">
+                        <div class="dict-mobile-edit-field" style="flex: 1;">
+                          <label for="mob-edit-type" class="dict-field-label">Sens :</label>
+                          <select 
+                            id="mob-edit-type"
+                            bind:value={editingType}
+                            class="dict-select"
+                          >
+                            <option value="debit">Dépense (-)</option>
+                            <option value="credit">Recette (+)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="dict-mobile-edit-field">
+                        <label for="mob-edit-acc" class="dict-field-label">Catégorie attribuée :</label>
+                        <select 
+                          id="mob-edit-acc"
+                          bind:value={editingAccount}
+                          class="dict-select"
+                        >
+                          {#if editingType === 'credit'}
+                            <optgroup label="Entrées & Recettes">
+                              {#each $planComptable.filter(p => p.compte !== '699' && (p.compte.startsWith('7') || p.type === 'Produit' || p.group === 'entrees')) as p}
+                                <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                              {/each}
+                            </optgroup>
+                            <optgroup label="Comptes & Transferts">
+                              {#each $planComptable.filter(p => p.compte !== '699' && (p.compte.startsWith('4') || p.compte.startsWith('5'))) as p}
+                                <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                              {/each}
+                            </optgroup>
+                          {:else}
+                            <optgroup label="Dépenses & Frais professionnels">
+                              {#each $planComptable.filter(p => p.compte !== '699' && p.compte.startsWith('6') && p.group !== 'equipe') as p}
+                                <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                              {/each}
+                            </optgroup>
+                            <optgroup label="Équipe, Salaires & Social">
+                              {#each $planComptable.filter(p => p.compte !== '699' && (p.group === 'equipe' || ['611', '641', '645', '6453', '658'].includes(p.compte))) as p}
+                                <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                              {/each}
+                            </optgroup>
+                            <optgroup label="Comptes & Transferts">
+                              {#each $planComptable.filter(p => p.compte !== '699' && (p.compte.startsWith('4') || p.compte.startsWith('5'))) as p}
+                                <option value={p.compte}>{p.compte} - {formatAccountLabel(p.compte)}</option>
+                              {/each}
+                            </optgroup>
+                          {/if}
+                        </select>
+                      </div>
+
+                      <div class="dict-mobile-edit-buttons">
+                        <button 
+                          type="button" 
+                          onclick={saveEditRule}
+                          class="dict-save-btn"
+                          style="flex: 1; justify-content: center;"
+                        >
+                          <i class="fa-solid fa-check"></i> Enregistrer
+                        </button>
+                        <button 
+                          type="button" 
+                          onclick={cancelEditRule}
+                          class="dict-cancel-btn"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  {:else}
+                    <!-- Carte normale mobile -->
+                    <div class="dict-mobile-card-top">
+                      <span class="dict-code-pill">
+                        {r.motCle}
+                      </span>
+                      <span class="dict-sens-pill {isDebit ? 'debit' : 'credit'}">
+                        {isDebit ? 'Dépense (-)' : 'Recette (+)'}
+                      </span>
+                    </div>
+
+                    <div class="dict-mobile-card-middle">
+                      <div class="dict-card-category-info">
+                        <i class="fa-solid fa-tag" style="color: var(--text-muted); font-size: 0.76rem; flex-shrink: 0;"></i>
+                        <span class="dict-acc-label">{formatAccountLabel(accountNum)}</span>
+                        <span class="dict-acc-num">({accountNum})</span>
+                      </div>
+                    </div>
+
+                    <div class="dict-mobile-card-bottom">
+                      <button 
+                        type="button" 
+                        onclick={() => startEditRule(r)}
+                        class="dict-edit-btn"
+                      >
+                        <i class="fa-solid fa-pen" style="font-size: 0.72rem;"></i> Modifier
+                      </button>
+                      <button 
+                        type="button" 
+                        onclick={() => handleDeleteDictionaryRule(r.motCle)}
+                        class="dict-delete-btn"
+                        aria-label="Supprimer ce mot-clé"
+                      >
+                        <i class="fa-solid fa-trash-can"></i> Supprimer
+                      </button>
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
           {/if}
         </div>
 
       </div>
 
       <!-- Pied de page -->
-      <div style="padding: 14px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; background: #f8fafc;">
+      <div class="dict-modal-footer">
         <button 
           type="button" 
-          onclick={() => showDictionaryModal = false}
-          style="padding: 8px 20px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 700; font-size: 0.86rem; color: #334155; cursor: pointer;"
+          onclick={() => {
+            showDictionaryModal = false;
+            Categorizer.reappliquerReglesAuxTransactionsEnAttente();
+            selectedCategoryMap = {};
+          }}
+          class="dict-close-btn"
         >
           Fermer
         </button>
@@ -2548,3 +2986,888 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .categorize-top-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+    align-items: stretch;
+  }
+  .desktop-tx-table {
+    display: block;
+  }
+  .mobile-tx-cards {
+    display: none;
+  }
+
+  /* Conteneur principal du tableau / liste d'attribution */
+  .categorize-table-section {
+    margin-bottom: 30px;
+    background: var(--table-container-bg);
+    border: 1.5px solid var(--border-container);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .categorize-table-inner {
+    padding: 6px;
+    background: transparent;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Barre d'actions groupées en attente */
+  .pending-bulk-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 14px;
+  }
+  .pending-validate-all-btn {
+    padding: 8px 18px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    background: #16a34a;
+    color: #ffffff;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+    transition: all 0.15s ease;
+  }
+  .pending-validate-all-btn:hover {
+    background: #15803d;
+  }
+
+  /* Barre d'outils de tri et de filtrage pour les opérations attribuées */
+  .categorized-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .categorized-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .categorized-filter-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .categorized-select {
+    padding: 6px 10px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-main);
+    cursor: pointer;
+    max-width: 240px;
+    text-overflow: ellipsis;
+  }
+  .categorized-search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .categorized-search-icon {
+    position: absolute;
+    left: 9px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    pointer-events: none;
+  }
+  .categorized-search-input {
+    padding: 6px 10px 6px 26px;
+    font-size: 0.82rem;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    width: 140px;
+    background: var(--bg-card);
+    color: var(--text-main);
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 768px) {
+    .page-title-section {
+      display: none !important;
+    }
+    .categorize-top-grid {
+      grid-template-columns: 1fr !important;
+      gap: 12px !important;
+      margin-bottom: 28px !important;
+    }
+    .attribution-tabs-row {
+      flex-direction: column !important;
+      padding: 14px 12px !important;
+      gap: 10px !important;
+      min-height: auto !important;
+    }
+    .attribution-tabs-row button {
+      width: 100% !important;
+      flex: none !important;
+      padding: 12px 14px !important;
+    }
+    /* Section tableau sur mobile */
+    .categorize-table-section {
+      padding: 12px 10px !important;
+      border-radius: 14px !important;
+      margin-bottom: 20px !important;
+    }
+    .categorize-table-inner {
+      padding: 0 !important;
+    }
+    /* Barre d'outils mobile 100% fluide sans débordement */
+    .categorized-toolbar {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 8px !important;
+      width: 100% !important;
+      margin-bottom: 12px !important;
+    }
+    .categorized-filter-item {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 3px !important;
+      width: 100% !important;
+    }
+    .categorized-filter-label {
+      font-size: 0.72rem !important;
+    }
+    .categorized-select {
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+      height: 38px !important;
+      font-size: 0.82rem !important;
+    }
+    .categorized-search-box {
+      width: 100% !important;
+    }
+    .categorized-search-input {
+      width: 100% !important;
+      box-sizing: border-box !important;
+      height: 38px !important;
+    }
+    .pending-bulk-actions {
+      justify-content: stretch !important;
+      margin-bottom: 12px !important;
+    }
+    .pending-validate-all-btn {
+      width: 100% !important;
+      justify-content: center !important;
+    }
+    /* Bascule Tableau -> Liste Fintech unifiée sur mobile */
+    .desktop-tx-table {
+      display: none !important;
+    }
+    .mobile-tx-cards {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .mobile-tx-list {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .mobile-tx-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-color, rgba(226, 232, 240, 0.6));
+      background: transparent;
+      transition: background 0.12s ease;
+      -webkit-tap-highlight-color: transparent;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .mobile-tx-item:last-child {
+      border-bottom: none;
+    }
+    .mobile-tx-item:active {
+      background: var(--bg-subtle, rgba(0, 0, 0, 0.04));
+    }
+    .mobile-tx-icon-pill {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .mobile-tx-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .mobile-tx-row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      width: 100%;
+      min-width: 0;
+      flex-wrap: nowrap !important;
+    }
+    .mobile-tx-name {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: var(--text-main, #0f172a);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap !important;
+      flex: 1;
+      min-width: 0;
+    }
+    .mobile-tx-amount {
+      font-weight: 800;
+      font-size: 0.92rem;
+      white-space: nowrap !important;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0 !important;
+      font-family: var(--font-title, sans-serif);
+      margin-left: auto;
+      text-align: right;
+    }
+    .mobile-tx-row-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .mobile-tx-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      min-width: 0;
+      flex-shrink: 1;
+    }
+    .mobile-tx-date {
+      font-size: 0.74rem;
+      color: var(--text-muted, #64748b);
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+    .mobile-tx-badge {
+      font-size: 0.69rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 130px;
+      line-height: 1.3;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+    .mobile-tx-badge.attributed {
+      background: rgba(37, 99, 235, 0.14);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    .mobile-tx-badge.pending {
+      background: rgba(245, 158, 11, 0.14);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+    .mobile-action-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 4px 7px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .mobile-action-btn.validate-btn {
+      background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+    }
+    .mobile-action-btn.confirm-btn {
+      background: #16a34a;
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 9999px;
+    }
+  }
+
+  /* ======================================================== */
+  /* MODALE DU DICTIONNAIRE D'ATTRIBUTION - STYLES & MOBILE   */
+  /* ======================================================== */
+  .dict-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(5, 10, 20, 0.75);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  .dict-modal-card {
+    background: var(--bg-card, #ffffff);
+    color: var(--text-main, #0f172a);
+    width: 100%;
+    max-width: 860px;
+    max-height: 88vh;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    border: 1.5px solid var(--border-color, #e2e8f0);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: zoomIn 0.2s ease-out;
+  }
+  .dict-modal-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: var(--bg-subtle, #f8fafc);
+    gap: 12px;
+  }
+  .dict-header-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1;
+  }
+  .dict-header-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(99, 102, 241, 0.16);
+    color: #818cf8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .dict-modal-title {
+    margin: 0;
+    font-size: 1.18rem;
+    font-weight: 800;
+    color: var(--text-main, #0f172a);
+    font-family: var(--font-title);
+  }
+  .dict-modal-subtitle {
+    margin: 2px 0 0 0;
+    font-size: 0.82rem;
+    color: var(--text-muted, #64748b);
+    line-height: 1.35;
+  }
+  .dict-modal-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.25rem;
+    color: var(--text-muted, #94a3b8);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: color 0.15s ease;
+  }
+  .dict-modal-close-btn:hover {
+    color: var(--text-main);
+  }
+  .dict-modal-body {
+    padding: 20px 24px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    box-sizing: border-box;
+  }
+  .dict-add-box {
+    background: var(--bg-subtle, #f8fafc);
+    border: 1.5px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-sizing: border-box;
+  }
+  .dict-add-box-title {
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--text-main, #0f172a);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dict-add-grid {
+    display: grid;
+    grid-template-columns: 2fr 1.1fr 2.5fr auto;
+    gap: 12px;
+    align-items: flex-end;
+  }
+  .dict-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+  }
+  .dict-field-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-secondary, #475569);
+  }
+  .dict-input,
+  .dict-select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border-color, #cbd5e1);
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-main, #0f172a);
+    background: var(--bg-card, #ffffff);
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
+    height: 40px;
+  }
+  .dict-input:focus,
+  .dict-select:focus {
+    border-color: #6366f1;
+    outline: none;
+  }
+  .dict-input-sm,
+  .dict-select-sm {
+    height: 34px;
+    padding: 5px 8px;
+    font-size: 0.82rem;
+  }
+  .dict-submit-btn {
+    padding: 0 18px;
+    background: #0f172a;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.86rem;
+    cursor: pointer;
+    white-space: nowrap;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s ease;
+  }
+  :root[data-theme="dark"] .dict-submit-btn {
+    background: #2563eb;
+    color: #ffffff;
+  }
+  .dict-submit-btn:hover {
+    opacity: 0.92;
+  }
+  .dict-list-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .dict-search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .dict-count-title {
+    font-weight: 800;
+    font-size: 0.92rem;
+    color: var(--text-main, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dict-count-badge {
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .dict-search-input-box {
+    position: relative;
+    width: 280px;
+  }
+  .dict-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.8rem;
+    pointer-events: none;
+  }
+  .dict-search-input {
+    width: 100%;
+    padding: 7px 10px 7px 30px;
+    border: 1px solid var(--border-color, #cbd5e1);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    box-sizing: border-box;
+    background: var(--bg-card);
+    color: var(--text-main);
+  }
+  .dict-desktop-table-container {
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 10px;
+    overflow-x: auto;
+    background: var(--bg-card);
+  }
+  .dict-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .dict-table thead tr {
+    background: var(--bg-subtle, #f8fafc);
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    text-align: left;
+    color: var(--text-secondary, #475569);
+    font-weight: 700;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+  }
+  .dict-table th {
+    padding: 10px 14px;
+    white-space: nowrap;
+  }
+  .dict-table-row {
+    border-bottom: 1px solid var(--border-color, #f1f5f9);
+    background: var(--bg-card);
+  }
+  .dict-table-row.is-editing {
+    border-bottom: 2px solid #6366f1;
+    background: var(--bg-subtle);
+  }
+  .dict-table td {
+    padding: 10px 14px;
+  }
+  .dict-code-pill {
+    background: var(--bg-subtle, #f1f5f9);
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    display: inline-block;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-weight: 800;
+    font-size: 0.82rem;
+    color: var(--text-main);
+  }
+  .dict-sens-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+  .dict-sens-pill.debit {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+  .dict-sens-pill.credit {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+  .dict-acc-label {
+    font-weight: 600;
+    color: var(--text-main);
+  }
+  .dict-acc-num {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    margin-left: 4px;
+  }
+  .dict-edit-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color, #cbd5e1);
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.12s ease;
+  }
+  .dict-edit-btn:hover {
+    background: var(--bg-subtle);
+    color: var(--text-main);
+  }
+  .dict-delete-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s ease;
+  }
+  .dict-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+  .dict-save-btn {
+    background: #16a34a;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 1px 2px rgba(22, 163, 74, 0.25);
+  }
+  .dict-cancel-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color, #cbd5e1);
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+  .dict-empty-state {
+    text-align: center;
+    padding: 36px 20px;
+    background: var(--bg-subtle);
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    color: var(--text-muted);
+  }
+  .dict-empty-icon {
+    font-size: 2rem;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    display: block;
+    opacity: 0.5;
+  }
+  .dict-empty-title {
+    font-weight: 700;
+    color: var(--text-main);
+    font-size: 0.95rem;
+  }
+  .dict-empty-desc {
+    font-size: 0.82rem;
+    margin: 4px 0 0 0;
+  }
+  .dict-modal-footer {
+    padding: 14px 24px;
+    border-top: 1px solid var(--border-color, #e2e8f0);
+    display: flex;
+    justify-content: flex-end;
+    background: var(--bg-subtle, #f8fafc);
+  }
+  .dict-close-btn {
+    padding: 8px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color, #cbd5e1);
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.86rem;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  .dict-close-btn:hover {
+    background: var(--bg-subtle);
+  }
+
+  /* Vue cartes mobile */
+  .dict-mobile-cards-list {
+    display: none;
+  }
+
+  /* Media Queries Mobile */
+  @media (max-width: 768px) {
+    .dict-modal-backdrop {
+      padding: 8px !important;
+    }
+    .dict-modal-card {
+      max-height: 94vh !important;
+      border-radius: 14px !important;
+    }
+    .dict-modal-header {
+      padding: 14px 16px !important;
+    }
+    .dict-modal-title {
+      font-size: 1.05rem !important;
+    }
+    .dict-modal-subtitle {
+      font-size: 0.76rem !important;
+    }
+    .dict-modal-body {
+      padding: 14px 12px !important;
+      gap: 16px !important;
+    }
+    .dict-add-box {
+      padding: 14px 12px !important;
+    }
+    .dict-add-grid {
+      grid-template-columns: 1fr !important;
+      gap: 10px !important;
+    }
+    .dict-submit-btn {
+      width: 100% !important;
+      margin-top: 4px !important;
+    }
+    .dict-search-header {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 10px !important;
+    }
+    .dict-search-input-box {
+      width: 100% !important;
+    }
+    /* Masquer le tableau horizontal écrasé */
+    .dict-desktop-table-container {
+      display: none !important;
+    }
+    /* Afficher la liste de cartes mobiles */
+    .dict-mobile-cards-list {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 10px !important;
+    }
+    .dict-mobile-card {
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .dict-mobile-card.is-editing {
+      border: 1.5px solid #6366f1;
+      background: var(--bg-subtle);
+    }
+    .dict-mobile-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .dict-mobile-card-middle {
+      display: flex;
+      align-items: center;
+    }
+    .dict-card-category-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.84rem;
+      flex-wrap: wrap;
+    }
+    .dict-mobile-card-bottom {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-color, rgba(226, 232, 240, 0.5));
+    }
+    .dict-mobile-card-bottom .dict-edit-btn,
+    .dict-mobile-card-bottom .dict-delete-btn {
+      padding: 5px 10px;
+      font-size: 0.78rem;
+    }
+    .dict-mobile-edit-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .dict-mobile-edit-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .dict-mobile-edit-row {
+      display: flex;
+      gap: 8px;
+    }
+    .dict-mobile-edit-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .dict-modal-footer {
+      padding: 12px 16px !important;
+    }
+    .dict-close-btn {
+      width: 100% !important;
+      text-align: center !important;
+    }
+  }
+</style>

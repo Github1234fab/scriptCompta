@@ -16,7 +16,9 @@
     showToast,
     openHelpGuide,
     openTitoChat,
-    openDeleteStructureModal
+    openDeleteStructureModal,
+    isMobileSidebarOpen,
+    closeMobileSidebar
   } from '../lib/store.js';
   import { currentUser } from '../lib/auth.js';
   import { updateUserPlan } from '../lib/firestoreService.js';
@@ -41,16 +43,16 @@
     (/** @type {any} */ t) => (!t.entityId || t.entityId === $activeEntityId) && (t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere')
   ).length);
 
-  // Resizable Sidebar width state
-  let sidebarWidth = $state(280);
+  // Resizable Sidebar width state (320px de base pour afficher confortablement les libellés sans coupure)
+  let sidebarWidth = $state(320);
   let isResizing = $state(false);
 
   onMount(() => {
     const savedWidth = localStorage.getItem('sidebar_width');
     if (savedWidth) {
       const parsed = parseInt(savedWidth, 10);
-      if (parsed >= 220 && parsed <= 500) {
-        sidebarWidth = parsed;
+      if (parsed >= 260 && parsed <= 500) {
+        sidebarWidth = Math.max(parsed, 320);
       }
     }
 
@@ -73,7 +75,7 @@
 
     /** @param {MouseEvent} moveEvent */
     function onMouseMove(moveEvent) {
-      const newWidth = Math.min(Math.max(moveEvent.clientX, 220), 480);
+      const newWidth = Math.min(Math.max(moveEvent.clientX, 260), 480);
       sidebarWidth = newWidth;
     }
 
@@ -89,17 +91,34 @@
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
   }
+
+  /** @param {string} view */
+  function handleNav(view) {
+    switchView(view);
+    closeMobileSidebar();
+  }
 </script>
 
 <aside 
-  class="app-sidebar" 
-  style="background: #0f172a; border-right: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; width: {sidebarWidth}px; min-width: {sidebarWidth}px; max-width: {sidebarWidth}px; height: 100vh; position: relative; user-select: {isResizing ? 'none' : 'auto'}; transition: {isResizing ? 'none' : 'width 0.1s ease'};"
+  class="app-sidebar {$isMobileSidebarOpen ? 'mobile-open' : ''}" 
+  style="background: #0f172a; border-right: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; width: {sidebarWidth}px; min-width: {sidebarWidth}px; max-width: {sidebarWidth}px; height: 100vh; position: relative; box-sizing: border-box; overflow-x: hidden; flex-shrink: 0; user-select: {isResizing ? 'none' : 'auto'}; transition: {isResizing ? 'none' : 'width 0.1s ease'};"
 >
   <!-- SIDEBAR HEADER : LOGO & SWITCHER D'ORGANISATION (HAUT DE SIDEBAR) -->
-  <div style="padding: 16px 14px 14px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 12px; position: relative;" id="org-switcher-container">
+  <div style="padding: 16px 14px 14px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 12px; position: relative; flex-shrink: 0;" id="org-switcher-container">
     
+    <!-- Bouton de fermeture mobile discret flottant en haut à droite -->
+    <button 
+      type="button" 
+      class="mobile-sidebar-close-btn"
+      onclick={closeMobileSidebar}
+      aria-label="Fermer le menu de navigation"
+      title="Fermer le menu"
+    >
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+
     <!-- Logo brand Tito -->
-    <div style="display: flex; align-items: center; justify-content: center; padding: 6px 0 4px 0;">
+    <div style="display: flex; align-items: center; justify-content: center; padding: 4px 0;">
       <span style="font-family: inherit; font-size: 1.85rem; font-weight: 900; letter-spacing: -0.03em; color: #ffffff; user-select: none;">
         Ti<span style="color: #38bdf8;">t</span>o
       </span>
@@ -160,6 +179,7 @@
                 onclick={() => {
                   updateActiveEntityId(entity.id);
                   showOrgDropdown = false;
+                  closeMobileSidebar();
                   const m = MANAGEMENT_MODELS[entity.model] || MANAGEMENT_MODELS.micro;
                   showToast(`Structure active : ${entity.name} (${m.title})`);
                 }}
@@ -189,6 +209,7 @@
                 onclick={(e) => {
                   e.stopPropagation();
                   showOrgDropdown = false;
+                  closeMobileSidebar();
                   openDeleteStructureModal(entity);
                 }}
                 style="background: transparent; border: none; color: #64748b; padding: 6px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s ease;"
@@ -223,106 +244,67 @@
   </div>
   
   <!-- MENU PRINCIPAL -->
-  <nav style="flex: 1; padding: 14px 12px; overflow-y: auto;">
+  <nav class="sidebar-nav-container" style="flex: 1 1 0%; min-height: 0; padding: 14px 12px; overflow-y: auto; -webkit-overflow-scrolling: touch;">
     <ul class="sidebar-menu" style="list-style: none; padding: 0; margin: 0;">
       
       <!-- 1. ACCUEIL -->
-      <li style="margin-bottom: 6px;">
+      <li>
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <span 
            id="menu-dashboard" 
            class="menu-item {$activeView === 'dashboard' ? 'active' : ''}" 
            data-tooltip="Accueil"
            title="Accueil"
-           onclick={() => switchView('dashboard')}>
+           onclick={() => handleNav('dashboard')}>
           <i class="fa-solid fa-house"></i>
           <span class="menu-label-text">Accueil</span>
-          <button 
-            type="button" 
-            class="sidebar-tab-help"
-            title="Aide sur l'Accueil" 
-            aria-label="Aide sur l'Accueil"
-            onclick={(e) => { e.stopPropagation(); openHelpGuide('accueil'); }}
-          >
-            ?
-          </button>
         </span>
       </li>
 
       <!-- 2. ATTRIBUTION -->
-      <li style="margin-bottom: 6px;">
+      <li>
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <span 
            id="menu-categorize" 
            class="menu-item {$activeView === 'categorize' || $activeView === 'import' || $activeView === 'justificatifs' || $activeView === 'pieces' ? 'active' : ''}" 
            data-tooltip="Attribution"
            title="Attribution"
-           onclick={() => switchView('categorize')}>
+           onclick={() => handleNav('categorize')}>
           <i class="fa-solid fa-arrows-split-up-and-left"></i>
           <span class="menu-label-text">Attribution</span>
-          <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
-            {#if pendingTxBadgeCount > 0}
-              <span class="badge" id="pending-tx-badge" style="background: #f59e0b; color: #ffffff; font-size: 0.62rem; padding: 2px 7px; border-radius: 10px; font-weight: 800; min-width: 18px; text-align: center; flex-shrink: 0;">{pendingTxBadgeCount}</span>
-            {/if}
-            <button 
-              type="button" 
-              class="sidebar-tab-help"
-              style="margin-left: 0;"
-              title="Aide sur l'Attribution" 
-              aria-label="Aide sur l'Attribution"
-              onclick={(e) => { e.stopPropagation(); openHelpGuide('attribution'); }}
-            >
-              ?
-            </button>
-          </div>
+          {#if pendingTxBadgeCount > 0}
+            <span class="badge" id="pending-tx-badge" style="margin-left: auto; background: #f59e0b; color: #ffffff; font-size: 0.62rem; padding: 2px 7px; border-radius: 10px; font-weight: 800; min-width: 18px; text-align: center; flex-shrink: 0;">{pendingTxBadgeCount}</span>
+          {/if}
         </span>
       </li>
 
       <!-- 3. GESTION DES ADHÉRENTS & DONS (Modèle Association) -->
       {#if accountingModel === 'asso'}
-        <li style="margin-bottom: 6px;">
+        <li>
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
           <span 
              id="menu-activity" 
              class="menu-item {$activeView === 'activity' || $activeView === 'workspace_asso' || $activeView === 'members' || $activeView === 'sales' || $activeView === 'donations' ? 'active' : ''}" 
              data-tooltip={activityLabel}
              title={activityLabel}
-             onclick={() => switchView('activity')}>
+             onclick={() => handleNav('activity')}>
             <i class="fa-solid {activityIcon}"></i>
             <span class="menu-label-text">{activityLabel}</span>
-            <button 
-              type="button" 
-              class="sidebar-tab-help"
-              title="Aide sur la Gestion des Recettes" 
-              aria-label="Aide sur la Gestion des Recettes"
-              onclick={(e) => { e.stopPropagation(); openHelpGuide('recettes'); }}
-            >
-              ?
-            </button>
           </span>
         </li>
       {/if}
 
       <!-- 4. OBLIGATION (REGISTRES, DÉCLARATIONS & JUSTIFICATIFS) -->
-      <li style="margin-bottom: 6px;">
+      <li>
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <span 
            id="menu-books" 
            class="menu-item {$activeView === 'books' || $activeView === 'livre_recettes' ? 'active' : ''}" 
            data-tooltip={booksLabel || 'Obligation'}
            title={booksLabel || 'Obligation'}
-           onclick={() => switchView('books')}>
+           onclick={() => handleNav('books')}>
           <i class="fa-solid fa-scale-balanced"></i>
           <span class="menu-label-text">{booksLabel || 'Obligation'}</span>
-          <button 
-            type="button" 
-            class="sidebar-tab-help"
-            title="Aide sur les Obligations" 
-            aria-label="Aide sur les Obligations"
-            onclick={(e) => { e.stopPropagation(); openHelpGuide('obligations'); }}
-          >
-            ?
-          </button>
         </span>
       </li>
 
@@ -334,7 +316,10 @@
            style="color: #38bdf8; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.16);"
            data-tooltip="Posez vos questions"
            title="Posez vos questions à l'équipe Tito"
-           onclick={() => openTitoChat(null)}>
+           onclick={() => {
+             closeMobileSidebar();
+             openTitoChat(null);
+           }}>
           <i class="fa-regular fa-comment-dots" style="color: #38bdf8;"></i>
           <span class="menu-label-text" style="font-weight: 700;">Posez vos questions</span>
         </span>
@@ -450,31 +435,70 @@
     background: rgba(59, 130, 246, 0.4);
   }
 
-  .sidebar-tab-help {
-    margin-left: auto;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(255, 255, 255, 0.08);
-    color: #94a3b8;
-    font-size: 0.72rem;
-    font-weight: 800;
-    font-family: inherit;
-    cursor: pointer;
-    display: inline-flex;
+  .mobile-sidebar-close-btn {
+    display: none;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 100;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.15s ease;
-    line-height: 1;
-    padding: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
   }
 
-  .sidebar-tab-help:hover {
-    background: #2563eb;
-    border-color: #3b82f6;
-    color: #ffffff;
-    transform: scale(1.15);
+  .mobile-sidebar-close-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  .mobile-sidebar-spacer {
+    display: none;
+  }
+
+  @media (max-width: 1024px) {
+    .app-sidebar {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      bottom: 0 !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      max-height: 100dvh !important;
+      width: min(300px, 85vw) !important;
+      min-width: 0 !important;
+      max-width: 320px !important;
+      z-index: 99999 !important;
+      transform: translateX(-100%) !important;
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      box-shadow: none !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+    }
+
+    .app-sidebar.mobile-open {
+      transform: translateX(0) !important;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.8) !important;
+    }
+
+    .sidebar-resizer {
+      display: none !important;
+    }
+
+    .mobile-sidebar-close-btn {
+      display: flex !important;
+    }
+
+    .sidebar-bottom-panel {
+      flex-shrink: 0 !important;
+      margin-top: auto !important;
+    }
   }
 </style>

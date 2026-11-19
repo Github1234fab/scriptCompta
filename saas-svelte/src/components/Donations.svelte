@@ -95,9 +95,13 @@
   }
 </script>
 
-<div class="page-title-section">
-  <h1 class="page-title">Gestion des Dons & Reçus Fiscaux</h1>
-  <p class="page-subtitle">Suivez vos mécènes et éditez en 1 clic les reçus fiscaux Cerfa officiels.</p>
+<div style="margin-bottom: 20px;">
+  <h2 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title, sans-serif);">
+    Registre des Dons & Reçus Fiscaux (Compte 754)
+  </h2>
+  <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">
+    Suivez vos mécènes et éditez en 1 clic les reçus fiscaux Cerfa officiels.
+  </p>
 </div>
 
 <div class="pedago-banner" style="border: none; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
@@ -108,13 +112,19 @@
   </div>
 </div>
 
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px;">
+<div class="donations-grid">
   
-  <!-- Donors table -->
-  <div class="glass-card">
-    <h3 style="font-family: var(--font-title); margin-bottom: 20px;">Registre des Donateurs</h3>
+  <!-- Donors table / cards -->
+  <div class="glass-card donations-card">
+    <div class="donations-card-header">
+      <h3 style="font-family: var(--font-title); margin: 0; font-size: 1.1rem; color: var(--text-main);">
+        Registre des Donateurs
+      </h3>
+      <span class="donations-count-badge">{$donors.length} donateur{$donors.length > 1 ? 's' : ''}</span>
+    </div>
     
-    <div class="table-container">
+    <!-- Table Desktop -->
+    <div class="donors-desktop-table table-container">
       <table class="custom-table" id="donors-table">
         <thead>
           <tr>
@@ -133,8 +143,8 @@
           {:else}
             {#each $donors as d}
               <tr>
-                <td style="color: white; font-weight: 600;">{d.nom}</td>
-                <td style="font-size: 0.85rem;">{d.adresse}</td>
+                <td style="color: var(--text-main); font-weight: 600;">{d.nom}</td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">{d.adresse}</td>
                 <td class="amount credit">{d.montantTotal.toFixed(2)} €</td>
                 <td>
                   {#if d.recuGenere}
@@ -154,12 +164,61 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Cards Mobile -->
+    <div class="donors-mobile-cards">
+      {#if $donors.length === 0}
+        <div class="donors-empty-card">
+          <i class="fa-solid fa-hand-holding-heart" style="font-size: 1.6rem; color: var(--text-muted); opacity: 0.6; margin-bottom: 8px;"></i>
+          <p style="margin: 0; font-size: 0.86rem; color: var(--text-muted);">Aucun don enregistré pour l'instant.</p>
+        </div>
+      {:else}
+        <div class="donors-cards-list">
+          {#each $donors as d}
+            <div class="donor-card-item">
+              <div class="donor-card-header-row">
+                <div class="donor-card-name-group">
+                  <span class="donor-avatar-icon"><i class="fa-solid fa-user"></i></span>
+                  <div class="donor-card-identity">
+                    <span class="donor-card-name">{d.nom}</span>
+                    <span class="donor-card-address">
+                      <i class="fa-solid fa-location-dot"></i> {d.adresse || 'Adresse non renseignée'}
+                    </span>
+                  </div>
+                </div>
+                <div class="donor-card-amount">
+                  +{d.montantTotal.toFixed(2)} €
+                </div>
+              </div>
+
+              <div class="donor-card-actions-row">
+                {#if d.recuGenere}
+                  <span class="badge badge-success" style="font-size: 0.72rem; padding: 3px 8px;">
+                    <i class="fa-solid fa-check"></i> Reçu généré
+                  </span>
+                {:else}
+                  <span class="badge badge-muted" style="font-size: 0.72rem; padding: 3px 8px;">
+                    Non généré
+                  </span>
+                {/if}
+
+                <button class="btn btn-cta-donations btn-sm" onclick={() => openCerfaModal(d)} style="margin-left: auto;">
+                  <i class="fa-solid fa-receipt"></i> Reçu Cerfa
+                </button>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
   </div>
 
   <!-- Record manual donation -->
-  <div class="glass-card">
-    <h3 style="font-family: var(--font-title); margin-bottom: 20px;">Enregistrer un don manuel</h3>
-    <form onsubmit={handleSubmit}>
+  <div class="glass-card donations-form-card">
+    <h3 style="font-family: var(--font-title); margin: 0 0 16px 0; font-size: 1.1rem; color: var(--text-main);">
+      Enregistrer un don manuel
+    </h3>
+    <form onsubmit={handleSubmit} class="donations-form">
       <div class="form-group">
         <label for="donor-name" class="form-label">Nom du Donateur</label>
         <input type="text" id="donor-name" class="form-control" bind:value={nom} required placeholder="ex: Martin Robert">
@@ -172,7 +231,7 @@
         <label for="donor-amount" class="form-label">Montant du Don (€)</label>
         <input type="number" id="donor-amount" class="form-control" bind:value={montant} required placeholder="ex: 250">
       </div>
-      <button type="submit" class="btn btn-cta-donations" style="width: 100%; justify-content: center;">
+      <button type="submit" class="btn btn-cta-donations" style="width: 100%; justify-content: center; margin-top: 6px;">
         <i class="fa-solid fa-heart"></i> Enregistrer le don
       </button>
     </form>
@@ -185,7 +244,7 @@
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="modal-overlay active" onclick={fermerModal}>
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-    <div class="modal-box" onclick={(e) => e.stopPropagation()} style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal-box cerfa-modal-responsive" onclick={(e) => e.stopPropagation()} style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
       <div class="modal-header">
         <h3 class="modal-title">Aperçu du Reçu Fiscal Officiel</h3>
         <button class="modal-close-btn" onclick={fermerModal}>&times;</button>
@@ -248,7 +307,7 @@
         </div>
       </div>
 
-      <div style="margin-top: 25px; display: flex; justify-content: flex-end; gap: 12px;">
+      <div style="margin-top: 25px; display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap;">
         <button class="btn btn-secondary" onclick={imprimerRecu}>
           <i class="fa-solid fa-print"></i> Imprimer le document
         </button>
@@ -259,3 +318,183 @@
     </div>
   </div>
 {/if}
+
+<style>
+  :global(.pedago-banner) {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .donations-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+    align-items: start;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .donations-card,
+  .donations-form-card {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+  }
+  .donations-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    gap: 10px;
+  }
+  .donations-count-badge {
+    background: rgba(99, 102, 241, 0.12);
+    color: #818cf8;
+    border: 1px solid rgba(129, 140, 248, 0.25);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+  .donors-desktop-table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+  }
+  .donors-mobile-cards {
+    display: none;
+    width: 100%;
+  }
+  .donations-form .form-group {
+    margin-bottom: 14px;
+  }
+  .donations-form .form-label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .donations-form .form-control {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 900px) {
+    .donations-grid {
+      grid-template-columns: 1fr !important;
+      gap: 18px !important;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .donations-card,
+    .donations-form-card {
+      padding: 16px 14px !important;
+      border-radius: 14px !important;
+    }
+    .donors-desktop-table {
+      display: none !important;
+    }
+    .donors-mobile-cards {
+      display: block !important;
+    }
+    .donors-cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .donor-card-item {
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      transition: background 0.15s ease;
+    }
+    .donor-card-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .donor-card-name-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+    .donor-avatar-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(99, 102, 241, 0.12);
+      color: #818cf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+    .donor-card-identity {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .donor-card-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .donor-card-address {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .donor-card-amount {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #10b981;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .donor-card-actions-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-color, rgba(226, 232, 240, 0.4));
+    }
+    .donors-empty-card {
+      text-align: center;
+      padding: 24px 16px;
+      background: var(--bg-card);
+      border: 1px dashed var(--border-color);
+      border-radius: 12px;
+    }
+    .cerfa-modal-responsive {
+      padding: 16px 12px !important;
+      margin: 10px !important;
+      width: calc(100% - 20px) !important;
+    }
+    .cerfa-box {
+      padding: 14px !important;
+      font-size: 0.8rem !important;
+    }
+  }
+</style>

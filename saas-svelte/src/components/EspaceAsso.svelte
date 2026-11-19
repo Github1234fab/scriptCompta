@@ -20,6 +20,14 @@
   function handleActivateTab(tab) {
     activeTab = tab;
     selectedCard = tab;
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        const el = document.getElementById('registre-content-area');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 60);
+    }
   }
 </script>
 
@@ -73,10 +81,31 @@
   .recette-btn.active:hover {
     background: #4338ca;
   }
+  .recettes-accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 16px;
+  }
+  @media (max-width: 768px) {
+    .page-title-section {
+      display: none !important;
+    }
+    .recettes-section-container {
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      margin-bottom: 28px !important;
+    }
+    .recettes-accounts-grid {
+      grid-template-columns: 1fr !important;
+      gap: 12px !important;
+    }
+  }
 </style>
 
-<div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 24px; flex-wrap: wrap;">
-  <div>
+<div class="page-title-section" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 20px; flex-wrap: wrap;">
+  <div style="flex: 1; min-width: 0;">
     <h1 class="page-title" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main, #0f172a); font-family: var(--font-title, sans-serif);">
       Gestion des Recettes
     </h1>
@@ -90,28 +119,15 @@
     onclick={() => openHelpGuide('recettes')}
     title="Guide d'utilisation pour la gestion des recettes"
     aria-label="Guide d'utilisation pour la gestion des recettes"
-    style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #ffffff; border: 1.5px solid #cbd5e1; color: #2563eb; font-size: 0.95rem; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.04); flex-shrink: 0;"
-    onmouseenter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.background = '#eff6ff'; }}
-    onmouseleave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff'; }}
+    class="page-help-btn"
   >
     <i class="fa-solid fa-question"></i>
   </button>
 </div>
 
-<!-- BLOCS DE GESTION DES RECETTES PAR COMPTE COMPTABLE (FOND DÉDIÉ) -->
-<div style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-  
-  <!-- Titre de section du bloc des comptes -->
-  <div style="margin-bottom: 16px;">
-    <h2 style="margin: 0; font-size: 1.12rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title, sans-serif); letter-spacing: -0.2px;">
-      Gestion des recettes par compte
-    </h2>
-    <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: var(--text-muted);">
-      Sélectionnez une catégorie de recettes pour ouvrir son registre et son suivi dédié.
-    </p>
-  </div>
-
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+<!-- BLOCS DE GESTION DES RECETTES PAR COMPTE COMPTABLE -->
+<div class="recettes-section-container" style="background: var(--bg-container, #f8fafc); border: 1.5px solid var(--border-container, #e2e8f0); border-radius: 16px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+  <div class="recettes-accounts-grid">
   
   <!-- Bloc 1: Recettes en 756 et 706 -->
   <div 
@@ -123,32 +139,32 @@
   >
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
-        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
-          <span>Gestion des comptes 756 et 706</span>
-          <InfoTip text="Isole et pilote vos cotisations, adhésions et forfaits encaissés sur votre compte bancaire." width="250px" />
+        <h3 style="margin: 0; font-size: 1.02rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
+          <span>Cotisations & Cours</span>
+          <InfoTip text="Isole et pilote vos cotisations, adhésions et forfaits encaissés sur votre compte bancaire. Permet de pointer et gérer tous vos mouvements 756 et 706." width="280px" />
         </h3>
         <span style="background: rgba(37, 99, 235, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
           756 · 706
         </span>
       </div>
-      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); line-height: 1.4; margin-bottom: 10px;">
-        (Cotisations, cours, forfaits annuels, licences sportives, stages, élèves et adhérents.)
+      <div style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); line-height: 1.35;">
+        Cotisations, cours, forfaits annuels, stages, élèves et adhérents.
       </div>
-      <p style="margin: 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.45;">
-        En cliquant sur « Créer », vous affichez un tableau de gestion qui vous permet de gérer et pointer tous vos mouvements des comptes 756 et 706.
-      </p>
     </div>
 
-    <!-- CTA : complètement neutre au survol de la carte, activable uniquement au clic -->
+    <!-- CTA : État clair et homogène -->
     <button 
       type="button" 
       class="recette-btn {activeTab === 'members' ? 'active' : 'inactive'}"
       onclick={(e) => { e.stopPropagation(); handleActivateTab('members'); }} 
     >
       {#if activeTab === 'members'}
-        Tableau actif
+        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+          <i class="fa-solid fa-check" style="font-size: 0.82rem;"></i>
+          <span>Registre affiché</span>
+        </span>
       {:else}
-        Créer
+        <span>Consulter ce registre</span>
       {/if}
     </button>
   </div>
@@ -163,32 +179,32 @@
   >
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
-        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
-          <span>Gestion du compte 754</span>
-          <InfoTip text="Registre officiel de vos soutiens financiers et génération des reçus fiscaux (CERFA)." width="250px" />
+        <h3 style="margin: 0; font-size: 1.02rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
+          <span>Dons & Mécénat</span>
+          <InfoTip text="Registre officiel des donateurs, mécénats et édition automatique des reçus fiscaux officiels (CERFA)." width="280px" />
         </h3>
         <span style="background: rgba(37, 99, 235, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
           754
         </span>
       </div>
-      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); line-height: 1.4; margin-bottom: 10px;">
-        (Dons manuels, mécénat et soutiens financiers.)
+      <div style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); line-height: 1.35;">
+        Dons manuels, mécénat et soutiens financiers (reçus fiscaux CERFA).
       </div>
-      <p style="margin: 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.45;">
-        En cliquant sur « Créer », vous affichez le registre des donateurs et la génération automatique des reçus fiscaux officiels (CERFA).
-      </p>
     </div>
 
-    <!-- CTA : complètement neutre au survol de la carte, activable uniquement au clic -->
+    <!-- CTA : État clair et homogène -->
     <button 
       type="button" 
       class="recette-btn {activeTab === 'donations' ? 'active' : 'inactive'}"
       onclick={(e) => { e.stopPropagation(); handleActivateTab('donations'); }} 
     >
       {#if activeTab === 'donations'}
-        Tableau actif
+        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+          <i class="fa-solid fa-check" style="font-size: 0.82rem;"></i>
+          <span>Registre affiché</span>
+        </span>
       {:else}
-        Créer
+        <span>Consulter ce registre</span>
       {/if}
     </button>
   </div>
@@ -203,32 +219,32 @@
   >
     <div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
-        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
-          <span>Gestion des comptes 707 et 708</span>
-          <InfoTip text="Suivi des recettes accessoires (stages, boutique, buvette, billetterie d'événements)." width="250px" />
+        <h3 style="margin: 0; font-size: 1.02rem; font-weight: 800; color: var(--text-main); font-family: var(--font-title); display: flex; align-items: center;">
+          <span>Ventes & Manifestations</span>
+          <InfoTip text="Suivi des encaissements liés aux ventes directes, buvettes, billetterie et manifestations." width="280px" />
         </h3>
         <span style="background: rgba(37, 99, 235, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
           707 · 708
         </span>
       </div>
-      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); line-height: 1.4; margin-bottom: 10px;">
-        (Ventes, billetterie, buvette, événements et marchandises.)
+      <div style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); line-height: 1.35;">
+        Ventes directes, billetterie, buvette, événements et marchandises.
       </div>
-      <p style="margin: 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.45;">
-        En cliquant sur « Créer », vous affichez le suivi des encaissements liés aux ventes directes, buvettes et manifestations.
-      </p>
     </div>
 
-    <!-- CTA : complètement neutre au survol de la carte, activable uniquement au clic -->
+    <!-- CTA : État clair et homogène -->
     <button 
       type="button" 
       class="recette-btn {activeTab === 'sales' ? 'active' : 'inactive'}"
       onclick={(e) => { e.stopPropagation(); handleActivateTab('sales'); }} 
     >
       {#if activeTab === 'sales'}
-        Tableau actif
+        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+          <i class="fa-solid fa-check" style="font-size: 0.82rem;"></i>
+          <span>Registre affiché</span>
+        </span>
       {:else}
-        Créer
+        <span>Consulter ce registre</span>
       {/if}
     </button>
   </div>
@@ -236,10 +252,12 @@
 </div>
 
 <!-- TABLEAU DE GESTION SÉLECTIONNÉ -->
-{#if activeTab === 'members'}
-  <Members />
-{:else if activeTab === 'donations'}
-  <Donations />
-{:else if activeTab === 'sales'}
-  <Sales />
-{/if}
+<div id="registre-content-area">
+  {#if activeTab === 'members'}
+    <Members />
+  {:else if activeTab === 'donations'}
+    <Donations />
+  {:else if activeTab === 'sales'}
+    <Sales />
+  {/if}
+</div>

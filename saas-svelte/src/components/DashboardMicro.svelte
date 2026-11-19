@@ -96,12 +96,58 @@
 
   // Calcul des tâches à faire : seules les vraies actions opérationnelles sont conservées
   let pendingTxCount = $derived(activeTx.filter(t => t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere' || t.statut === 'a_attribuer').length);
+
+  // Helper pour nettoyer les libellés bancaires bruts façon app fintech
+  function formatCleanLibelle(raw) {
+    if (!raw) return 'Opération bancaire';
+    let s = String(raw).trim();
+    if (s.includes('|')) s = s.split('|')[0].trim();
+
+    const upper = s.toUpperCase();
+    if (upper.includes('AMZN') || upper.includes('AMAZON')) return 'Amazon';
+    if (upper.includes('LEROY MERLIN')) {
+      if (/vourles/i.test(s)) return 'Leroy Merlin Vourles';
+      return 'Leroy Merlin';
+    }
+    if (/frais\s+(?:de\s+)?pr[eé]l[eè]vement/i.test(s)) return 'Frais prélèvement SEPA';
+    if (/frais\s+tenue\s+de\s+compte/i.test(s)) return 'Frais tenue de compte';
+    if (/frais\s+bancaire/i.test(s)) return 'Frais bancaires';
+    if (/cotisation\s+(?:carte|bancaire)/i.test(s)) return 'Cotisation bancaire';
+
+    s = s.replace(/^(?:PRLV\s+SEPA|PRLV|PRELEVEMENT\s+SEPA|PRELEVEMENT\s+SDD|PRELEVEMENT|VIR\s+INST|VIR\s+SEPA|VIREMENT\s+SEPA|VIREMENT\s+INST|VIREMENT|PAIEMENT\s+PAR\s+CARTE\s+DU|PAIEMENT\s+PAR\s+CARTE|PAIEMENT\s+CB\s+DU|PAIEMENT\s+CB|ACHAT\s+CB|CB\s+DU|CB|CHEQUE\s+N°|CHEQUE)\s*[:-]?\s*/i, '');
+    s = s.replace(/^(?:M(?:R|\.)?\s*(?:OU|ET|\/)\s*MME\.?|MME\.?|MLLE\.?|MR?\.?)\s+/i, '');
+
+    if (/[-–—]/.test(s)) {
+      const parts = s.split(/\s*[-–—]\s*/);
+      if (parts.length >= 2) {
+        const p0 = parts[0].trim();
+        const p1 = parts[1].trim();
+        if (/^(?:vir|prlv|virement|prelevement|loyer|fact|ref|paiement|cb|sepa|achat|cotis)\b/i.test(p1) || p0.length >= 3) {
+          s = p0;
+        } else if (/^(?:vir|prlv|virement|prelevement)\b/i.test(p0) && p1.length >= 3) {
+          s = p1;
+        }
+      }
+    }
+
+    s = s.replace(/\s+(?:BILU|MKTP|PAYMENTS|EU|FR)\b.*$/i, '');
+    s = s.replace(/\s+(?:VIR|VIREM|VIREMENT|PRLV|PRELEVEMENT)\b.*$/i, '');
+    s = s.replace(/[-/]\s*\d{6,}[A-Z0-9_-]*/i, '');
+    s = s.replace(/\s+\d+\s+EURO\s+[\d,.]+/i, '');
+    s = s.replace(/\s+(TAUX|DEVISE|CHANGE).*$/i, '');
+    s = s.replace(/\s+(REF|ID|EMETTEUR|MANDAT|ICS)\s*[:=]\s*[A-Z0-9]+/i, '');
+    s = s.replace(/\s+\d{2}\/\d{2}(\/\d{2,4})?$/i, '');
+    s = s.replace(/^[-–—\s]+|[-–—\s]+$/g, '').trim();
+
+    return s || raw;
+  }
 </script>
 
-<div style="padding: 24px; display: flex; flex-direction: column; gap: 28px;">
+<div class="dashboard-micro-page" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 24px;">
   <!-- PAGE HEADER AVEC COMPTEURS CIRCULAIRES INTÉGRÉS -->
   <PageHeader 
-    title="Accueil · Micro-Entreprise" 
+    title="Micro-Entreprise" 
+    mobileTitle="Trésorerie"
     subtitle="Suivi du CA encaissé, cotisations Urssaf et seuils légaux." 
     buttonLabel="Consulter mes Obligations"
     buttonIcon="fa-scale-balanced"
@@ -180,9 +226,7 @@
       onclick={() => openHelpGuide('accueil')}
       title="Guide d'utilisation pour l'accueil"
       aria-label="Guide d'utilisation pour l'accueil"
-      style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #ffffff; border: 1.5px solid #cbd5e1; color: #2563eb; font-size: 0.95rem; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.04); flex-shrink: 0;"
-      onmouseenter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.background = '#eff6ff'; }}
-      onmouseleave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#ffffff'; }}
+      class="page-help-btn"
     >
       <i class="fa-solid fa-question"></i>
     </button>
@@ -190,7 +234,7 @@
 
   <!-- 1. VOTRE MICRO-ENTREPRISE -->
   <div style="display: flex; flex-direction: column; gap: 18px;">
-    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+    <div class="micro-section-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
       <h2 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">
         Votre micro-entreprise
       </h2>
@@ -226,8 +270,8 @@
     </div>
 
     <!-- 1. BLOC GÉNÉRAL INDICATEURS (ENGLOBANT LE TITRE) -->
-    <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+    <div class="micro-section-box" style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px;">
+      <div class="micro-kpi-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
         <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
           <i class="fa-solid fa-chart-line" style="color: #2563eb; font-size: 0.95rem;"></i> Indicateurs
         </h3>
@@ -353,7 +397,7 @@
       </button>
     </div>
 
-    <div class="table-container" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
+    <div class="table-container desktop-tx-table" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
       <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="background: #ffffff; border-bottom: 1.5px solid #e2e8f0;">
@@ -381,5 +425,190 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Vue Liste unifiée fintech (Mobile < 768px) -->
+    <div class="mobile-tx-cards">
+      <div class="mobile-tx-list">
+        {#each activeTx.filter(t => t.credit > 0 && t.compteAttribué !== '699' && t.statut === 'attribue').slice(0, 6) as tx}
+          <div class="mobile-tx-item" title={tx.libelle}>
+            <!-- Pastille circulaire directionnelle 32x32px fintech -->
+            <div 
+              class="mobile-tx-icon-pill" 
+              style="background: rgba(16, 185, 129, 0.12); color: #10b981;"
+              aria-hidden="true"
+            >
+              <!-- Entrée : Flèche diagonale bas-gauche -->
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="17" y1="7" x2="7" y2="17"></line>
+                <polyline points="17 17 7 17 7 7"></polyline>
+              </svg>
+            </div>
+
+            <div class="mobile-tx-content">
+              <!-- Ligne 1 : Nom nettoyé + Montant -->
+              <div class="mobile-tx-row-top">
+                <span class="mobile-tx-name" title={tx.libelle}>
+                  {formatCleanLibelle(tx.libelle)}
+                </span>
+                <span class="mobile-tx-amount" style="color: var(--color-success, #34d399);">
+                  +{tx.credit.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                </span>
+              </div>
+
+              <!-- Ligne 2 : Date + Badge -->
+              <div class="mobile-tx-row-bottom">
+                <span class="mobile-tx-date">
+                  {formatDateFr(tx.date)}
+                </span>
+                <span class="mobile-tx-badge">
+                  706 · Prestations
+                </span>
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </div>
   </div>
 </div>
+
+<style>
+  .desktop-tx-table {
+    display: block;
+  }
+
+  .mobile-tx-cards {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .micro-section-header,
+    .micro-kpi-header {
+      display: none !important;
+    }
+
+    .micro-section-box {
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      margin-bottom: 20px !important;
+    }
+
+    .desktop-tx-table {
+      display: none !important;
+    }
+
+    .mobile-tx-cards {
+      display: block !important;
+    }
+
+    .mobile-tx-list {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .mobile-tx-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-color, rgba(226, 232, 240, 0.6));
+      background: transparent;
+      transition: background 0.12s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-tx-item:last-child {
+      border-bottom: none;
+    }
+
+    .mobile-tx-item:active {
+      background: var(--bg-subtle, rgba(0, 0, 0, 0.04));
+    }
+
+    .mobile-tx-icon-pill {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .mobile-tx-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .mobile-tx-row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      width: 100%;
+      min-width: 0;
+      flex-wrap: nowrap !important;
+    }
+
+    .mobile-tx-name {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: var(--text-main, #0f172a);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap !important;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .mobile-tx-amount {
+      font-weight: 800;
+      font-size: 0.92rem;
+      white-space: nowrap !important;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0 !important;
+      font-family: var(--font-title, sans-serif);
+      margin-left: auto;
+      text-align: right;
+    }
+
+    .mobile-tx-row-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mobile-tx-date {
+      font-size: 0.74rem;
+      color: var(--text-muted, #64748b);
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .mobile-tx-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+      flex-shrink: 0;
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+  }
+</style>

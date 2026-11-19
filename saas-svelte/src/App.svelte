@@ -11,7 +11,9 @@
     updateEntities,
     showCreateEntityModal,
     resetAllStores,
-    appTheme
+    appTheme,
+    isMobileSidebarOpen,
+    closeMobileSidebar
   } from './lib/store.js';
 
   // Import components
@@ -320,6 +322,16 @@
   <div class="app-container">
     <!-- SIDEBAR NAVIGATION -->
     <Sidebar {switchView} {handleResetDb} {startTour} />
+
+    <!-- OVERLAY BACKDROP POUR MOBILE -->
+    {#if $isMobileSidebarOpen}
+      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+      <div 
+        class="mobile-sidebar-backdrop" 
+        onclick={closeMobileSidebar}
+        aria-label="Fermer le menu"
+      ></div>
+    {/if}
 
     <!-- MAIN CONTENT CONTAINER -->
     <main class="app-content">
