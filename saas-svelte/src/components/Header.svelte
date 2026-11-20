@@ -168,7 +168,7 @@
       <button 
         type="button"
         onclick={() => setAppTheme('light')}
-        class="theme-toggle-btn {$appTheme === 'light' ? 'active' : ''}"
+        class="theme-toggle-btn theme-btn-light {$appTheme === 'light' ? 'active' : ''}"
         aria-label="Activer le thème clair"
         title="Thème clair"
       >
@@ -177,7 +177,7 @@
       <button 
         type="button"
         onclick={() => setAppTheme('dark')}
-        class="theme-toggle-btn {$appTheme === 'dark' ? 'active' : ''}"
+        class="theme-toggle-btn theme-btn-dark {$appTheme === 'dark' ? 'active' : ''}"
         aria-label="Activer le thème sombre"
         title="Thème sombre"
       >
@@ -250,7 +250,7 @@
               <button 
                 type="button"
                 onclick={() => setAppTheme('light')}
-                class="theme-toggle-btn {$appTheme === 'light' ? 'active' : ''}"
+                class="theme-toggle-btn theme-btn-light {$appTheme === 'light' ? 'active' : ''}"
                 title="Thème clair"
                 aria-label="Thème clair"
               >
@@ -259,7 +259,7 @@
               <button 
                 type="button"
                 onclick={() => setAppTheme('dark')}
-                class="theme-toggle-btn {$appTheme === 'dark' ? 'active' : ''}"
+                class="theme-toggle-btn theme-btn-dark {$appTheme === 'dark' ? 'active' : ''}"
                 title="Thème sombre"
                 aria-label="Thème sombre"
               >
@@ -473,7 +473,7 @@
   }
 
   .theme-toggle-btn {
-    border: none;
+    border: 1px solid transparent;
     border-radius: 9999px;
     width: 26px;
     height: 26px;
@@ -484,15 +484,34 @@
     cursor: pointer;
     background: transparent;
     color: var(--text-muted);
-    transition: all 0.15s ease;
+    transition: all 0.18s ease;
+    box-sizing: border-box;
   }
   .theme-toggle-btn:hover {
     color: var(--text-main);
   }
-  .theme-toggle-btn.active {
-    background: #2563eb !important;
-    color: #ffffff !important;
-    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.35);
+
+  /* Thème Clair Actif : pastille blanche propre + soleil ambré / or chaleureux */
+  .theme-toggle-btn.theme-btn-light.active {
+    background: #ffffff !important;
+    color: #f59e0b !important;
+    border-color: rgba(245, 158, 11, 0.28) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Thème Sombre Actif : nuance bleu nuit profond (#172554) + lune bleu ciel Tito (#38bdf8), distincte du bleu CTA */
+  .theme-toggle-btn.theme-btn-dark.active {
+    background: #172554 !important;
+    color: #38bdf8 !important;
+    border-color: rgba(56, 189, 248, 0.38) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 8px rgba(56, 189, 248, 0.2);
+  }
+
+  /* Fallback générique si classe active seule */
+  .theme-toggle-btn.active:not(.theme-btn-light):not(.theme-btn-dark) {
+    background: #172554 !important;
+    color: #38bdf8 !important;
+    border-color: rgba(56, 189, 248, 0.38) !important;
   }
 
   @media (max-width: 1024px) {

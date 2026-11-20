@@ -22,7 +22,6 @@
   } from '../lib/store.js';
   import { currentUser } from '../lib/auth.js';
   import { updateUserPlan } from '../lib/firestoreService.js';
-  import logoComeTr from '../assets/Mateo_logo.png';
 
   /** @type {{ switchView: (view: string) => void, handleResetDb: () => void, startTour?: () => void }} */
   let { switchView, handleResetDb, startTour } = $props();

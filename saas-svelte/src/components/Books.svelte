@@ -2388,11 +2388,8 @@
     background: var(--bg-card);
     cursor: pointer;
     box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    -webkit-appearance: none;
-    appearance: none;
     font-family: inherit;
+    line-height: 42px;
   }
 
   .custom-fiscal-locked {

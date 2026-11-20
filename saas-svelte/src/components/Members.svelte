@@ -739,6 +739,17 @@
   .mobile-tx-cards {
     display: none;
   }
+  @media (max-width: 900px) {
+    .pagination-pages-desktop {
+      display: none !important;
+    }
+    .pagination-page-mobile-indicator {
+      display: inline-block !important;
+      font-size: 0.82rem !important;
+      font-weight: 600 !important;
+      color: var(--text-muted) !important;
+    }
+  }
   @media (max-width: 768px) {
     .members-content-card {
       padding: 14px 12px !important;
