@@ -38,6 +38,19 @@ export const isPremium = derived([userProfile, isAdmin], ([$p, $admin]) => {
   return $p?.plan === 'premium' || $p?.isPaid === true || $p?.subscriptionStatus === 'active';
 });
 
+/**
+ * Vérifie si l'utilisateur bénéficie de l'accès Premium/Illimité.
+ * Si non, affiche un toast explicatif et ouvre automatiquement la modale d'abonnement.
+ * @param {string} [featureName]
+ * @returns {boolean}
+ */
+export function requirePremium(featureName = "L'export des données") {
+  if (get(isPremium)) return true;
+  showToast(`${featureName} est réservé aux membres de la formule Illimitée.`);
+  showUpgradeModal.set(true);
+  return false;
+}
+
 export const showUpgradeModal = writable(false);
 export const showCancelModal = writable(false);
 export const showHelpGuideModal = writable(false);

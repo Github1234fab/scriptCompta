@@ -12,7 +12,9 @@
     activeEntityId,
     entities,
     updateEntities,
-    openHelpGuide
+    openHelpGuide,
+    isPremium,
+    requirePremium
   } from '../lib/store.js';
   import { Categorizer } from '../lib/categorizer.js';
   import InfoTip from './InfoTip.svelte';
@@ -453,6 +455,7 @@
   }
 
   function exportFEC() {
+    if (!requirePremium("L'export officiel du FEC")) return;
     let fec = 'JournalCode;JournalLib;EcritureNum;EcritureDate;CompteNum;CompteLib;PieceRef;PieceDate;EcritureLib;Debit;Credit\n';
     let idx = 1;
     sortedTxList.forEach(tx => {
@@ -568,6 +571,7 @@
   })());
 
   function exportLivreRecettesMicro() {
+    if (!requirePremium("L'export du Livre des Recettes")) return;
     let csv = "N° Ordre;Date;Référence;Client / Origine;Nature;Mode Règlement;Montant Encaissé (€)\n";
     recettesMicro.forEach(r => {
       csv += `${r.numeroOrdre};${new Date(r.date).toLocaleDateString('fr-FR')};"${r.reference}";"${r.client.replace(/"/g, '""')}";"${r.nature}";"${r.modePaiement}";${r.montant.toFixed(2)}\n`;
@@ -584,6 +588,7 @@
   }
 
   function exportRegistreAchatsMicro() {
+    if (!requirePremium("L'export du Registre des Achats")) return;
     let csv = "N° Ordre;Date;Fournisseur / Tiers;Nature Dépense;Mode Règlement;Montant Payé (€)\n";
     achatsMicro.forEach(a => {
       csv += `${a.numeroOrdre};${new Date(a.date).toLocaleDateString('fr-FR')};"${a.fournisseur.replace(/"/g, '""')}";"${a.nature}";"${a.modePaiement}";${a.montant.toFixed(2)}\n`;
@@ -600,6 +605,7 @@
   }
 
   function exportDeclarationUrssafMicro() {
+    if (!requirePremium("L'export pour déclaration Urssaf")) return;
     let csv = "DECLARATION DE CHIFFRE D'AFFAIRES & COTISATIONS URSSAF\n";
     csv += `Entite;"${activeEntity.name.replace(/"/g, '""')}"\n`;
     csv += `Exercice fiscal;"${formatPeriodLabel(localStartDate, localEndDate)}"\n`;
@@ -639,6 +645,7 @@
   }
 
   function exportLivreRecettesDepensesCSV() {
+    if (!requirePremium("L'export du Livre Recettes et Dépenses")) return;
     let csv = "Date;Nom / Libellé de l'opération;Numéro Compte;Catégorie de gestion;Type;Montant Signé (€);Recette (€);Dépense (€)\n";
     sortedTxList.forEach(tx => {
       const dateStr = new Date(tx.date).toLocaleDateString('fr-FR');
@@ -677,6 +684,7 @@
   let totalBalanceSoldeCrediteur = $derived(balanceRows.reduce((acc, r) => acc + (r.soldeCrediteur || 0), 0));
 
   function exportJournalCSV() {
+    if (!requirePremium("L'export du Livre-Journal")) return;
     let csv = "Date;N° Pièce;Compte;Libellé Compte;Description;Débit (€);Crédit (€)\n";
     journalEntries.forEach(e => {
       const desc = `"${(e.description || '').replace(/"/g, '""')}"`;
@@ -698,6 +706,7 @@
   }
 
   function exportGrandLivreCSV() {
+    if (!requirePremium("L'export du Grand-Livre")) return;
     let csv = "Compte;Intitulé Compte;Date;Libellé Opération;Débit (€);Crédit (€);Solde Progressif (€)\n";
     grandLivreAccounts.forEach(acc => {
       const nom = `"${(acc.nom || '').replace(/"/g, '""')}"`;
@@ -720,6 +729,7 @@
   }
 
   function exportBalanceCSV() {
+    if (!requirePremium("L'export de la Balance générale")) return;
     let csv = "Numéro Compte;Intitulé du Compte;Total Débit (€);Total Crédit (€);Solde Débiteur (€);Solde Créditeur (€)\n";
     balanceRows.forEach(b => {
       const nom = `"${(b.nom || '').replace(/"/g, '""')}"`;
@@ -742,6 +752,7 @@
   }
 
   function exportBilanCSV() {
+    if (!requirePremium("L'export du Bilan comptable")) return;
     let csv = "Section;Numéro Compte;Rubrique / Intitulé;Montant Net (€)\n";
     csv += "--- ACTIF ---\n";
     bilanData.actifs.forEach(a => {
@@ -1016,8 +1027,13 @@
             type="button" 
             onclick={exportLivreRecettesMicro} 
             style="background: #2563eb; color: #ffffff; border: none; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); display: inline-flex; align-items: center; gap: 6px;"
+            title={$isPremium ? "Télécharger le Livre des Recettes" : "Export réservé à la formule Illimitée"}
           >
-            <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {#if !$isPremium}
+              <i class="fa-solid fa-lock" style="font-size: 0.76rem; opacity: 0.9;"></i>
+            {:else}
+              <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {/if}
             Exporter
           </button>
         </div>
@@ -1053,8 +1069,13 @@
             type="button" 
             onclick={exportRegistreAchatsMicro} 
             style="background: #2563eb; color: #ffffff; border: none; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); display: inline-flex; align-items: center; gap: 6px;"
+            title={$isPremium ? "Télécharger le Registre des Achats" : "Export réservé à la formule Illimitée"}
           >
-            <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {#if !$isPremium}
+              <i class="fa-solid fa-lock" style="font-size: 0.76rem; opacity: 0.9;"></i>
+            {:else}
+              <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {/if}
             Exporter
           </button>
         </div>
@@ -1090,8 +1111,15 @@
             type="button" 
             onclick={exportDeclarationUrssafMicro} 
             style="background: #2563eb; color: #ffffff; border: none; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); display: inline-flex; align-items: center; gap: 6px;"
+            title={$isPremium ? "Télécharger le relevé Urssaf" : "Export réservé à la formule Illimitée"}
           >
-            <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {#if !$isPremium}
+              <i class="fa-solid fa-lock" style="font-size: 0.76rem; opacity: 0.9;"></i>
+            {:else}
+              <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {/if}
+            Exporter
+          </button>
             Exporter
           </button>
         </div>
@@ -1130,8 +1158,13 @@
             type="button" 
             onclick={exportLivreRecettesDepensesCSV} 
             style="background: #2563eb; color: #ffffff; border: none; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); display: inline-flex; align-items: center; gap: 6px;"
+            title={$isPremium ? "Télécharger le Livre des Recettes et Dépenses" : "Export réservé à la formule Illimitée"}
           >
-            <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {#if !$isPremium}
+              <i class="fa-solid fa-lock" style="font-size: 0.76rem; opacity: 0.9;"></i>
+            {:else}
+              <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {/if}
             Exporter
           </button>
         </div>
@@ -1168,8 +1201,13 @@
             type="button" 
             onclick={exportFEC} 
             style="background: #2563eb; color: #ffffff; border: none; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); display: inline-flex; align-items: center; gap: 6px;"
+            title={$isPremium ? "Télécharger le FEC officiel" : "Export réservé à la formule Illimitée"}
           >
-            <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {#if !$isPremium}
+              <i class="fa-solid fa-lock" style="font-size: 0.76rem; opacity: 0.9;"></i>
+            {:else}
+              <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {/if}
             Exporter
           </button>
         </div>
@@ -1208,8 +1246,13 @@
             type="button" 
             onclick={exportFEC} 
             style="background: #2563eb; color: #ffffff; border: none; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); display: inline-flex; align-items: center; gap: 6px;"
+            title={$isPremium ? "Télécharger le FEC officiel" : "Export réservé à la formule Illimitée"}
           >
-            <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {#if !$isPremium}
+              <i class="fa-solid fa-lock" style="font-size: 0.76rem; opacity: 0.9;"></i>
+            {:else}
+              <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {/if}
             Exporter
           </button>
         </div>
@@ -1246,8 +1289,13 @@
             type="button" 
             onclick={exportJournalCSV} 
             style="background: #2563eb; color: #ffffff; border: none; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); display: inline-flex; align-items: center; gap: 6px;"
+            title={$isPremium ? "Télécharger le Livre-Journal" : "Export réservé à la formule Illimitée"}
           >
-            <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {#if !$isPremium}
+              <i class="fa-solid fa-lock" style="font-size: 0.76rem; opacity: 0.9;"></i>
+            {:else}
+              <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {/if}
             Exporter
           </button>
         </div>
@@ -1284,8 +1332,13 @@
             type="button" 
             onclick={exportGrandLivreCSV} 
             style="background: #2563eb; color: #ffffff; border: none; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); display: inline-flex; align-items: center; gap: 6px;"
+            title={$isPremium ? "Télécharger le Grand-Livre" : "Export réservé à la formule Illimitée"}
           >
-            <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {#if !$isPremium}
+              <i class="fa-solid fa-lock" style="font-size: 0.76rem; opacity: 0.9;"></i>
+            {:else}
+              <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {/if}
             Exporter
           </button>
         </div>
@@ -1322,8 +1375,13 @@
             type="button" 
             onclick={exportBalanceCSV} 
             style="background: #2563eb; color: #ffffff; border: none; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); display: inline-flex; align-items: center; gap: 6px;"
+            title={$isPremium ? "Télécharger la Balance générale" : "Export réservé à la formule Illimitée"}
           >
-            <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {#if !$isPremium}
+              <i class="fa-solid fa-lock" style="font-size: 0.76rem; opacity: 0.9;"></i>
+            {:else}
+              <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {/if}
             Exporter
           </button>
         </div>
@@ -1364,8 +1422,15 @@
             type="button" 
             onclick={exportBilanCSV} 
             style="background: #2563eb; color: #ffffff; border: none; padding: 8px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; font-size: 0.86rem; transition: all 0.15s ease; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); display: inline-flex; align-items: center; gap: 6px;"
+            title={$isPremium ? "Télécharger le Bilan comptable" : "Export réservé à la formule Illimitée"}
           >
-            <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {#if !$isPremium}
+              <i class="fa-solid fa-lock" style="font-size: 0.76rem; opacity: 0.9;"></i>
+            {:else}
+              <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
+            {/if}
+            Exporter
+          </button>
             Exporter
           </button>
         </div>

@@ -339,15 +339,25 @@
     }
 
     // Cas 2 : Présence de nouvelles opérations (avec ou sans rafraîchissement d'anciennes)
-    // Contrôle Quota Freemium (Max 60 écritures en gratuit)
-    const totalAfterImport = currentTransactions.length + newTransactions.length;
+    // Contrôle Quota Freemium (Essai gratuit : 1 seul relevé bancaire, jusqu'à 60 écritures)
     let userIsPremium = false;
     isPremium.subscribe(v => userIsPremium = v)();
 
-    if (!userIsPremium && totalAfterImport > FREE_TIER_MAX_TRANSACTIONS) {
-      showUpgradeModal.set(true);
-      showToast(`Limite gratuite atteinte (${totalAfterImport} / ${FREE_TIER_MAX_TRANSACTIONS} écritures). Débloquez la formule Illimitée !`);
-      return;
+    if (!userIsPremium) {
+      const history = getImportsHistory();
+      // Si l'utilisateur gratuit a déjà importé un relevé ou possède déjà des transactions en base
+      if (history.length > 0 || currentTransactions.length > 0) {
+        showUpgradeModal.set(true);
+        showToast("L'essai gratuit est limité à 1 seul relevé bancaire. Débloquez la formule Illimitée pour importer vos prochains relevés !");
+        return;
+      }
+
+      // Si le premier relevé dépasse le plafond de l'essai gratuit (60 écritures)
+      if (newTransactions.length > FREE_TIER_MAX_TRANSACTIONS) {
+        showUpgradeModal.set(true);
+        showToast(`L'essai gratuit est limité à ${FREE_TIER_MAX_TRANSACTIONS} écritures (votre fichier en contient ${newTransactions.length}). Débloquez la formule Illimitée pour tout importer !`);
+        return;
+      }
     }
 
     // Catégoriser uniquement les NOUVELLES opérations pour préserver les choix manuels des anciennes

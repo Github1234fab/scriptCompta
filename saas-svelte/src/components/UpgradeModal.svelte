@@ -136,7 +136,7 @@
         </h2>
 
         <p style="font-size: 0.9rem; color: #475569; line-height: 1.5; margin: 0 0 20px 0;">
-          Gérez l'ensemble de votre comptabilité sans contrainte.
+          L'essai gratuit vous permet de tester Tito sur 1 relevé bancaire (jusqu'à 60 écritures). Débloquez la formule Illimitée pour importer tous vos relevés et activer les exports officiels.
         </p>
 
         <!-- Sélecteur Annuel / Mensuel (Engagement 12 mois) -->

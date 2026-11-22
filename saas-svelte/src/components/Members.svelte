@@ -5,7 +5,9 @@
     transactions, 
     updateTransactions, 
     showToast, 
-    formatDateFr 
+    formatDateFr,
+    isPremium,
+    requirePremium
   } from "../lib/store.js";
   import InfoTip from "./InfoTip.svelte";
 
@@ -258,6 +260,7 @@
 
   // 4. EXPORT CSV DU RELEVÉ OU DU REGISTRE
   function exporterCSV() {
+    if (!requirePremium("L'export CSV des règlements et adhérents")) return;
     let csvContent = "";
     let fileName = "";
 
@@ -1407,9 +1410,13 @@
         type="button"
         onclick={exporterCSV}
         style="padding: 7px 14px; font-weight: 700; font-size: 0.84rem; background: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-main); border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;"
-        title="Exporter les données affichées en fichier CSV Excel"
+        title={$isPremium ? "Exporter les données affichées en fichier CSV Excel" : "Export réservé à la formule Illimitée"}
       >
-        <i class="fa-solid fa-file-export" style="color: #2563eb;"></i>
+        {#if !$isPremium}
+          <i class="fa-solid fa-lock" style="color: #f59e0b; font-size: 0.80rem;"></i>
+        {:else}
+          <i class="fa-solid fa-file-export" style="color: #2563eb;"></i>
+        {/if}
         <span>Exporter CSV</span>
       </button>
     </div>

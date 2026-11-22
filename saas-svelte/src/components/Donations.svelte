@@ -4,7 +4,9 @@
     transactions, 
     updateDonors, 
     updateTransactions, 
-    showToast 
+    showToast,
+    isPremium,
+    requirePremium
   } from '../lib/store.js';
   import { Categorizer } from '../lib/categorizer.js';
 
@@ -77,6 +79,7 @@
   }
 
   function confirmerEnregistrementRecu() {
+    if (!requirePremium("L'enregistrement du reçu fiscal Cerfa")) return;
     if (activeDonor) {
       const list = $donors.map(d => {
         if (d.id === activeDonor.id) {
@@ -91,7 +94,8 @@
   }
 
   function imprimerRecu() {
-    alert("Envoi du document vers votre imprimante...");
+    if (!requirePremium("L'impression du reçu fiscal Cerfa officiel")) return;
+    window.print();
   }
 </script>
 
@@ -154,8 +158,17 @@
                   {/if}
                 </td>
                 <td>
-                  <button class="btn btn-cta-donations btn-sm" onclick={() => openCerfaModal(d)}>
-                    <i class="fa-solid fa-receipt"></i> Générer reçu Cerfa
+                  <button 
+                    class="btn btn-cta-donations btn-sm" 
+                    onclick={() => openCerfaModal(d)}
+                    title={$isPremium ? "Générer le reçu fiscal Cerfa" : "Édition réservée à la formule Illimitée"}
+                  >
+                    {#if !$isPremium}
+                      <i class="fa-solid fa-lock" style="font-size: 0.76rem;"></i>
+                    {:else}
+                      <i class="fa-solid fa-receipt"></i>
+                    {/if}
+                    Générer reçu Cerfa
                   </button>
                 </td>
               </tr>
@@ -202,8 +215,18 @@
                   </span>
                 {/if}
 
-                <button class="btn btn-cta-donations btn-sm" onclick={() => openCerfaModal(d)} style="margin-left: auto;">
-                  <i class="fa-solid fa-receipt"></i> Reçu Cerfa
+                <button 
+                  class="btn btn-cta-donations btn-sm" 
+                  onclick={() => openCerfaModal(d)} 
+                  style="margin-left: auto;"
+                  title={$isPremium ? "Reçu fiscal Cerfa" : "Édition réservée à la formule Illimitée"}
+                >
+                  {#if !$isPremium}
+                    <i class="fa-solid fa-lock" style="font-size: 0.76rem;"></i>
+                  {:else}
+                    <i class="fa-solid fa-receipt"></i>
+                  {/if}
+                  Reçu Cerfa
                 </button>
               </div>
             </div>

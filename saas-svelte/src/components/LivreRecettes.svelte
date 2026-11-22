@@ -1,5 +1,5 @@
 <script>
-  import { transactions, activeEntityId, entities, showToast } from '../lib/store.js';
+  import { transactions, activeEntityId, entities, showToast, isPremium, requirePremium } from '../lib/store.js';
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { name: 'Ma Structure' });
 
@@ -22,6 +22,7 @@
   let totalCAEncaissé = $derived(recettesLégales.reduce((sum, r) => sum + r.montant, 0));
 
   function exporterLivreRecettes() {
+    if (!requirePremium("L'export du Livre des Recettes")) return;
     let csvContent = "data:text/csv;charset=utf-8,N° Ordre;Date Encaissement;Référence;Client / Origine;Nature;Montant (€);Mode de Règlement\n";
     recettesLégales.forEach(r => {
       csvContent += `${r.numeroOrdre};${new Date(r.date).toLocaleDateString('fr-FR')};"${r.reference}";"${r.client.replace(/"/g, '""')}";"${r.nature}";${r.montant.toFixed(2)};"${r.modePaiement}"\n`;
@@ -44,8 +45,18 @@
     <h2 style="font-family: var(--font-title); font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0 0 6px 0;">Livre des Recettes (Obligation Légale)</h2>
     <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Registre officiel chronologique et immuable de vos encaissements pour la déclaration Urssaf.</p>
   </div>
-  <button class="btn btn-primary" onclick={exporterLivreRecettes} style="background: #0f172a; color: #ffffff; border: none; padding: 10px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
-    <i class="fa-solid fa-file-export"></i> Exporter le Livre des Recettes (CSV Légal)
+  <button 
+    class="btn btn-primary" 
+    onclick={exporterLivreRecettes} 
+    style="background: #0f172a; color: #ffffff; border: none; padding: 10px 18px; font-weight: 700; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;"
+    title={$isPremium ? "Exporter le Livre des Recettes" : "Export réservé à la formule Illimitée"}
+  >
+    {#if !$isPremium}
+      <i class="fa-solid fa-lock" style="color: #f59e0b;"></i>
+    {:else}
+      <i class="fa-solid fa-file-export"></i>
+    {/if}
+    <span>Exporter le Livre des Recettes (CSV Légal)</span>
   </button>
 </div>
 

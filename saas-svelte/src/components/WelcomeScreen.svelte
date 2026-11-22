@@ -1,11 +1,24 @@
 <script>
-  import { updateEntities, updateActiveEntityId, entities, showToast, MANAGEMENT_MODELS } from '../lib/store.js';
+  import { updateEntities, updateActiveEntityId, entities, showToast, MANAGEMENT_MODELS, isPremium, showUpgradeModal } from '../lib/store.js';
   import { currentUser } from '../lib/auth.js';
   import { saveEntityData } from '../lib/firestoreService.js';
+  import { 
+    formatSiretDisplay, 
+    cleanSiret, 
+    validateLuhnSiret, 
+    verifySiretApi, 
+    checkSiretTrialAvailability, 
+    registerSiretUsage 
+  } from '../lib/siretService.js';
 
   let currentScreen = $state('select'); // 'select' | 'name'
   let selectedModel = $state('micro');
   let nameInput = $state('');
+  let siretInput = $state('');
+  let isPendingRegistration = $state(false); // Option "En cours d'immatriculation"
+  let isVerifyingSiret = $state(false);
+  let siretVerificationResult = $state(null); // { valid: boolean, company?: any, error?: string }
+  let siretBlockReason = $state('');
 
   let selectedModelObj = $derived(MANAGEMENT_MODELS[selectedModel] || MANAGEMENT_MODELS.micro);
 
@@ -13,6 +26,10 @@
   function handleSelectStructure(modelKey) {
     selectedModel = modelKey;
     nameInput = '';
+    siretInput = '';
+    siretVerificationResult = null;
+    siretBlockReason = '';
+    isPendingRegistration = false;
     currentScreen = 'name';
   }
 
@@ -20,16 +37,95 @@
     currentScreen = 'select';
   }
 
+  /**
+   * Traitement en direct de la saisie du SIRET
+   * @param {any} e
+   */
+  async function handleSiretInput(e) {
+    const raw = e.target.value;
+    siretInput = formatSiretDisplay(raw);
+    siretBlockReason = '';
+    siretVerificationResult = null;
+
+    const cleaned = cleanSiret(raw);
+
+    // Déclencher la vérification dès que 14 chiffres (SIRET), 9 chiffres (SIREN) ou format RNA (W...) sont atteints
+    if (cleaned.length === 14 || (cleaned.length === 9 && !cleaned.startsWith('W')) || (cleaned.startsWith('W') && cleaned.length === 10)) {
+      isVerifyingSiret = true;
+
+      // 1. Contrôle anti-abus d'unicité Firestore
+      const availability = await checkSiretTrialAvailability(cleaned, $currentUser?.uid, $isPremium);
+      if (!availability.allowed) {
+        isVerifyingSiret = false;
+        siretBlockReason = availability.reason || "Ce numéro SIRET a déjà bénéficié d'un essai gratuit.";
+        return;
+      }
+
+      // 2. Vérification auprès de l'API officielle Recherche d'entreprises (INSEE / RNE)
+      const apiCheck = await verifySiretApi(cleaned);
+      isVerifyingSiret = false;
+      siretVerificationResult = apiCheck;
+
+      if (apiCheck.valid && apiCheck.company?.nom_complet) {
+        // Pré-remplir automatiquement le nom s'il n'a pas encore été saisi
+        if (!nameInput.trim()) {
+          nameInput = apiCheck.company.nom_complet;
+        }
+      }
+    }
+  }
+
+  function applyOfficialName() {
+    if (siretVerificationResult?.company?.nom_complet) {
+      nameInput = siretVerificationResult.company.nom_complet;
+    }
+  }
+
   /** @param {any} e */
   async function handleCreateStructure(e) {
     e.preventDefault();
     if (!nameInput.trim() || !selectedModel) return;
 
+    const cleanedSiret = cleanSiret(siretInput);
+
+    // Validation du SIRET si l'utilisateur l'a renseigné
+    if (cleanedSiret) {
+      if (siretBlockReason) {
+        showToast(siretBlockReason);
+        showUpgradeModal.set(true);
+        return;
+      }
+
+      // Re-vérification de sécurité si la vérification n'est pas encore passée
+      if (!siretVerificationResult?.valid) {
+        isVerifyingSiret = true;
+        const apiCheck = await verifySiretApi(cleanedSiret);
+        isVerifyingSiret = false;
+        siretVerificationResult = apiCheck;
+        if (!apiCheck.valid) {
+          showToast(apiCheck.error || "Numéro SIRET introuvable à l'INSEE.");
+          return;
+        }
+      }
+
+      // Contrôle anti-abus final
+      const availability = await checkSiretTrialAvailability(cleanedSiret, $currentUser?.uid, $isPremium);
+      if (!availability.allowed) {
+        siretBlockReason = availability.reason || "Ce SIRET a déjà bénéficié d'un essai gratuit.";
+        showToast(siretBlockReason);
+        showUpgradeModal.set(true);
+        return;
+      }
+    }
+
     const newId = 'entity_' + Date.now();
     const newEntity = {
       id: newId,
       name: nameInput.trim(),
-      model: selectedModel
+      model: selectedModel,
+      siret: cleanedSiret || '',
+      isPendingRegistration: !!isPendingRegistration,
+      officialData: siretVerificationResult?.company || null
     };
 
     updateEntities([...$entities, newEntity]);
@@ -37,6 +133,9 @@
 
     if ($currentUser?.uid) {
       await saveEntityData($currentUser.uid, newId, newEntity);
+      if (cleanedSiret) {
+        await registerSiretUsage(cleanedSiret, $currentUser.uid, newEntity);
+      }
     }
 
     const modelObj = MANAGEMENT_MODELS[newEntity.model] || MANAGEMENT_MODELS.micro;
@@ -181,8 +280,105 @@
         </p>
       </div>
 
-      <!-- FORMULAIRE DE NOMMAGE -->
-      <form onsubmit={handleCreateStructure} style="display: flex; flex-direction: column; gap: 22px;">
+      <!-- FORMULAIRE DE NOMMAGE & SIRET -->
+      <form onsubmit={handleCreateStructure} style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- BLOC SIRET & CONTRÔLE OFFICIEL INSEE -->
+        <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px;">
+            <label for="entity-siret-input" style="font-size: 0.88rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+              <span>{selectedModel === 'asso' ? 'Numéro SIRET (14 chiffres) ou RNA (W...)' : 'Numéro SIRET (14 chiffres)'}</span>
+              <span style="font-size: 0.68rem; font-weight: 700; color: #64748b;">(Optionnel)</span>
+              <span style="font-size: 0.68rem; font-weight: 800; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 1px 6px; border-radius: 4px;">Vérifié INSEE</span>
+            </label>
+            <span style="font-size: 0.74rem; color: #64748b;">Pré-remplissage automatique</span>
+          </div>
+
+          <div style="position: relative; display: flex; align-items: center;">
+            <input 
+              type="text" 
+              id="entity-siret-input"
+              value={siretInput}
+              oninput={handleSiretInput}
+              disabled={isPendingRegistration}
+              placeholder={selectedModel === 'asso' ? "ex: 880 993 874 00010 ou W691234567" : "ex: 880 993 874 00010 (ou SIREN 9 chiffres)"}
+              style="width: 100%; height: 46px; padding: 0 42px 0 14px; font-size: 0.95rem; font-weight: 700; color: #0f172a; background: {isPendingRegistration ? '#f1f5f9' : '#ffffff'}; border: 1.5px solid {siretBlockReason ? '#ef4444' : siretVerificationResult?.valid ? '#10b981' : '#cbd5e1'}; border-radius: 8px; box-sizing: border-box; outline: none; font-family: monospace;"
+            />
+            {#if isVerifyingSiret}
+              <i class="fa-solid fa-spinner fa-spin" style="position: absolute; right: 14px; color: #2563eb; font-size: 0.9rem;"></i>
+            {:else if siretBlockReason}
+              <i class="fa-solid fa-circle-xmark" style="position: absolute; right: 14px; color: #ef4444; font-size: 0.95rem;"></i>
+            {:else if siretVerificationResult?.valid}
+              <i class="fa-solid fa-circle-check" style="position: absolute; right: 14px; color: #10b981; font-size: 0.95rem;"></i>
+            {/if}
+          </div>
+
+          <!-- Alerte blocage doublon anti-abus -->
+          {#if siretBlockReason}
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; font-size: 0.8rem; color: #991b1b; display: flex; align-items: flex-start; gap: 8px; line-height: 1.4;">
+              <i class="fa-solid fa-triangle-exclamation" style="margin-top: 2px; flex-shrink: 0;"></i>
+              <div style="flex: 1;">
+                <strong>Essai déjà utilisé :</strong> {siretBlockReason}
+              </div>
+            </div>
+          {/if}
+
+          <!-- Résultat officiel validé avec l'API Open-Data de l'État -->
+          {#if siretVerificationResult?.valid && siretVerificationResult.company}
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: #166534;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                <span style="font-weight: 800; display: flex; align-items: center; gap: 6px;">
+                  <i class="fa-solid fa-circle-check" style="color: #10b981;"></i>
+                  Structure identifiée à l'INSEE / RNE
+                </span>
+                {#if siretVerificationResult.company.nom_complet && nameInput !== siretVerificationResult.company.nom_complet}
+                  <button 
+                    type="button" 
+                    onclick={applyOfficialName}
+                    style="background: #ffffff; border: 1px solid #86efac; color: #15803d; padding: 3px 8px; border-radius: 5px; font-size: 0.72rem; font-weight: 700; cursor: pointer;"
+                  >
+                    Utiliser ce nom officiel
+                  </button>
+                {/if}
+              </div>
+              {#if siretVerificationResult.company.nom_complet}
+                <div style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">
+                  {siretVerificationResult.company.nom_complet}
+                </div>
+              {/if}
+              {#if siretVerificationResult.company.adresse}
+                <div style="color: #4b5563; font-size: 0.76rem;">
+                  <i class="fa-solid fa-location-dot" style="margin-right: 4px; opacity: 0.7;"></i>
+                  {siretVerificationResult.company.adresse}
+                </div>
+              {/if}
+            </div>
+          {:else if siretVerificationResult && !siretVerificationResult.valid}
+            <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; color: #9a3412; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-circle-info"></i>
+              <span>{siretVerificationResult.error}</span>
+            </div>
+          {/if}
+
+          <!-- Option En cours d'immatriculation -->
+          <label style="display: inline-flex; align-items: center; gap: 8px; margin-top: 2px; cursor: pointer; user-select: none;">
+            <input 
+              type="checkbox" 
+              bind:checked={isPendingRegistration}
+              onchange={() => {
+                if (isPendingRegistration) {
+                  siretBlockReason = '';
+                }
+              }}
+              style="width: 15px; height: 15px; accent-color: #2563eb; cursor: pointer;"
+            />
+            <span style="font-size: 0.78rem; color: #64748b; font-weight: 600;">
+              Structure en cours d'immatriculation (SIRET en attente d'attribution)
+            </span>
+          </label>
+        </div>
+
+        <!-- NOM DE L'ESPACE / RAISON SOCIALE -->
         <div style="display: flex; flex-direction: column; gap: 8px;">
           <label for="entity-name-input" style="font-size: 0.9rem; font-weight: 700; color: #0f172a;">
             {selectedModelObj.onboardingLabel}
@@ -193,12 +389,11 @@
             id="entity-name-input"
             bind:value={nameInput}
             required
-            autofocus
             placeholder={selectedModelObj.onboardingPlaceholder}
             class="naming-input"
           />
           <span style="font-size: 0.8rem; color: #94a3b8;">
-            Ce nom figurera sur vos en-têtes et pourra être modifié ultérieurement.
+            Ce nom figurera sur vos en-têtes et vos exports comptables officiels.
           </span>
         </div>
 
@@ -214,6 +409,8 @@
           <button 
             type="submit" 
             class="confirm-btn"
+            disabled={isVerifyingSiret || !!siretBlockReason}
+            style="opacity: {isVerifyingSiret || !!siretBlockReason ? 0.6 : 1}; cursor: {isVerifyingSiret || !!siretBlockReason ? 'not-allowed' : 'pointer'};"
           >
             <span>Créer mon espace</span>
             <i class="fa-solid fa-arrow-right"></i>
