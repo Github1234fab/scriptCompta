@@ -47,7 +47,7 @@
   import Header from './components/Header.svelte';
   import Sidebar from './components/Sidebar.svelte';
   import { currentUser, authInitialized } from './lib/auth.js';
-  import { ensureUserProfile, listenUserStructures, listenUserProfile } from './lib/firestoreService.js';
+  import { ensureUserProfile, listenUserStructures, listenUserProfile, updateUserPlan } from './lib/firestoreService.js';
   import { userProfile } from './lib/store.js';
 
   // Synchronisation du thème sombre/clair global
@@ -70,6 +70,20 @@
     if (user?.uid) {
       ensureUserProfile(user.uid, user.email || '', user.displayName || '');
       
+      // Validation automatique du retour de paiement Stripe réussi
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment') === 'success') {
+          updateUserPlan(user.uid, 'premium', 'active').then(() => {
+            userProfile.update(p => ({ ...p, plan: 'premium', subscriptionStatus: 'active' }));
+            showToast('🎉 Félicitations ! Votre accès Illimité est désormais actif.');
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }).catch(err => {
+            console.error('Erreur activation plan premium:', err);
+          });
+        }
+      }
+
       // Écoute du profil / plan d'abonnement
       const unsubProfile = listenUserProfile(user.uid, (data) => {
         if (data) userProfile.set(data);
