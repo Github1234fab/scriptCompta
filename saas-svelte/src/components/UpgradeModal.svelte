@@ -323,7 +323,7 @@
         <span class="price-details">Facturé en une seule fois <strong>69,90 € / an TTC</strong> (2 mois offerts)</span>
         <div class="split-payment-hint">
           <i class="fa-solid fa-credit-card"></i>
-          <span>Paiement en 3x ou 4x sans frais disponible via Stripe</span>
+          <span>Paiement en 3x sans frais : choisissez l'option Klarna au paiement</span>
         </div>
       </div>
 
