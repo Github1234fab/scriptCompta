@@ -18,6 +18,9 @@
   } from '../lib/store.js';
   import { Categorizer } from '../lib/categorizer.js';
   import InfoTip from './InfoTip.svelte';
+  import { currentUser } from '../lib/auth.js';
+  import { saveEntityData } from '../lib/firestoreService.js';
+  import { cleanSiret, formatSiretDisplay, verifySiretApi, registerSiretUsage } from '../lib/siretService.js';
 
   let activeEntity = $derived($entities.find((/** @type {any} */ e) => e.id === $activeEntityId) || $entities[0] || { id: 'default', name: 'Ma Structure', model: 'micro' });
   let accountingModel = $derived(activeEntity?.model || 'micro');
@@ -454,8 +457,90 @@
     }
   }
 
+  // Modale de conformité SIREN pour le nommage officiel du FEC (DGFiP Art. A.47 A-1 LPF)
+  let showFecSiretModal = $state(false);
+  let fecModalSiretInput = $state('');
+  let isVerifyingFecSiret = $state(false);
+  let fecModalVerifiedResult = $state(null);
+  let fecModalError = $state('');
+
+  async function handleFecModalSiretInput(e) {
+    const raw = e.target.value;
+    fecModalSiretInput = formatSiretDisplay(raw);
+    fecModalError = '';
+    fecModalVerifiedResult = null;
+
+    const cleaned = cleanSiret(raw);
+    if (cleaned.length === 14 || (cleaned.length === 9 && !cleaned.startsWith('W'))) {
+      isVerifyingFecSiret = true;
+      const apiCheck = await verifySiretApi(cleaned);
+      isVerifyingFecSiret = false;
+      fecModalVerifiedResult = apiCheck;
+      if (!apiCheck.valid) {
+        fecModalError = apiCheck.error || "Numéro introuvable au répertoire officiel national (INSEE / RNE).";
+      }
+    }
+  }
+
+  async function handleConfirmFecSiret(e) {
+    if (e) e.preventDefault();
+    const clean = cleanSiret(fecModalSiretInput);
+    if (!clean || clean.length < 9) {
+      fecModalError = "Veuillez renseigner un numéro SIREN (9 chiffres) ou SIRET (14 chiffres) valide.";
+      return;
+    }
+
+    if (!fecModalVerifiedResult?.valid) {
+      isVerifyingFecSiret = true;
+      const apiCheck = await verifySiretApi(clean);
+      isVerifyingFecSiret = false;
+      fecModalVerifiedResult = apiCheck;
+      if (!apiCheck.valid) {
+        fecModalError = apiCheck.error || "Numéro introuvable à l'INSEE.";
+        return;
+      }
+    }
+
+    const siren = clean.slice(0, 9);
+    const updatedEntities = $entities.map(ent => {
+      if (ent.id === activeEntity.id) {
+        return { ...ent, siret: clean, officialData: fecModalVerifiedResult?.company || ent.officialData };
+      }
+      return ent;
+    });
+    updateEntities(updatedEntities);
+
+    if ($currentUser?.uid) {
+      await saveEntityData($currentUser.uid, activeEntity.id, { siret: clean, officialData: fecModalVerifiedResult?.company || null });
+      await registerSiretUsage(clean, $currentUser.uid, activeEntity);
+    }
+
+    showFecSiretModal = false;
+    triggerFecDownload(siren);
+  }
+
+  function handleDownloadProvisionalFec() {
+    showFecSiretModal = false;
+    triggerFecDownload('');
+  }
+
   function exportFEC() {
     if (!requirePremium("L'export officiel du FEC")) return;
+
+    const currentSiret = activeEntity?.siret ? cleanSiret(activeEntity.siret) : '';
+    if (currentSiret && currentSiret.length >= 9) {
+      // SIREN déjà présent : export direct 100% conforme à la norme DGFiP
+      triggerFecDownload(currentSiret.slice(0, 9));
+    } else {
+      // SIREN absent : ouverture de la boîte de dialogue explicative pour protéger l'utilisateur
+      fecModalSiretInput = '';
+      fecModalError = '';
+      fecModalVerifiedResult = null;
+      showFecSiretModal = true;
+    }
+  }
+
+  function triggerFecDownload(sirenNumber = '') {
     let fec = 'JournalCode;JournalLib;EcritureNum;EcritureDate;CompteNum;CompteLib;PieceRef;PieceDate;EcritureLib;Debit;Credit\n';
     let idx = 1;
     sortedTxList.forEach(tx => {
@@ -476,12 +561,31 @@
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    const yearSuffix = localStartDate ? localStartDate.slice(0, 4) : new Date().getFullYear();
-    link.setAttribute("download", `FEC_${activeEntity.name.replace(/\s+/g, '_')}_${yearSuffix}.csv`);
+
+    // Format officiel de date AAAAMMJJ pour le FEC DGFiP
+    let dateSuffix = '';
+    if (localEndDate) {
+      dateSuffix = localEndDate.replace(/-/g, '');
+    } else {
+      const year = localStartDate ? localStartDate.slice(0, 4) : new Date().getFullYear();
+      dateSuffix = `${year}1231`;
+    }
+
+    const cleanSiren = sirenNumber ? cleanSiret(sirenNumber).slice(0, 9) : '';
+    const fileName = cleanSiren 
+      ? `${cleanSiren}FEC${dateSuffix}.csv`
+      : `FEC_${activeEntity.name.replace(/\s+/g, '_')}_${dateSuffix}.csv`;
+
+    link.setAttribute("download", fileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("Export FEC généré pour votre expert-comptable.");
+
+    if (cleanSiren) {
+      showToast(`Export FEC officiel conforme DGFiP (${fileName}) généré avec succès.`);
+    } else {
+      showToast(`Export FEC provisoire (${fileName}) généré.`);
+    }
   }
 
   // Micro-entreprise specific calculations
@@ -1120,8 +1224,6 @@
             {/if}
             Exporter
           </button>
-            Exporter
-          </button>
         </div>
       </div>
 
@@ -1429,8 +1531,6 @@
             {:else}
               <i class="fa-solid fa-download" style="font-size: 0.78rem;"></i>
             {/if}
-            Exporter
-          </button>
             Exporter
           </button>
         </div>
@@ -2364,6 +2464,99 @@
     </div>
   {/if}
 </div>
+
+<!-- ============================================================ -->
+<!-- MODALE PÉDAGOGIQUE DU NOM OFFICIEL DU FEC (NORME DGFIP) -->
+<!-- ============================================================ -->
+{#if showFecSiretModal}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div 
+    class="fec-modal-overlay" 
+    onclick={() => showFecSiretModal = false}
+    style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 9999999; padding: 20px;"
+  >
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div 
+      class="fec-modal-card"
+      onclick={(e) => e.stopPropagation()}
+      style="max-width: 520px; width: 100%; background: #ffffff; border-radius: 18px; padding: 30px; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35); text-align: left; position: relative; box-sizing: border-box;"
+    >
+      <button 
+        type="button" 
+        onclick={() => showFecSiretModal = false}
+        style="position: absolute; top: 16px; right: 18px; background: none; border: none; font-size: 1.4rem; color: #94a3b8; cursor: pointer; padding: 4px;"
+        aria-label="Fermer"
+      >&times;</button>
+
+      <div style="display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.04em;">
+        <i class="fa-solid fa-scale-balanced"></i>
+        <span>Norme DGFiP (Art. A.47 A-1 LPF)</span>
+      </div>
+
+      <h3 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; line-height: 1.3;">
+        Conformité du nom de votre fichier FEC
+      </h3>
+
+      <p style="font-size: 0.86rem; color: #475569; line-height: 1.5; margin: 0 0 16px 0;">
+        Pour être recevable par l'administration fiscale et votre expert-comptable, le fichier FEC doit obligatoirement être nommé avec votre numéro SIREN officiel (ex : <strong>880993874FEC{localEndDate ? localEndDate.replace(/-/g, '') : '20261231'}.csv</strong>).
+      </p>
+
+      <form onsubmit={handleConfirmFecSiret} style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label for="fec-siret-input" style="font-size: 0.84rem; font-weight: 700; color: #0f172a;">
+            Numéro SIRET (14 chiffres) ou SIREN (9 chiffres) :
+          </label>
+          <div style="position: relative; display: flex; align-items: center;">
+            <input 
+              id="fec-siret-input"
+              type="text" 
+              value={fecModalSiretInput}
+              oninput={handleFecModalSiretInput}
+              placeholder="ex: 880 993 874 00010 (ou SIREN 880 993 874)"
+              style="width: 100%; height: 44px; padding: 0 38px 0 12px; font-size: 0.95rem; font-weight: 700; color: #0f172a; border: 1.5px solid {fecModalError ? '#ef4444' : fecModalVerifiedResult?.valid ? '#10b981' : '#cbd5e1'}; border-radius: 8px; outline: none; font-family: monospace;"
+            />
+            {#if isVerifyingFecSiret}
+              <i class="fa-solid fa-spinner fa-spin" style="position: absolute; right: 12px; color: #2563eb; font-size: 0.85rem;"></i>
+            {:else if fecModalVerifiedResult?.valid}
+              <i class="fa-solid fa-circle-check" style="position: absolute; right: 12px; color: #10b981; font-size: 0.9rem;"></i>
+            {/if}
+          </div>
+        </div>
+
+        {#if fecModalVerifiedResult?.valid && fecModalVerifiedResult.company?.nom_complet}
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; color: #166534; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-circle-check" style="color: #10b981;"></i>
+            <span><strong>{fecModalVerifiedResult.company.nom_complet}</strong> (SIREN {fecModalVerifiedResult.company.siren})</span>
+          </div>
+        {:else if fecModalError}
+          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; color: #991b1b; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>{fecModalError}</span>
+          </div>
+        {/if}
+
+        <button 
+          type="submit"
+          disabled={isVerifyingFecSiret}
+          style="width: 100%; padding: 12px; background: #2563eb; color: #ffffff; font-weight: 700; font-size: 0.92rem; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28); margin-top: 4px;"
+        >
+          <i class="fa-solid fa-file-shield"></i>
+          <span>Enregistrer & télécharger mon FEC officiel</span>
+        </button>
+
+        <div style="text-align: center; margin-top: 2px;">
+          <button 
+            type="button"
+            onclick={handleDownloadProvisionalFec}
+            style="background: none; border: none; color: #64748b; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline;"
+          >
+            Télécharger un export provisoire sans SIREN (test)
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
 <style>
   .fiscal-card-inner {
     padding: 16px 20px;
