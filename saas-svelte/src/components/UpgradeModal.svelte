@@ -3,11 +3,7 @@
   import { currentUser } from '../lib/auth.js';
   import { fade, scale } from 'svelte/transition';
 
-  const stripeAnnualUrl = import.meta.env.VITE_STRIPE_PAYMENT_LINK_ANNUAL || 'https://buy.stripe.com/9B65kC2UzaUM8GR7CzfjG00';
-  const stripeMonthlyUrl = import.meta.env.VITE_STRIPE_PAYMENT_LINK_MONTHLY || 'https://buy.stripe.com/8x2eVcbr5fb27CNaOLfjG01';
-
-  /** @type {'annual' | 'monthly'} */
-  let selectedPlan = $state('annual');
+  const stripeAnnualUrl = import.meta.env.VITE_STRIPE_PAYMENT_LINK_ANNUAL || import.meta.env.VITE_STRIPE_PAYMENT_LINK || 'https://buy.stripe.com/test_aFadR8anp1Oo27S3TP6c001';
 
   function handleClose() {
     $showUpgradeModal = false;
@@ -16,19 +12,22 @@
   function handleStartSubscription() {
     showToast('Redirection vers le paiement sécurisé Stripe...');
     
-    const targetUrl = selectedPlan === 'annual' ? stripeAnnualUrl : stripeMonthlyUrl;
-    const url = new URL(targetUrl);
+    try {
+      const url = new URL(stripeAnnualUrl);
 
-    if ($currentUser?.uid) {
-      url.searchParams.set('client_reference_id', $currentUser.uid);
-    }
-    if ($currentUser?.email) {
-      url.searchParams.set('prefilled_email', $currentUser.email);
-    }
+      if ($currentUser?.uid) {
+        url.searchParams.set('client_reference_id', $currentUser.uid);
+      }
+      if ($currentUser?.email) {
+        url.searchParams.set('prefilled_email', $currentUser.email);
+      }
 
-    setTimeout(() => {
-      window.location.href = url.toString();
-    }, 400);
+      setTimeout(() => {
+        window.location.href = url.toString();
+      }, 350);
+    } catch {
+      window.location.href = stripeAnnualUrl;
+    }
   }
 </script>
 
@@ -54,7 +53,7 @@
     background: #0F1623 !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 20px;
-    padding: 36px 32px;
+    padding: 34px 28px;
     box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
     text-align: center;
     position: relative;
@@ -89,13 +88,13 @@
     background: rgba(56, 189, 248, 0.1) !important;
     color: #38bdf8 !important;
     border: 1px solid rgba(56, 189, 248, 0.25) !important;
-    font-size: 0.75rem;
+    font-size: 0.74rem;
     font-weight: 800;
     padding: 5px 14px;
     border-radius: 9999px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
 
   .upgrade-title {
@@ -108,67 +107,72 @@
   }
 
   .upgrade-desc {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     color: #94a3b8 !important;
     line-height: 1.5;
-    margin: 0 0 20px 0;
+    margin: 0 0 18px 0;
   }
 
-  .plan-toggle-container {
-    display: flex;
+  .price-highlight-box {
     background: #161F30;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 4px;
-    margin-bottom: 22px;
-    gap: 4px;
-  }
-
-  .plan-toggle-btn {
-    flex: 1;
-    padding: 10px 14px;
-    border: 1px solid transparent;
-    border-radius: 9px;
-    font-size: 0.88rem;
-    font-weight: 700;
-    cursor: pointer;
-    background: transparent;
-    color: #94a3b8;
-    transition: all 0.15s ease;
+    border: 1.5px solid rgba(56, 189, 248, 0.35);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
-    line-height: 1.2;
+    gap: 4px;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   }
 
-  .plan-toggle-btn:hover {
-    color: #f8fafc;
+  .price-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 6px;
   }
 
-  .plan-toggle-btn.active {
-    background: #1C273D;
-    color: #f8fafc;
-    border-color: rgba(56, 189, 248, 0.3);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  .price-main {
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: #f8fafc !important;
+    letter-spacing: -0.03em;
   }
 
-  .plan-badge-saving {
-    font-size: 0.68rem;
-    font-weight: 800;
-    background: rgba(56, 189, 248, 0.15);
+  .price-sub {
+    font-size: 1rem;
+    color: #38bdf8 !important;
+    font-weight: 700;
+  }
+
+  .price-details {
+    font-size: 0.82rem;
+    color: #cbd5e1 !important;
+    display: block;
+    margin-top: 2px;
+  }
+
+  .split-payment-hint {
+    font-size: 0.75rem;
     color: #38bdf8;
-    border: 1px solid rgba(56, 189, 248, 0.3);
-    padding: 2px 7px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    padding: 3px 10px;
     border-radius: 9999px;
-    letter-spacing: 0.02em;
+    margin-top: 6px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .perks-box {
     background: #161F30;
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 12px;
-    padding: 18px 20px;
+    padding: 16px 18px;
     text-align: left;
     margin-bottom: 22px;
     display: flex;
@@ -180,7 +184,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 0.88rem;
+    font-size: 0.87rem;
     color: #f1f5f9 !important;
     font-weight: 600;
   }
@@ -189,26 +193,6 @@
     color: #38bdf8 !important;
     font-size: 0.85rem;
     flex-shrink: 0;
-  }
-
-  .price-main {
-    font-size: 2.3rem;
-    font-weight: 800;
-    color: #f8fafc !important;
-    letter-spacing: -0.02em;
-  }
-
-  .price-sub {
-    font-size: 0.95rem;
-    color: #94a3b8 !important;
-    font-weight: 600;
-  }
-
-  .price-details {
-    font-size: 0.78rem;
-    color: #94a3b8 !important;
-    display: block;
-    margin-top: 2px;
   }
 
   .upgrade-cta-btn {
@@ -259,25 +243,25 @@
       padding: 12px 8px !important;
     }
     .upgrade-card {
-      padding: 26px 18px !important;
+      padding: 24px 18px !important;
       border-radius: 16px !important;
     }
     .upgrade-title {
-      font-size: 1.3rem !important;
+      font-size: 1.25rem !important;
     }
     .upgrade-desc {
-      font-size: 0.84rem !important;
-      margin-bottom: 16px !important;
+      font-size: 0.82rem !important;
+      margin-bottom: 14px !important;
+    }
+    .price-main {
+      font-size: 2rem !important;
     }
     .perks-box {
-      padding: 14px 14px !important;
+      padding: 12px 14px !important;
       gap: 8px !important;
     }
     .perk-item {
       font-size: 0.82rem !important;
-    }
-    .price-main {
-      font-size: 1.9rem !important;
     }
     .upgrade-cta-btn {
       padding: 12px 18px !important;
@@ -317,7 +301,7 @@
 
       <!-- Badge Formule Pro bleu Tito -->
       <div class="upgrade-badge">
-        FORMULE ILLIMITÉE
+        TARIF UNIQUE • TOUTE L'ANNÉE ILLIMITÉE
       </div>
 
       <h2 class="upgrade-title">
@@ -325,28 +309,20 @@
       </h2>
 
       <p class="upgrade-desc">
-        L'essai gratuit vous permet de tester Tito sur 1 relevé bancaire (jusqu'à 60 écritures). Débloquez la formule Illimitée pour importer tous vos relevés et activer les exports officiels.
+        Votre essai gratuit vous a permis de tester Tito sur vos premières écritures. Passez à la formule Illimitée pour importer l'intégralité de vos relevés et activer vos exports officiels.
       </p>
 
-      <!-- Sélecteur Annuel / Mensuel (Engagement 12 mois) -->
-      <div class="plan-toggle-container">
-        <button 
-          type="button"
-          class="plan-toggle-btn {selectedPlan === 'annual' ? 'active' : ''}" 
-          onclick={() => selectedPlan = 'annual'}
-        >
-          <span>Annuel (69,90 € / an)</span>
-          <span class="plan-badge-saving">2 mois offerts</span>
-        </button>
-        
-        <button 
-          type="button"
-          class="plan-toggle-btn {selectedPlan === 'monthly' ? 'active' : ''}" 
-          onclick={() => selectedPlan = 'monthly'}
-        >
-          <span>Mensuel (6,99 € / mois)</span>
-          <span style="font-size: 0.7rem; color: #38bdf8; font-weight: 600;">Sans engagement</span>
-        </button>
+      <!-- Encadré Prix Unique avec fort ancrage mensuel -->
+      <div class="price-highlight-box">
+        <div class="price-row">
+          <span class="price-main">5,82 €</span>
+          <span class="price-sub">/ mois</span>
+        </div>
+        <span class="price-details">Facturé en une seule fois <strong>69,90 € / an TTC</strong> (2 mois offerts)</span>
+        <div class="split-payment-hint">
+          <i class="fa-solid fa-credit-card"></i>
+          <span>Paiement en 3x ou 4x sans frais disponible via Stripe</span>
+        </div>
       </div>
 
       <!-- Avantages listés avec icônes bleu Tito -->
@@ -357,7 +333,7 @@
         </div>
         <div class="perk-item">
           <i class="fa-solid fa-check perk-icon"></i> 
-          <span>Dictionnaire d'attribution automatisé</span>
+          <span>Dictionnaire d'attribution & catégorisation intelligente</span>
         </div>
         <div class="perk-item">
           <i class="fa-solid fa-check perk-icon"></i> 
@@ -365,25 +341,8 @@
         </div>
         <div class="perk-item">
           <i class="fa-solid fa-check perk-icon"></i> 
-          <span>Multi-structures & dossiers illimités</span>
+          <span>Multi-structures & portabilité légale 10 ans incluse</span>
         </div>
-      </div>
-
-      <!-- Prix dynamique & mentions claires -->
-      <div style="margin-bottom: 20px;">
-        {#if selectedPlan === 'annual'}
-          <div style="display: flex; align-items: baseline; justify-content: center; gap: 6px;">
-            <span class="price-main">69,90 €</span>
-            <span class="price-sub">/ an TTC</span>
-          </div>
-          <span class="price-details">Équivalent à 5,82 € / mois • Facturé en une fois</span>
-        {:else}
-          <div style="display: flex; align-items: baseline; justify-content: center; gap: 6px;">
-            <span class="price-main">6,99 €</span>
-            <span class="price-sub">/ mois TTC</span>
-          </div>
-          <span class="price-details">Prélèvement mensuel • Sans engagement (résiliable à tout moment)</span>
-        {/if}
       </div>
 
       <button 
@@ -391,9 +350,7 @@
         class="upgrade-cta-btn"
         onclick={handleStartSubscription}
       >
-        <span>
-          {selectedPlan === 'annual' ? 'Activer la formule Annuelle (69,90 € / an)' : 'Activer la formule Mensuelle (6,99 € / mois)'}
-        </span>
+        <span>Activer la formule Annuelle (69,90 € / an)</span>
         <i class="fa-solid fa-arrow-right" style="font-size: 0.85rem;"></i>
       </button>
 

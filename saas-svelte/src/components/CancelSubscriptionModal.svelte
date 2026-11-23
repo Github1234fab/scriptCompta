@@ -3,7 +3,9 @@
   import { fade, scale } from 'svelte/transition';
   import { downloadCompleteArchive } from '../lib/archiveService.js';
 
-  const stripePortalUrl = import.meta.env.VITE_STRIPE_PORTAL_LINK || 'https://billing.stripe.com/p/login/9B65kC2UzaUM8GR7CzfjG00';
+  const stripePortalUrl = (import.meta.env.VITE_STRIPE_PORTAL_LINK && !import.meta.env.VITE_STRIPE_PORTAL_LINK.includes('test_'))
+    ? import.meta.env.VITE_STRIPE_PORTAL_LINK
+    : 'https://billing.stripe.com/p/login/9B65kC2UzaUM8GR7CzfjG00';
 
   let isArchiving = $state(false);
 
