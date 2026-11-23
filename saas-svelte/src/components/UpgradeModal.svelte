@@ -35,12 +35,9 @@
 <style>
   .upgrade-modal-overlay {
     position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    background: rgba(15, 23, 42, 0.75) !important;
-    backdrop-filter: blur(8px) !important;
+    inset: 0 !important;
+    background: rgba(7, 12, 24, 0.85) !important;
+    backdrop-filter: blur(10px) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -48,12 +45,79 @@
     padding: 20px !important;
     opacity: 1 !important;
     pointer-events: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  .upgrade-card {
+    max-width: 520px;
+    width: 100%;
+    background: #0F1623 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 20px;
+    padding: 36px 32px;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+    text-align: center;
+    position: relative;
+    z-index: 10000000;
+    box-sizing: border-box;
+    color: #f8fafc !important;
+  }
+
+  .upgrade-close-btn {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    border-radius: 6px;
+    transition: color 0.15s ease;
+  }
+
+  .upgrade-close-btn:hover {
+    color: #f8fafc;
+  }
+
+  .upgrade-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(56, 189, 248, 0.1) !important;
+    color: #38bdf8 !important;
+    border: 1px solid rgba(56, 189, 248, 0.25) !important;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 5px 14px;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 16px;
+  }
+
+  .upgrade-title {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: #f8fafc !important;
+    margin: 0 0 8px 0;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+
+  .upgrade-desc {
+    font-size: 0.9rem;
+    color: #94a3b8 !important;
+    line-height: 1.5;
+    margin: 0 0 20px 0;
   }
 
   .plan-toggle-container {
     display: flex;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
+    background: #161F30;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     padding: 4px;
     margin-bottom: 22px;
@@ -63,36 +127,162 @@
   .plan-toggle-btn {
     flex: 1;
     padding: 10px 14px;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 9px;
     font-size: 0.88rem;
     font-weight: 700;
     cursor: pointer;
     background: transparent;
-    color: #64748b;
+    color: #94a3b8;
     transition: all 0.15s ease;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
     line-height: 1.2;
   }
 
+  .plan-toggle-btn:hover {
+    color: #f8fafc;
+  }
+
   .plan-toggle-btn.active {
-    background: #ffffff;
-    color: #0f172a;
-    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+    background: #1C273D;
+    color: #f8fafc;
+    border-color: rgba(56, 189, 248, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   }
 
   .plan-badge-saving {
     font-size: 0.68rem;
     font-weight: 800;
-    background: #eff6ff;
-    color: #2563eb;
-    border: 1px solid #bfdbfe;
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
     padding: 2px 7px;
     border-radius: 9999px;
     letter-spacing: 0.02em;
+  }
+
+  .perks-box {
+    background: #161F30;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    padding: 18px 20px;
+    text-align: left;
+    margin-bottom: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .perk-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.88rem;
+    color: #f1f5f9 !important;
+    font-weight: 600;
+  }
+
+  .perk-icon {
+    color: #38bdf8 !important;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+
+  .price-main {
+    font-size: 2.3rem;
+    font-weight: 800;
+    color: #f8fafc !important;
+    letter-spacing: -0.02em;
+  }
+
+  .price-sub {
+    font-size: 0.95rem;
+    color: #94a3b8 !important;
+    font-weight: 600;
+  }
+
+  .price-details {
+    font-size: 0.78rem;
+    color: #94a3b8 !important;
+    display: block;
+    margin-top: 2px;
+  }
+
+  .upgrade-cta-btn {
+    width: 100%;
+    padding: 14px 24px;
+    background: #38bdf8;
+    color: #070c18;
+    font-size: 0.98rem;
+    font-weight: 800;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(56, 189, 248, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.15s ease;
+  }
+
+  .upgrade-cta-btn:hover {
+    background: #7dd3fc;
+    box-shadow: 0 6px 20px rgba(56, 189, 248, 0.45);
+    transform: translateY(-1px);
+  }
+
+  .upgrade-cta-btn:active {
+    transform: translateY(0);
+  }
+
+  .skip-btn {
+    margin-top: 14px;
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+
+  .skip-btn:hover {
+    color: #94a3b8;
+  }
+
+  @media (max-width: 580px) {
+    .upgrade-modal-overlay {
+      padding: 12px 8px !important;
+    }
+    .upgrade-card {
+      padding: 26px 18px !important;
+      border-radius: 16px !important;
+    }
+    .upgrade-title {
+      font-size: 1.3rem !important;
+    }
+    .upgrade-desc {
+      font-size: 0.84rem !important;
+      margin-bottom: 16px !important;
+    }
+    .perks-box {
+      padding: 14px 14px !important;
+      gap: 8px !important;
+    }
+    .perk-item {
+      font-size: 0.82rem !important;
+    }
+    .price-main {
+      font-size: 1.9rem !important;
+    }
+    .upgrade-cta-btn {
+      padding: 12px 18px !important;
+      font-size: 0.92rem !important;
+    }
   }
 </style>
 
@@ -105,112 +295,115 @@
   >
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div 
-      class="modal-card" 
+      class="upgrade-card" 
       transition:scale={{ duration: 220, start: 0.96 }}
       onclick={(e) => e.stopPropagation()}
-      style="max-width: 520px; width: 100%; background: #ffffff !important; border-radius: 20px; padding: 36px 32px; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35); text-align: center; position: relative; z-index: 10000000; box-sizing: border-box;"
     >
       <button 
         type="button"
+        class="upgrade-close-btn"
         onclick={handleClose} 
-        style="position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 1.4rem; color: #94a3b8; cursor: pointer; padding: 4px;"
         aria-label="Fermer"
       >
         &times;
       </button>
 
       {#if $isAdmin}
-        <div style="margin-bottom: 14px; background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 8px 12px; font-size: 0.75rem; color: #2563eb; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <div style="margin-bottom: 14px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 8px 12px; font-size: 0.75rem; color: #38bdf8; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;">
           <i class="fa-solid fa-shield-halved"></i>
           <span>Aperçu Administrateur (Votre compte bénéficie déjà de l'accès illimité)</span>
         </div>
       {/if}
 
-      <!-- Badge Formule Pro monochrome bleu conforme à la charte -->
-      <div style="display: inline-flex; align-items: center; gap: 8px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; font-size: 0.78rem; font-weight: 800; padding: 5px 14px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px;">
+      <!-- Badge Formule Pro bleu Tito -->
+      <div class="upgrade-badge">
         FORMULE ILLIMITÉE
       </div>
 
-        <h2 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; line-height: 1.25;">
-          Débloquez la gestion illimitée
-        </h2>
+      <h2 class="upgrade-title">
+        Débloquez la gestion illimitée
+      </h2>
 
-        <p style="font-size: 0.9rem; color: #475569; line-height: 1.5; margin: 0 0 20px 0;">
-          L'essai gratuit vous permet de tester Tito sur 1 relevé bancaire (jusqu'à 60 écritures). Débloquez la formule Illimitée pour importer tous vos relevés et activer les exports officiels.
-        </p>
+      <p class="upgrade-desc">
+        L'essai gratuit vous permet de tester Tito sur 1 relevé bancaire (jusqu'à 60 écritures). Débloquez la formule Illimitée pour importer tous vos relevés et activer les exports officiels.
+      </p>
 
-        <!-- Sélecteur Annuel / Mensuel (Engagement 12 mois) -->
-        <div class="plan-toggle-container">
-          <button 
-            type="button"
-            class="plan-toggle-btn {selectedPlan === 'annual' ? 'active' : ''}" 
-            onclick={() => selectedPlan = 'annual'}
-          >
-            <span>Annuel (69,90 € / an)</span>
-            <span class="plan-badge-saving">2 mois offerts</span>
-          </button>
-          
-          <button 
-            type="button"
-            class="plan-toggle-btn {selectedPlan === 'monthly' ? 'active' : ''}" 
-            onclick={() => selectedPlan = 'monthly'}
-          >
-            <span>Mensuel (6,99 € / mois)</span>
-            <span style="font-size: 0.7rem; color: #64748b; font-weight: 500;">Engagement 12 mois</span>
-          </button>
-        </div>
-
-        <!-- Avantages listés - Uniquement icône bleue unie conforme à la charte -->
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; text-align: left; margin-bottom: 22px; display: flex; flex-direction: column; gap: 10px;">
-          <div style="display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: #1e293b; font-weight: 600;">
-            <i class="fa-solid fa-check" style="color: #2563eb; font-size: 0.85rem;"></i> Écritures bancaires & imports CSV illimités
-          </div>
-          <div style="display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: #1e293b; font-weight: 600;">
-            <i class="fa-solid fa-check" style="color: #2563eb; font-size: 0.85rem;"></i> Dictionnaire d'attribution automatisé
-          </div>
-          <div style="display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: #1e293b; font-weight: 600;">
-            <i class="fa-solid fa-check" style="color: #2563eb; font-size: 0.85rem;"></i> Tous les registres officiels (FEC DGFiP, Grand-Livre, Bilan)
-          </div>
-          <div style="display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: #1e293b; font-weight: 600;">
-            <i class="fa-solid fa-check" style="color: #2563eb; font-size: 0.85rem;"></i> Multi-structures & dossiers illimités
-          </div>
-        </div>
-
-        <!-- Prix dynamique & mentions claires -->
-        <div style="margin-bottom: 20px;">
-          {#if selectedPlan === 'annual'}
-            <div style="display: flex; align-items: baseline; justify-content: center; gap: 6px;">
-              <span style="font-size: 2.2rem; font-weight: 800; color: #0f172a;">69,90 €</span>
-              <span style="font-size: 0.95rem; color: #64748b; font-weight: 600;">/ an TTC</span>
-            </div>
-            <span style="font-size: 0.78rem; color: #64748b;">Équivalent à 5,82 € / mois • Facturé en une fois</span>
-          {:else}
-            <div style="display: flex; align-items: baseline; justify-content: center; gap: 6px;">
-              <span style="font-size: 2.2rem; font-weight: 800; color: #0f172a;">6,99 €</span>
-              <span style="font-size: 0.95rem; color: #64748b; font-weight: 600;">/ mois TTC</span>
-            </div>
-            <span style="font-size: 0.78rem; color: #64748b;">Prélèvement mensuel • Engagement 12 mois</span>
-          {/if}
-        </div>
-
+      <!-- Sélecteur Annuel / Mensuel (Engagement 12 mois) -->
+      <div class="plan-toggle-container">
         <button 
           type="button"
-          onclick={handleStartSubscription}
-          style="width: 100%; padding: 14px 24px; background: #0f172a; color: #ffffff; font-size: 0.98rem; font-weight: 700; border-radius: 10px; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2); display: flex; align-items: center; justify-content: center; gap: 10px; transition: background 0.15s ease;"
+          class="plan-toggle-btn {selectedPlan === 'annual' ? 'active' : ''}" 
+          onclick={() => selectedPlan = 'annual'}
         >
-          <span>
-            {selectedPlan === 'annual' ? 'Activer la formule Annuelle (69,90 € / an)' : 'Activer la formule Mensuelle (6,99 € / mois)'}
-          </span>
-          <i class="fa-solid fa-arrow-right" style="font-size: 0.85rem;"></i>
+          <span>Annuel (69,90 € / an)</span>
+          <span class="plan-badge-saving">2 mois offerts</span>
         </button>
-
+        
         <button 
           type="button"
-          onclick={handleClose} 
-          style="margin-top: 14px; background: none; border: none; color: #64748b; font-size: 0.82rem; font-weight: 600; cursor: pointer;"
+          class="plan-toggle-btn {selectedPlan === 'monthly' ? 'active' : ''}" 
+          onclick={() => selectedPlan = 'monthly'}
         >
-          Continuer avec le quota gratuit
+          <span>Mensuel (6,99 € / mois)</span>
+          <span style="font-size: 0.7rem; color: #38bdf8; font-weight: 600;">Sans engagement</span>
         </button>
+      </div>
+
+      <!-- Avantages listés avec icônes bleu Tito -->
+      <div class="perks-box">
+        <div class="perk-item">
+          <i class="fa-solid fa-check perk-icon"></i> 
+          <span>Écritures bancaires & imports CSV illimités</span>
+        </div>
+        <div class="perk-item">
+          <i class="fa-solid fa-check perk-icon"></i> 
+          <span>Dictionnaire d'attribution automatisé</span>
+        </div>
+        <div class="perk-item">
+          <i class="fa-solid fa-check perk-icon"></i> 
+          <span>Tous les registres officiels (FEC DGFiP, Grand-Livre, Bilan)</span>
+        </div>
+        <div class="perk-item">
+          <i class="fa-solid fa-check perk-icon"></i> 
+          <span>Multi-structures & dossiers illimités</span>
+        </div>
+      </div>
+
+      <!-- Prix dynamique & mentions claires -->
+      <div style="margin-bottom: 20px;">
+        {#if selectedPlan === 'annual'}
+          <div style="display: flex; align-items: baseline; justify-content: center; gap: 6px;">
+            <span class="price-main">69,90 €</span>
+            <span class="price-sub">/ an TTC</span>
+          </div>
+          <span class="price-details">Équivalent à 5,82 € / mois • Facturé en une fois</span>
+        {:else}
+          <div style="display: flex; align-items: baseline; justify-content: center; gap: 6px;">
+            <span class="price-main">6,99 €</span>
+            <span class="price-sub">/ mois TTC</span>
+          </div>
+          <span class="price-details">Prélèvement mensuel • Sans engagement (résiliable à tout moment)</span>
+        {/if}
+      </div>
+
+      <button 
+        type="button"
+        class="upgrade-cta-btn"
+        onclick={handleStartSubscription}
+      >
+        <span>
+          {selectedPlan === 'annual' ? 'Activer la formule Annuelle (69,90 € / an)' : 'Activer la formule Mensuelle (6,99 € / mois)'}
+        </span>
+        <i class="fa-solid fa-arrow-right" style="font-size: 0.85rem;"></i>
+      </button>
+
+      <button 
+        type="button"
+        class="skip-btn"
+        onclick={handleClose} 
+      >
+        Continuer avec le quota gratuit
+      </button>
 
     </div>
   </div>
