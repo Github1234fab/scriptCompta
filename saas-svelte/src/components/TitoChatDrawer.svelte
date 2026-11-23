@@ -59,6 +59,17 @@
     return res?.reply || '';
   }
 
+  /** @param {string} text */
+  function formatMarkdown(text) {
+    if (!text) return '';
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #f8fafc; font-weight: 700;">$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em style="color: #cbd5e1;">$1</em>');
+  }
+
   async function handleSendQuestion() {
     const q = userQuestionText.trim();
     if (!q) return;
@@ -232,7 +243,7 @@
                   </button>
                   {#if isOpen}
                     <div style="padding: 0 14px 14px 14px; font-size: 0.8rem; color: #94a3b8; line-height: 1.55; white-space: pre-line; border-top: 1px dashed rgba(255, 255, 255, 0.06); padding-top: 10px;">
-                      {getInstantAnswer(item.question)}
+                      {@html formatMarkdown(getInstantAnswer(item.question))}
                     </div>
                   {/if}
                 </div>
@@ -278,7 +289,7 @@
             <textarea
               id="tito-user-question"
               bind:value={userQuestionText}
-              placeholder="Ex : Je ne comprends pas l'indicateur « Coût et forfait »... ou : Est-ce que mes frais de repas sont déductibles ?"
+              placeholder="Ex : Comment ventiler un virement mixte ? ou : Où trouver mon export annuel dans Tito ?"
               rows="4"
               style="width: 100%; box-sizing: border-box; background: #080e1e; border: 1.5px solid rgba(255, 255, 255, 0.16); border-radius: 10px; padding: 12px; color: #ffffff; font-size: 0.86rem; font-family: inherit; line-height: 1.45; resize: vertical; outline: none;"
             ></textarea>
@@ -298,6 +309,11 @@
                   <span>Envoyer ma question</span>
                 {/if}
               </button>
+            </div>
+
+            <!-- Mention légale de non-exercice illégal du conseil personnalisé -->
+            <div style="font-size: 0.73rem; color: #64748b; margin-top: 10px; text-align: center; line-height: 1.35;">
+              Support technique & aide à l'utilisation du logiciel uniquement (ne constitue pas un conseil comptable ou fiscal personnalisé).
             </div>
           </div>
 

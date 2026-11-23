@@ -397,7 +397,7 @@ export function getLockedTitoChatReply(userMessage, context = {}) {
   if (q.includes('justificatif') || q.includes('conserver') || q.includes('controle') || q.includes('facture')) {
     return {
       isBlockedOffTopic: false,
-      reply: "**Conservation des pièces justificatives (Art. L123-22 du Code de commerce & L102 B du LPF) :**\n• Toute dépense professionnelle doit être appuyée par une **facture nominative** (un simple ticket CB sans détail ni TVA ne suffit pas au-delà des tolérances).\n• Durée légale d'archivage : **10 ans** au plan comptable (6 ans minimum au plan fiscal)."
+      reply: "**Conservation des pièces justificatives (Art. L123-22 du Code de commerce & L102 B du LPF) :**\n• Toute dépense liée à votre activité (et indispensable si vous êtes assujetti à la TVA ou au régime réel) doit être appuyée par une pièce justificative probante (facture ou justificatif détaillé).\n• Durée légale d'archivage : **10 ans** au plan comptable (6 ans minimum au plan fiscal)."
     };
   }
 
@@ -436,8 +436,28 @@ export function getLockedTitoChatReply(userMessage, context = {}) {
     };
   }
 
-  // 5. Questions sur la clôture / Grand-Livre / FEC / Cerfa / Obligations
-  if (q.includes('clotur') || q.includes('fec') || q.includes('grand livre') || q.includes('2035') || q.includes('2072') || q.includes('cerfa') || q.includes('obligation')) {
+  // 5. Obligations comptables et fiscales annuelles (Micro, BNC, etc.)
+  if (q.includes('obligation') || q.includes('annuelle') || q.includes('calendrier')) {
+    if (model === 'micro') {
+      return {
+        isBlockedOffTopic: false,
+        reply: "**Vos obligations annuelles (Micro-entreprise) :**\n• **Chiffre d'affaires URSSAF :** Déclaration mensuelle ou trimestrielle de vos encaissements encaissés (même si CA nul).\n• **Impôt sur le revenu (printemps) :** Déclaration complémentaire n° **2042-C-PRO** reportant votre CA brut annuel.\n• **Cotisation Foncière des Entreprises (CFE) :** Paiement en décembre sur impots.gouv.fr (exonération la première année civile).\n• **Registres obligatoires :** Tenue chronologique du **Livre des recettes** (et Registre des achats si vente de marchandises/fournitures), exportables directement dans Tito."
+      };
+    }
+    if (model === 'bnc') {
+      return {
+        isBlockedOffTopic: false,
+        reply: "**Vos obligations annuelles (Profession Libérale BNC - 2035) :**\n• **Liasse fiscale Cerfa n° 2035 :** Télétransmission en mai (EDI ou via votre AGA).\n• **Impôt sur le revenu :** Report du bénéfice net sur la déclaration n° **2042-C-PRO**.\n• **Cotisations sociales (URSSAF / Caisse) :** Déclaration sociale des revenus d'activité.\n• **CFE :** Paiement en décembre sur votre espace pro impots.gouv.fr.\n• **Registres obligatoires :** Tenue du Livre-Journal recettes-dépenses et du registre des immobilisations."
+      };
+    }
+    return {
+      isBlockedOffTopic: false,
+      reply: "**Vos obligations annuelles :**\n• **Déclarations périodiques :** Déclaration du chiffre d'affaires ou des résultats et cotisations selon votre statut juridique.\n• **CFE & Fiscalité locale :** Paiement en décembre sur impots.gouv.fr.\n• **Registres obligatoires :** Tenue et clôture des registres légaux (Livre des recettes, Grand-Livre, FEC) exportables sur Tito."
+    };
+  }
+
+  // 6. Questions sur la clôture / Grand-Livre / FEC / Cerfa
+  if (q.includes('clotur') || q.includes('fec') || q.includes('grand livre') || q.includes('2035') || q.includes('2072') || q.includes('cerfa')) {
     return {
       isBlockedOffTopic: false,
       reply: "**Vos livrables & clôture dans Tito :**\nUne fois toutes vos lignes bancaires validées (onglet *Attribuer (0)*), rendez-vous dans **Obligation / Grand-Livre** pour exporter en 1 clic votre registre officiel, votre fichier FEC ou votre synthèse de déclaration (2035, 2072, Cerfa) et figer votre exercice."

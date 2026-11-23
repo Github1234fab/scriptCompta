@@ -26,7 +26,7 @@
               Conditions Générales d'Utilisation (CGU)
             </h3>
             <span style="font-size: 0.76rem; color: #94a3b8;">
-              Cadre juridique, responsabilités & conformité • Version 1.2
+              Cadre juridique, responsabilités & conformité • Version 2.0
             </span>
           </div>
         </div>
@@ -95,7 +95,52 @@
             Article 5. Sécurité & Propriété des Données (RGPD)
           </h4>
           <p style="margin: 0;">
-            L'Utilisateur demeure le seul et unique propriétaire de ses données financières. Les données sont chiffrées et hébergées au sein de serveurs sécurisés situés dans l'Union Européenne. Aucune donnée n'est cédée, commercialisée ou exploitée à des fins publicitaires.
+            L'Utilisateur demeure le seul et unique propriétaire de ses données financières. Les données sont chiffrées et hébergées principalement au sein de l'Union Européenne, avec encadrement RGPD (Clauses Contractuelles Types / Data Privacy Framework) pour les sous-traitants techniques. Aucune donnée n'est cédée, commercialisée ou exploitée à des fins publicitaires.
+          </p>
+        </div>
+
+        <div>
+          <h4 style="color: #ffffff; font-size: 0.95rem; margin: 0 0 8px 0; font-weight: 800;">
+            Article 6. Éditeur du Service & Mentions Légales (LCEN)
+          </h4>
+          <p style="margin: 0;">
+            Plateforme éditée par Fabien Marceau, Entrepreneur Individuel (336, chemin du julin • SIRET : 51829633000039 • Contact : contact@gralypho.com). Hébergement de l'application : Netlify, Inc. Hébergement des données : Google Cloud / Firebase (UE, CCT & EU-US Data Privacy Framework).
+          </p>
+        </div>
+
+        <div>
+          <h4 style="color: #ffffff; font-size: 0.95rem; margin: 0 0 8px 0; font-weight: 800;">
+            Article 7. Conditions Financières, Abonnement & Résiliation
+          </h4>
+          <p style="margin: 0;">
+            Accès complet sur abonnement géré via Stripe. Résiliation en 1 clic à tout moment depuis le portail Stripe, effective à l'échéance de la période payée (sans remboursement prorata temporis). Conformément à l'art. L. 221-28 du Code de la consommation, l'exécution immédiate du service numérique emporte renonciation expresse au délai de rétractation.
+          </p>
+        </div>
+
+        <div>
+          <h4 style="color: #ffffff; font-size: 0.95rem; margin: 0 0 8px 0; font-weight: 800;">
+            Article 8. Fermeture de Compte, Portabilité & Suppression des Données
+          </h4>
+          <p style="margin: 0;">
+            À l'échéance d'un abonnement résilié ou non renouvelé, l'accès au compte est fermé. Au moment de la clôture effective, une archive numérique (format ZIP) regroupant l'intégralité des exports légaux (FEC, Grand-Livre, Balance et registres) est mise à disposition. Par souci de sobriété numérique et de confidentialité, les écritures et paramètres sont définitivement supprimés après remise de l'archive (l'Utilisateur assurant la conservation locale 10 ans).
+          </p>
+        </div>
+
+        <div>
+          <h4 style="color: #ffffff; font-size: 0.95rem; margin: 0 0 8px 0; font-weight: 800;">
+            Article 9. Disponibilité & Limitation de Responsabilité
+          </h4>
+          <p style="margin: 0;">
+            Obligation de moyens. Exclusion des dommages indirects : l'Éditeur ne saurait être tenu responsable des conséquences financières, fiscales ou comptables résultant des écritures validées par l'Utilisateur. Plafond de responsabilité limité aux sommes versées par l'Utilisateur au cours des 12 derniers mois.
+          </p>
+        </div>
+
+        <div>
+          <h4 style="color: #ffffff; font-size: 0.95rem; margin: 0 0 8px 0; font-weight: 800;">
+            Article 10. Propriété Intellectuelle & Droit Applicable
+          </h4>
+          <p style="margin: 0;">
+            Marque TITO déposée à l'INPI, algorithmes et interfaces sont la propriété exclusive de l'Éditeur. Soumis au droit français, compétence exclusive des tribunaux du ressort de Lyon.
           </p>
         </div>
 

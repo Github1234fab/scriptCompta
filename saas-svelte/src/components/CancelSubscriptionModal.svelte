@@ -1,11 +1,28 @@
 <script>
-  import { showCancelModal, showToast } from '../lib/store.js';
+  import { showCancelModal, showToast, entities, activeEntityId, transactions } from '../lib/store.js';
   import { fade, scale } from 'svelte/transition';
+  import { downloadCompleteArchive } from '../lib/archiveService.js';
 
   const stripePortalUrl = import.meta.env.VITE_STRIPE_PORTAL_LINK || 'https://billing.stripe.com/p/login/9B65kC2UzaUM8GR7CzfjG00';
 
+  let isArchiving = $state(false);
+
   function handleClose() {
     $showCancelModal = false;
+  }
+
+  function handleDownloadArchive() {
+    isArchiving = true;
+    try {
+      const activeEntity = $entities.find(e => e.id === $activeEntityId) || $entities[0] || { name: 'Ma Structure', model: 'micro' };
+      const res = downloadCompleteArchive(activeEntity, $transactions);
+      showToast(`Archive légale téléchargée (${res.count} documents) !`);
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la création de l'archive.");
+    } finally {
+      isArchiving = false;
+    }
   }
 
   function handleGoToStripe() {
@@ -207,16 +224,46 @@
       <!-- Corps du texte avec lisibilité haute -->
       <div class="cancel-content">
         <p style="margin: 0;">
-          Vous pouvez suspendre ou résilier votre abonnement à tout moment.
+          Vous pouvez suspendre ou résilier votre abonnement à tout moment depuis votre portail Stripe. La résiliation prendra effet à la fin de la période déjà réglée.
         </p>
 
         <p class="cancel-callout">
-          Dans le cadre de notre démarche écologique et de sobriété numérique, nous limitons l'empreinte carbone de nos serveurs.
+          <strong>Fermeture du compte & Portabilité :</strong> À l'échéance de votre abonnement, l'accès à votre compte sera fermé et vos données seront supprimées (sobriété numérique & RGPD).
         </p>
 
-        <p style="margin: 0;">
-          Vos écritures et votre historique restent conservés pendant <strong style="color: #f8fafc;">4 mois</strong>. Au-delà de ce délai, vos données et votre dictionnaire d'attribution automatique ne seront plus conservés.
+        <p style="margin: 0; font-size: 0.86rem; color: #cbd5e1;">
+          Pensez à télécharger vos exports officiels (FEC, Grand-Livre, Livre des recettes) avant la clôture afin d'assurer votre obligation légale de conservation de 10 ans sur votre machine.
         </p>
+
+        <!-- Bouton d'archive ZIP 1-clic -->
+        <div style="background: rgba(56, 189, 248, 0.08); border: 1.5px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; display: inline-flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-file-zipper"></i>
+              Archive légale (Portabilité)
+            </span>
+            <span style="font-size: 0.72rem; color: #94a3b8;">Format ZIP • Norme DGFiP</span>
+          </div>
+          <p style="margin: 0; font-size: 0.78rem; color: #94a3b8; line-height: 1.4;">
+            Téléchargez en 1 clic l'intégralité de vos documents (FEC officiel, Livre des recettes, journaux et historique bancaire).
+          </p>
+          <button
+            type="button"
+            onclick={handleDownloadArchive}
+            disabled={isArchiving}
+            style="padding: 10px 14px; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.45); color: #38bdf8; border-radius: 8px; font-weight: 700; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.15s ease;"
+            onmouseenter={(e) => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.28)'; }}
+            onmouseleave={(e) => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.18)'; }}
+          >
+            {#if isArchiving}
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              <span>Création de l'archive ZIP...</span>
+            {:else}
+              <i class="fa-solid fa-download"></i>
+              <span>Télécharger mon archive complète (ZIP)</span>
+            {/if}
+          </button>
+        </div>
       </div>
 
       <!-- Actions -->
