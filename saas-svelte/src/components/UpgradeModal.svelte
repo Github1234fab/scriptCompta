@@ -3,7 +3,9 @@
   import { currentUser } from '../lib/auth.js';
   import { fade, scale } from 'svelte/transition';
 
-  const stripeAnnualUrl = import.meta.env.VITE_STRIPE_PAYMENT_LINK_ANNUAL || import.meta.env.VITE_STRIPE_PAYMENT_LINK || 'https://buy.stripe.com/test_aFadR8anp1Oo27S3TP6c001';
+  const stripeAnnualUrl = (import.meta.env.VITE_STRIPE_PAYMENT_LINK_ANNUAL && !import.meta.env.VITE_STRIPE_PAYMENT_LINK_ANNUAL.includes('test_'))
+    ? import.meta.env.VITE_STRIPE_PAYMENT_LINK_ANNUAL
+    : 'https://buy.stripe.com/9B65kC2UzaUM8GR7CzfjG00';
 
   function handleClose() {
     $showUpgradeModal = false;
