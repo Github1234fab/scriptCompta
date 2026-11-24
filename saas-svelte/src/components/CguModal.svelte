@@ -104,7 +104,7 @@
             Article 6. Éditeur du Service & Mentions Légales (LCEN)
           </h4>
           <p style="margin: 0;">
-            Plateforme éditée par Fabien Marceau, Entrepreneur Individuel (336, chemin du julin • SIRET : 51829633000039 • Contact : contact@gralypho.com). Hébergement de l'application : Netlify, Inc. Hébergement des données : Google Cloud / Firebase (UE, CCT & EU-US Data Privacy Framework).
+            Plateforme éditée par Fabien Marceau, Entrepreneur Individuel (336, chemin du Julin, 69510 Thurins • SIRET : 518 296 330 00039 • Contact : contact@tito-gestion.com). Hébergement de l'application : Netlify, Inc. Hébergement des données : Google Cloud / Firebase (UE, CCT & EU-US Data Privacy Framework).
           </p>
         </div>
 

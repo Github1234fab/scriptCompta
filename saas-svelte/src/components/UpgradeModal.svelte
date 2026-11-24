@@ -323,7 +323,7 @@
         <span class="price-details">Facturé en une seule fois <strong>69,90 € / an TTC</strong> (2 mois offerts)</span>
         <div class="split-payment-hint">
           <i class="fa-solid fa-credit-card"></i>
-          <span>Paiement en 3x sans frais : choisissez l'option Klarna au paiement</span>
+          <span>Paiement en 3x ou 4x sans frais via Klarna (~23 € en 3x ou ~17,50 € en 4x)</span>
         </div>
       </div>
 
@@ -343,7 +343,7 @@
         </div>
         <div class="perk-item">
           <i class="fa-solid fa-check perk-icon"></i> 
-          <span>Multi-structures & portabilité légale 10 ans incluse</span>
+          <span>Multi-structures & archive ZIP remise à la résiliation</span>
         </div>
       </div>
 
