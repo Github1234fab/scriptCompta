@@ -23,24 +23,24 @@
       shortLabel: 'Prestations BIC',
       rate: 0.212,
       plafondCA: 77700,
-      franchiseTVA: 36800,
-      franchiseTVAMajoree: 39100
+      franchiseTVA: 37500,
+      franchiseTVAMajoree: 41250
     },
     services_bnc: {
       label: 'Professions libérales non réglementées (BNC)',
       shortLabel: 'Libéral BNC',
       rate: 0.258,
       plafondCA: 77700,
-      franchiseTVA: 36800,
-      franchiseTVAMajoree: 39100
+      franchiseTVA: 37500,
+      franchiseTVAMajoree: 41250
     },
     vente_bic: {
       label: 'Achat / Revente de marchandises & hébergement (BIC)',
       shortLabel: 'Vente BIC',
       rate: 0.123,
       plafondCA: 188700,
-      franchiseTVA: 91900,
-      franchiseTVAMajoree: 101000
+      franchiseTVA: 85000,
+      franchiseTVAMajoree: 93500
     }
   };
 

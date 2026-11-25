@@ -131,6 +131,22 @@ export function closeTitoChat() {
   focusedChatTx.set(null);
 }
 
+// État global du tiroir "Tutoriels vidéo express"
+export const showVideoDrawer = writable(false);
+export const activeVideoTutorialId = writable('dashboard');
+
+/** @param {string} [tutorialId] */
+export function openVideoDrawer(tutorialId = '') {
+  if (tutorialId) {
+    activeVideoTutorialId.set(tutorialId);
+  }
+  showVideoDrawer.set(true);
+}
+
+export function closeVideoDrawer() {
+  showVideoDrawer.set(false);
+}
+
 // État de la barre latérale sur mobile / tablette
 export const isMobileSidebarOpen = writable(false);
 export function toggleMobileSidebar() {

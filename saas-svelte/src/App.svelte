@@ -44,6 +44,7 @@
   import CguModal from './components/CguModal.svelte';
   import DeleteStructureModal from './components/DeleteStructureModal.svelte';
   import TitoChatDrawer from './components/TitoChatDrawer.svelte';
+  import VideoTutorialDrawer from './components/VideoTutorialDrawer.svelte';
   import Header from './components/Header.svelte';
   import Sidebar from './components/Sidebar.svelte';
   import { currentUser, authInitialized } from './lib/auth.js';
@@ -420,6 +421,7 @@
 <!-- PASTILLE & TIROIR COPILOTE PÉDAGOGIQUE "DEMANDER À TITO" (ACTIF SUR TOUS LES ÉCRANS) -->
 {#if $currentUser && !isFirstLaunch}
   <TitoChatDrawer />
+  <VideoTutorialDrawer />
 {/if}
 
 

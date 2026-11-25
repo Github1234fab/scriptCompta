@@ -16,6 +16,7 @@
     showToast,
     openHelpGuide,
     openTitoChat,
+    openVideoDrawer,
     openDeleteStructureModal,
     isMobileSidebarOpen,
     closeMobileSidebar
@@ -257,6 +258,19 @@
            onclick={() => handleNav('dashboard')}>
           <i class="fa-solid fa-house"></i>
           <span class="menu-label-text">Accueil</span>
+          <button
+            type="button"
+            class="menu-video-btn"
+            title="Voir le tutoriel vidéo : Accueil"
+            aria-label="Voir le tutoriel vidéo : Accueil"
+            onclick={(e) => {
+              e.stopPropagation();
+              closeMobileSidebar();
+              openVideoDrawer('dashboard');
+            }}
+          >
+            <i class="fa-regular fa-circle-play"></i>
+          </button>
         </span>
       </li>
 
@@ -274,6 +288,19 @@
           {#if pendingTxBadgeCount > 0}
             <span class="badge" id="pending-tx-badge" style="margin-left: auto; background: #f59e0b; color: #ffffff; font-size: 0.62rem; padding: 2px 7px; border-radius: 10px; font-weight: 800; min-width: 18px; text-align: center; flex-shrink: 0;">{pendingTxBadgeCount}</span>
           {/if}
+          <button
+            type="button"
+            class="menu-video-btn {pendingTxBadgeCount > 0 ? 'has-sibling-badge' : ''}"
+            title="Voir le tutoriel vidéo : Attribution & import CSV"
+            aria-label="Voir le tutoriel vidéo : Attribution & import CSV"
+            onclick={(e) => {
+              e.stopPropagation();
+              closeMobileSidebar();
+              openVideoDrawer('categorize');
+            }}
+          >
+            <i class="fa-regular fa-circle-play"></i>
+          </button>
         </span>
       </li>
 
@@ -289,6 +316,19 @@
              onclick={() => handleNav('activity')}>
             <i class="fa-solid {activityIcon}"></i>
             <span class="menu-label-text">{activityLabel}</span>
+            <button
+              type="button"
+              class="menu-video-btn"
+              title="Voir le tutoriel vidéo : Adhérents, cotisations & dons"
+              aria-label="Voir le tutoriel vidéo : Adhérents, cotisations & dons"
+              onclick={(e) => {
+                e.stopPropagation();
+                closeMobileSidebar();
+                openVideoDrawer('activity');
+              }}
+            >
+              <i class="fa-regular fa-circle-play"></i>
+            </button>
           </span>
         </li>
       {/if}
@@ -304,11 +344,38 @@
            onclick={() => handleNav('books')}>
           <i class="fa-solid fa-scale-balanced"></i>
           <span class="menu-label-text">{booksLabel || 'Obligation'}</span>
+          <button
+            type="button"
+            class="menu-video-btn"
+            title="Voir le tutoriel vidéo : Obligations & exports"
+            aria-label="Voir le tutoriel vidéo : Obligations & exports"
+            onclick={(e) => {
+              e.stopPropagation();
+              closeMobileSidebar();
+              openVideoDrawer('books');
+            }}
+          >
+            <i class="fa-regular fa-circle-play"></i>
+          </button>
         </span>
       </li>
 
-      <!-- SÉPARATEUR & LIEN DIRECT POSER VOS QUESTIONS -->
-      <li style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.08);">
+      <!-- SÉPARATEUR & TUTORIELS VIDÉO / POSER VOS QUESTIONS -->
+      <li style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 6px;">
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+        <span 
+           class="menu-item" 
+           style="color: #e2e8f0; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.09);"
+           data-tooltip="Tutoriels vidéo"
+           title="Ouvrir le tiroir des tutoriels vidéo express"
+           onclick={() => {
+             closeMobileSidebar();
+             openVideoDrawer($activeView === 'categorize' || $activeView === 'books' || $activeView === 'activity' ? $activeView : 'dashboard');
+           }}>
+          <i class="fa-solid fa-circle-play" style="color: #38bdf8;"></i>
+          <span class="menu-label-text" style="font-weight: 700;">Tutoriels vidéo</span>
+        </span>
+
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <span 
            class="menu-item" 
@@ -410,9 +477,9 @@
           style="margin-top: 4px; width: 100%; height: 36px; background: #2563eb; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);"
           onmouseenter={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#1d4ed8'}
           onmouseleave={(e) => /** @type {HTMLElement} */ (e.currentTarget).style.background = '#2563eb'}
-          title="Passer en illimité à 6,99€/mois"
+          title="Formule annuelle illimitée : 69,90 € / an TTC (soit 5,82 € / mois)"
         >
-          <span>Passer en illimité (6,99 €)</span> <i class="fa-solid fa-arrow-right" style="font-size: 0.78rem;"></i>
+          <span>Passer en illimité (5,82 €/mois)</span> <i class="fa-solid fa-arrow-right" style="font-size: 0.78rem;"></i>
         </button>
       </div>
     {/if}
@@ -430,6 +497,32 @@
 </aside>
 
 <style>
+  .menu-video-btn {
+    margin-left: auto;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+  }
+
+  .menu-video-btn.has-sibling-badge {
+    margin-left: 4px;
+  }
+
+  .menu-video-btn:hover {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.14);
+  }
+
   .sidebar-resizer:hover, .sidebar-resizer:active {
     background: rgba(59, 130, 246, 0.4);
   }
