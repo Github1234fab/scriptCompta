@@ -467,7 +467,7 @@ export function getLockedTitoChatReply(userMessage, context = {}) {
   // 6. Réponse pédagogique par défaut centrée sur l'accompagnement Tito
   return {
     isBlockedOffTopic: false,
-    reply: `Je suis Tito, votre copilote comptable (calibré sur votre structure **${model.toUpperCase()}**).\n\nPosez-moi une question précise sur :\n• **Une ligne bancaire** (cliquez sur *« Analyse Tito »* sur n'importe quelle ligne)\n• **Votre trésorerie nette & vos seuils de TVA**\n• **La déduction d'un frais** (déplacement, repas, matériel > 500 €)\n• **Vos livrables obligatoires** (Livre des recettes, 2035, 2072, Cerfa, FEC, Clôture).`
+    reply: `Je suis Tito, votre copilote comptable (calibré sur votre structure **${model.toUpperCase()}**).\n\nPosez-moi une question précise sur :\n• **Votre trésorerie nette & vos seuils de TVA**\n• **La déduction d'un frais** (déplacement, repas, matériel > 500 €)\n• **Le choix d'un compte comptable**\n• **Vos livrables obligatoires** (Livre des recettes, 2035, 2072, Cerfa, FEC, Clôture).`
   };
 }
 

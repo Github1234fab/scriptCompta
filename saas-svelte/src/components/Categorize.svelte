@@ -1801,16 +1801,6 @@
                             </button>
                           {/if}
 
-                          <!-- Bouton Analyse Tito -->
-                          <button
-                            type="button"
-                            onclick={() => openTitoChatForTx(tx)}
-                            style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 5px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;"
-                            title="Comprendre l'analyse de Tito et voir la règle officielle"
-                          >
-                            <span>Analyse Tito</span>
-                          </button>
-
                           <!-- Bouton Ajouter détails (actif) -->
                           <button
                             type="button"
@@ -2035,15 +2025,6 @@
                             style="background: var(--bg-subtle); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 5px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.74rem; font-weight: 600;"
                           >
                             Modifier
-                          </button>
-
-                          <button
-                            type="button"
-                            onclick={() => openTitoChatForTx(tx)}
-                            style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 5px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;"
-                            title="Consulter l'analyse officielle Tito"
-                          >
-                            <span>Analyse Tito</span>
                           </button>
 
                           <!-- Bouton Ajouter détails (actif) -->

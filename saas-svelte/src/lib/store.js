@@ -106,7 +106,7 @@ export const focusedChatTx = writable(null);
 export const titoChatMessages = writable([
   {
     sender: 'tito',
-    text: "Bonjour ! Je suis Tito, votre copilote comptable. Cliquez sur « Analyse Tito » sur n'importe quelle ligne ou posez-moi une question sur vos chiffres, vos frais, vos seuils ou vos obligations."
+    text: "Bonjour ! Je suis Tito, votre copilote comptable. Posez-moi une question sur vos chiffres, vos frais, vos seuils ou vos obligations."
   }
 ]);
 
