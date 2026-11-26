@@ -13,6 +13,7 @@
     activeEntityId,
     activeTxId, 
     updateTransactions, 
+    updatePlanComptable,
     updateRules, 
     showToast,
     isPremium,
@@ -46,12 +47,95 @@
   let showPedagogicalModal = $state(false);
   let dontShowAgain = $state(false);
 
-  // Dictionnaire d'attribution modal state
+  // Dictionnaire d'attribution & Sous-comptes avancés modal state
   let showDictionaryModal = $state(false);
+  /** @type {'rules' | 'subaccounts'} */
+  let dictModalTab = $state('rules');
   let newRuleKeyword = $state('');
   let newRuleType = $state('debit'); // 'debit' | 'credit'
   let newRuleAccount = $state('606');
   let dictionarySearch = $state('');
+
+  // Création guidée d'un sous-compte personnalisé (mode avancé)
+  let newSubParentCompte = $state('606');
+  let newSubSuffix = $state('');
+  let newSubLabel = $state('');
+  let newSubDesc = $state('');
+
+  let standardParentAccounts = $derived(
+    $planComptable
+      .filter(p => p.compte !== '699' && !p.isCustom)
+      .slice()
+      .sort((a, b) => a.compte.localeCompare(b.compte, undefined, { numeric: true }))
+  );
+
+  let customSubAccounts = $derived(
+    $planComptable
+      .filter(p => p.isCustom)
+      .slice()
+      .sort((a, b) => a.compte.localeCompare(b.compte, undefined, { numeric: true }))
+  );
+
+  let cleanedSubSuffix = $derived(newSubSuffix.replace(/[^0-9]/g, '').slice(0, 4));
+  let computedSubCompte = $derived(cleanedSubSuffix ? `${newSubParentCompte}${cleanedSubSuffix}` : '');
+
+  function handleAddCustomSubAccount() {
+    const suffix = newSubSuffix.replace(/[^0-9]/g, '').slice(0, 4);
+    const label = newSubLabel.trim();
+    if (!newSubParentCompte) {
+      showToast('Veuillez choisir un compte parent officiel.');
+      return;
+    }
+    if (!suffix) {
+      showToast('Saisissez 1 à 4 chiffres pour le suffixe du sous-compte (ex : 23).');
+      return;
+    }
+    if (!label) {
+      showToast('Veuillez donner un libellé clair à ce sous-compte.');
+      return;
+    }
+
+    const fullCode = `${newSubParentCompte}${suffix}`;
+    if ($planComptable.some(p => p.compte === fullCode)) {
+      showToast(`Le compte ${fullCode} existe déjà dans votre plan comptable.`);
+      return;
+    }
+
+    const parent = $planComptable.find(p => p.compte === newSubParentCompte);
+    const newAccount = {
+      compte: fullCode,
+      libelle: label,
+      type: parent?.type || (fullCode.startsWith('7') ? 'Produit' : fullCode.startsWith('6') || fullCode.startsWith('2') ? 'Charge' : 'Transfert'),
+      group: parent?.group || (fullCode.startsWith('7') ? 'entrees' : 'depenses_courantes'),
+      desc: newSubDesc.trim() || `Sous-compte personnalisé rattaché à ${newSubParentCompte} (${parent?.libelle || ''}).`,
+      isCustom: true,
+      parentCompte: newSubParentCompte
+    };
+
+    updatePlanComptable([...$planComptable, newAccount]);
+    newSubSuffix = '';
+    newSubLabel = '';
+    newSubDesc = '';
+    showToast(`Sous-compte ${fullCode} « ${label} » créé avec succès.`);
+  }
+
+  /** @param {string} compteCode */
+  function handleDeleteCustomSubAccount(compteCode) {
+    const usedCount = currentStructureTx.filter(t => String(t.compteAttribué) === String(compteCode)).length;
+    if (usedCount > 0) {
+      if (!confirm(`Le sous-compte ${compteCode} est déjà utilisé par ${usedCount} opération(s). Voulez-vous vraiment le retirer de la liste ? (Vos écritures déjà attribuées resteront intactes.)`)) {
+        return;
+      }
+    }
+    updatePlanComptable($planComptable.filter(p => p.compte !== compteCode));
+    showToast(`Sous-compte ${compteCode} supprimé.`);
+  }
+
+  function openSubAccountsManager() {
+    showCategorizeModal = false;
+    dictModalTab = 'subaccounts';
+    showDictionaryModal = true;
+  }
 
   let filteredRules = $derived(
     $rules.filter(r => {
@@ -1074,33 +1158,51 @@
     const depensesSubMenus = [
       {
         id: 'dep_achats',
-        label: 'Achats, fournitures et logiciels',
+        label: 'Achats, fournitures, énergie & documentation',
         icon: 'fa-cart-shopping',
-        codes: ['606', '6132', '615', '616', '626', '627']
+        codes: ['606', '6061', '607', '618']
+      },
+      {
+        id: 'dep_outils',
+        label: 'Logiciels, télécom, publicité & frais bancaires',
+        icon: 'fa-laptop',
+        codes: ['6132', '626', '627', '623']
       },
       {
         id: 'dep_missions',
-        label: 'Déplacements et repas',
+        label: 'Déplacements, parking, train & repas pro',
         icon: 'fa-car',
         codes: ['625']
       },
       {
-        id: 'dep_social',
-        label: 'Salaires, cotisations & charges sociales ...',
-        icon: 'fa-building-columns',
-        codes: ['645', '635', '6453', '641', '611', '658']
+        id: 'dep_locaux',
+        label: 'Locaux, loyers, entretien & assurances',
+        icon: 'fa-building',
+        codes: ['613', '615', '616']
       },
       {
-        id: 'dep_locaux',
-        label: 'Locaux et loyers',
-        icon: 'fa-building',
-        codes: ['613', '661']
+        id: 'dep_honoraires_taxes',
+        label: 'Honoraires, impôts, cotisations pro & pénalités',
+        icon: 'fa-scale-balanced',
+        codes: ['622', '628', '635', '671']
+      },
+      {
+        id: 'dep_social',
+        label: 'Salaires, URSSAF, mutuelle & sous-traitance',
+        icon: 'fa-building-columns',
+        codes: ['645', '6453', '641', '611', '658']
+      },
+      {
+        id: 'dep_invest_emprunt',
+        label: 'Matériel (> 500 € HT), emprunts & TVA',
+        icon: 'fa-landmark',
+        codes: ['218', '164', '661', '445']
       },
       {
         id: 'dep_transferts',
-        label: 'Remboursements, virements & trésorerie',
+        label: 'Prélèvements perso, remboursements & virements',
         icon: 'fa-arrow-up-right',
-        codes: ['411', '455', '512', '530', '401', '467']
+        codes: ['108', '455', '411', '401', '467', '512', '530']
       }
     ];
 
@@ -1108,11 +1210,24 @@
     const buildSection = (subMenus, fallbackFilter, isExpenseContext = false) => {
       const handledCodes = new Set();
       const list = subMenus.map(sub => {
-        const accs = getAccounts(sub.codes, isExpenseContext);
-        accs.forEach(a => handledCodes.add(a.compte));
+        const baseAccs = getAccounts(sub.codes, isExpenseContext);
+        /** @type {any[]} */
+        const accsWithChildren = [];
+        baseAccs.forEach(a => {
+          accsWithChildren.push(a);
+          handledCodes.add(a.compte);
+          // Rattacher automatiquement les sous-comptes personnalisés juste sous leur parent
+          const customChildren = plan.filter(
+            c => c.isCustom && (c.parentCompte === a.compte || (!c.parentCompte && c.compte.startsWith(a.compte))) && !handledCodes.has(c.compte)
+          );
+          customChildren.forEach(child => {
+            accsWithChildren.push(child);
+            handledCodes.add(child.compte);
+          });
+        });
         return {
           ...sub,
-          accounts: accs
+          accounts: accsWithChildren
         };
       });
 
@@ -1120,7 +1235,7 @@
       if (extras.length > 0) {
         list.push({
           id: 'extras_custom',
-          label: 'Autres comptes personnalisés',
+          label: 'Autres sous-comptes personnalisés',
           icon: 'fa-folder',
           accounts: extras
         });
@@ -1156,14 +1271,15 @@
     return sub.accounts.some((/** @type {any} */ a) => a.compte === String(selectedCompte));
   }
 
-  // Résultats de recherche directe quand du texte est saisi
+  // Résultats de recherche directe quand du texte est saisi (insensible aux accents)
   let modalSearchResults = $derived((() => {
-    const q = modalSearchQuery.trim().toLowerCase();
+    const norm = (/** @type {string} */ s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const q = norm(modalSearchQuery.trim());
     if (!q) return [];
     return $planComptable.filter(c => c.compte !== '699' && (
-      c.compte.toLowerCase().includes(q) ||
-      (c.libelle && c.libelle.toLowerCase().includes(q)) ||
-      (c.desc && c.desc.toLowerCase().includes(q))
+      norm(c.compte).includes(q) ||
+      norm(c.libelle).includes(q) ||
+      norm(c.desc).includes(q)
     ));
   })());
 
@@ -1439,7 +1555,7 @@
 
       <button 
         type="button" 
-        onclick={() => showDictionaryModal = true}
+        onclick={() => { dictModalTab = 'rules'; showDictionaryModal = true; }}
         style="background: #4f46e5; color: #ffffff; border: none; padding: 5px 18px; font-weight: 700; border-radius: 20px; cursor: pointer; font-size: 0.76rem; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25); transition: opacity 0.15s ease;"
         onmouseenter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
         onmouseleave={(e) => { e.currentTarget.style.opacity = '1'; }}
@@ -2116,7 +2232,7 @@
     <div class="modal-content" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1" style="max-width: 580px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; background: #0c1527 !important; border: 1.5px solid rgba(56, 189, 248, 0.25) !important; border-radius: 16px; padding: 22px 24px; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75); color: #f8fafc !important;">
       
       <!-- Modal Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 12px;">
+      <div style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 12px;">
         <div>
           <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.15rem; color: #ffffff !important; font-weight: 800;">
             Attribuer un compte comptable
@@ -2137,7 +2253,7 @@
       </div>
 
       <!-- Transaction Card Summary -->
-      <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
+      <div style="flex-shrink: 0; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
           <div style="min-width: 0; flex: 1;">
             <div style="font-weight: 700; color: #ffffff !important; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={selectedTxForCategorization.libelle}>
@@ -2181,11 +2297,70 @@
         {/if}
       </div>
 
-      <!-- Scrollable Body (Accordéon direct Recettes / Dépenses épuré sans icônes) -->
-      <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 2px; margin-bottom: 14px;">
-        
+      <!-- Barre de recherche instantanée (numéro, libellé ou exemple : EDF, OpenAI, comptable, essence...) -->
+      <div style="flex-shrink: 0; position: relative; margin-bottom: 12px;">
+        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 0.82rem; pointer-events: none;"></i>
+        <input
+          type="text"
+          bind:value={modalSearchQuery}
+          placeholder="Rechercher un compte ou un exemple (ex : 627, essence, logiciel, comptable, URSSAF...)"
+          style="width: 100%; box-sizing: border-box; padding: 9px 34px 9px 34px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.05); color: #ffffff; font-size: 0.84rem; outline: none;"
+        />
+        {#if modalSearchQuery.trim()}
+          <button
+            type="button"
+            onclick={() => modalSearchQuery = ''}
+            aria-label="Effacer la recherche"
+            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.85rem; padding: 4px;"
+          >✕</button>
+        {/if}
+      </div>
+
+      <!-- Scrollable Body (Résultats de recherche OU Accordéon Recettes / Dépenses) -->
+      <div style="flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; margin-bottom: 14px;">
+
+        {#if modalSearchQuery.trim()}
+          {#if modalSearchResults.length === 0}
+            <div style="flex-shrink: 0; text-align: center; padding: 24px 16px; color: #94a3b8; font-size: 0.84rem; background: rgba(255, 255, 255, 0.03); border: 1px dashed rgba(255, 255, 255, 0.12); border-radius: 10px;">
+              Aucun compte ne correspond à « {modalSearchQuery} ». Essayez un mot plus simple (ex. <em>fournitures</em>, <em>loyer</em>, <em>repas</em>) ou parcourez les rubriques.
+            </div>
+          {:else}
+            <div style="flex-shrink: 0; display: flex; flex-direction: column; gap: 6px;">
+              {#each modalSearchResults as acc}
+                {@const isSelected = (selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué) === acc.compte}
+                <button
+                  type="button"
+                  onclick={() => {
+                    selectedCategoryMap[selectedTxForCategorization.id] = acc.compte;
+                  }}
+                  style="text-align: left; padding: 9px 12px; border-radius: 8px; cursor: pointer; border: 1px solid {isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.1)'}; background: {isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.03)'}; color: #ffffff; display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;"
+                >
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                      <span style="font-weight: 700; font-size: 0.84rem; color: #ffffff !important;">{acc.libelle || formatAccountLabel(acc.compte)}</span>
+                      <span style="font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: {isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.1)'}; color: {isSelected ? '#080e1a' : '#e2e8f0'};">
+                        {acc.compte}
+                      </span>
+                      {#if acc.isCustom}
+                        <span style="font-size: 0.65rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.35);">Perso</span>
+                      {/if}
+                    </div>
+                    {#if acc.desc}
+                      <div style="font-size: 0.74rem; color: #94a3b8; margin-top: 3px; line-height: 1.35;">
+                        {acc.desc}
+                      </div>
+                    {/if}
+                  </div>
+                  {#if isSelected}
+                    <span style="font-size: 0.7rem; font-weight: 800; color: #38bdf8; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 7px; border-radius: 4px; flex-shrink: 0;">Sélectionné</span>
+                  {/if}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        {:else}
         <!-- 1. ACCORDÉON RECETTES -->
-        <div style="border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; overflow: hidden; background: rgba(255, 255, 255, 0.02);">
+        <div style="flex-shrink: 0; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; overflow: hidden; background: rgba(255, 255, 255, 0.02);">
           <button 
             type="button"
             onclick={() => {
@@ -2204,7 +2379,7 @@
                 {@const isSubOpen = activeSubMenuKey === sub.id}
                 {@const hasSelectedInSub = subHasSelectedAccount(sub, selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué)}
                 
-                <div style="border: 1px solid {hasSelectedInSub ? 'rgba(56, 189, 248, 0.45)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.03);">
+                <div style="flex-shrink: 0; border: 1px solid {hasSelectedInSub ? 'rgba(56, 189, 248, 0.45)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.03);">
                   <button 
                     type="button"
                     onclick={() => activeSubMenuKey = isSubOpen ? null : sub.id}
@@ -2257,7 +2432,7 @@
         </div>
 
         <!-- 2. ACCORDÉON DÉPENSES -->
-        <div style="border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; overflow: hidden; background: rgba(255, 255, 255, 0.02);">
+        <div style="flex-shrink: 0; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; overflow: hidden; background: rgba(255, 255, 255, 0.02);">
           <button 
             type="button"
             onclick={() => {
@@ -2276,7 +2451,7 @@
                 {@const isSubOpen = activeSubMenuKey === sub.id}
                 {@const hasSelectedInSub = subHasSelectedAccount(sub, selectedCategoryMap[selectedTxForCategorization.id] || selectedTxForCategorization.compteAttribué)}
                 
-                <div style="border: 1px solid {hasSelectedInSub ? 'rgba(56, 189, 248, 0.45)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.03);">
+                <div style="flex-shrink: 0; border: 1px solid {hasSelectedInSub ? 'rgba(56, 189, 248, 0.45)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.03);">
                   <button 
                     type="button"
                     onclick={() => activeSubMenuKey = isSubOpen ? null : sub.id}
@@ -2327,11 +2502,23 @@
             </div>
           {/if}
         </div>
+        {/if}
 
       </div>
 
       <!-- Modal Footer Actions -->
-      <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 14px;">
+      <div style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 14px;">
+        <button
+          type="button"
+          onclick={openSubAccountsManager}
+          style="background: none; border: none; padding: 0; color: #94a3b8; font-size: 0.76rem; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; transition: color 0.15s ease;"
+          onmouseenter={(e) => { e.currentTarget.style.color = '#38bdf8'; }}
+          onmouseleave={(e) => { e.currentTarget.style.color = '#94a3b8'; }}
+        >
+          Besoin d'un sous-compte spécifique (ex. 60623) ?
+        </button>
+
+        <div style="display: flex; gap: 10px; margin-left: auto;">
         <button 
           type="button" 
           onclick={() => showCategorizeModal = false} 
@@ -2353,6 +2540,7 @@
         >
           Valider l'attribution
         </button>
+        </div>
       </div>
 
     </div>
@@ -2406,8 +2594,29 @@
         </button>
       </div>
 
+      <!-- Barre d'onglets : Dictionnaire / Sous-comptes avancés -->
+      <div style="flex-shrink: 0; display: flex; gap: 8px; padding: 10px 24px; border-bottom: 1px solid var(--border-color, #e2e8f0); background: var(--bg-card, #ffffff);">
+        <button
+          type="button"
+          onclick={() => dictModalTab = 'rules'}
+          style="padding: 7px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: all 0.15s ease; {dictModalTab === 'rules' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5;' : 'background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-color);'}"
+        >
+          <i class="fa-solid fa-book-bookmark" style="font-size: 0.78rem;"></i>
+          <span>Dictionnaire ({$rules.length})</span>
+        </button>
+        <button
+          type="button"
+          onclick={() => dictModalTab = 'subaccounts'}
+          style="padding: 7px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: all 0.15s ease; {dictModalTab === 'subaccounts' ? 'background: #4f46e5; color: #ffffff; border: 1px solid #4f46e5;' : 'background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-color);'}"
+        >
+          <i class="fa-solid fa-sitemap" style="font-size: 0.78rem;"></i>
+          <span>Sous-comptes avancés ({customSubAccounts.length})</span>
+        </button>
+      </div>
+
       <!-- Corps défilable -->
       <div class="dict-modal-body">
+        {#if dictModalTab === 'rules'}
         
         <!-- Bloc formulaire : Ajouter un nouveau mot-clé -->
         <div class="dict-add-box">
@@ -2803,6 +3012,161 @@
             </div>
           {/if}
         </div>
+        {:else}
+        <!-- ======================================================== -->
+        <!-- ONGLET 2 : SOUS-COMPTES COMPTABLES AVANCÉS (OPTIONNEL)   -->
+        <!-- ======================================================== -->
+
+        <!-- Encadré pédagogique : Qu'est-ce qu'un sous-compte et à quoi sert-il ? -->
+        <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-weight: 800; font-size: 0.88rem; color: var(--color-accent, #38bdf8); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>Qu'est-ce qu'un sous-compte et à quoi sert-il ?</span>
+          </div>
+          <p style="margin: 0; font-size: 0.81rem; color: var(--text-secondary); line-height: 1.5;">
+            En comptabilité française, les comptes officiels ont <strong>3 chiffres</strong> (par exemple <code style="font-weight: 700;">606</code> pour les achats et fournitures). Un <strong>sous-compte</strong> (par exemple <code style="font-weight: 700;">60623</code>) permet simplement de <strong>subdiviser un compte existant</strong> pour suivre une catégorie précise à part (ex. séparer vos « Fournitures médicales » de la « Papeterie ») ou suivre le découpage de votre expert-comptable.
+          </p>
+          <p style="margin: 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.45;">
+            <strong>Bon à savoir :</strong> si vous débutez, les comptes standards de Tito suffisent largement et sont déjà 100 % conformes (FEC / 2035 / Bilan). Vous n'avez pas besoin d'en créer !
+          </p>
+        </div>
+
+        <!-- Formulaire guidé par compte parent (garde-fou PCG) -->
+        <div class="dict-add-box">
+          <div class="dict-add-box-title">
+            <i class="fa-solid fa-circle-plus" style="color: #6366f1;"></i>
+            <span>Créer un sous-compte personnalisé</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.5fr 0.75fr; gap: 12px; margin-bottom: 12px;">
+            <div class="dict-field-group">
+              <label for="sub-parent" class="dict-field-label">1. Compte parent officiel :</label>
+              <select id="sub-parent" bind:value={newSubParentCompte} class="dict-select">
+                <optgroup label="Dépenses & Charges">
+                  {#each standardParentAccounts.filter(p => p.compte.startsWith('6') || p.compte.startsWith('2')) as p}
+                    <option value={p.compte}>{p.compte} — {p.libelle}</option>
+                  {/each}
+                </optgroup>
+                <optgroup label="Recettes & Produits">
+                  {#each standardParentAccounts.filter(p => p.compte.startsWith('7')) as p}
+                    <option value={p.compte}>{p.compte} — {p.libelle}</option>
+                  {/each}
+                </optgroup>
+                <optgroup label="Transferts, Banque & Exploitant">
+                  {#each standardParentAccounts.filter(p => !p.compte.startsWith('6') && !p.compte.startsWith('7') && !p.compte.startsWith('2')) as p}
+                    <option value={p.compte}>{p.compte} — {p.libelle}</option>
+                  {/each}
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="dict-field-group">
+              <label for="sub-suffix" class="dict-field-label">2. Suffixe (1 à 4 chiffres) :</label>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="padding: 7px 9px; border-radius: 7px; background: var(--bg-card); border: 1px solid var(--border-color); font-weight: 800; font-size: 0.82rem; color: var(--text-muted); white-space: nowrap;">
+                  {newSubParentCompte}
+                </span>
+                <input
+                  id="sub-suffix"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="4"
+                  bind:value={newSubSuffix}
+                  placeholder="Ex : 23"
+                  class="dict-input"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 12px; margin-bottom: 12px;">
+            <div class="dict-field-group">
+              <label for="sub-label" class="dict-field-label">3. Nom du sous-compte :</label>
+              <input
+                id="sub-label"
+                type="text"
+                bind:value={newSubLabel}
+                placeholder="Ex : Fournitures médicales stériles"
+                class="dict-input"
+              />
+            </div>
+
+            <div class="dict-field-group">
+              <label for="sub-desc" class="dict-field-label">Exemples d'opérations (optionnel) :</label>
+              <input
+                id="sub-desc"
+                type="text"
+                bind:value={newSubDesc}
+                placeholder="Ex : Compresses, gants, seringues, désinfectant..."
+                class="dict-input"
+              />
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+            <div style="font-size: 0.78rem; color: var(--text-muted);">
+              {#if computedSubCompte}
+                Numéro généré : <strong style="color: var(--color-accent, #38bdf8); font-size: 0.86rem;">{computedSubCompte}</strong>
+                {#if $planComptable.some(p => p.compte === computedSubCompte)}
+                  <span style="color: #f87171; font-weight: 700; margin-left: 6px;">(déjà existant)</span>
+                {/if}
+              {:else}
+                Le sous-compte héritera automatiquement du type (Recette / Dépense) et du classement de <strong>{newSubParentCompte}</strong>.
+              {/if}
+            </div>
+
+            <button
+              type="button"
+              onclick={handleAddCustomSubAccount}
+              style="padding: 8px 16px; border-radius: 8px; border: none; background: #4f46e5; color: #ffffff; font-weight: 700; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"
+            >
+              <i class="fa-solid fa-plus"></i>
+              <span>Créer le sous-compte</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Liste des sous-comptes personnalisés existants -->
+        <div>
+          <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-main); margin-bottom: 10px;">
+            Vos sous-comptes personnalisés ({customSubAccounts.length})
+          </div>
+          {#if customSubAccounts.length === 0}
+            <div style="text-align: center; padding: 24px 16px; color: var(--text-muted); font-size: 0.84rem; background: var(--bg-subtle); border: 1px dashed var(--border-color); border-radius: 10px;">
+              Aucun sous-compte personnalisé créé pour cette structure.
+            </div>
+          {:else}
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              {#each customSubAccounts as sc}
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px;">
+                  <div style="min-width: 0; flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-weight: 800; font-size: 0.78rem; padding: 2px 7px; border-radius: 5px; background: rgba(56, 189, 248, 0.14); color: var(--color-accent, #38bdf8); border: 1px solid rgba(56, 189, 248, 0.35);">
+                        {sc.compte}
+                      </span>
+                      <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);">{sc.libelle}</span>
+                      <span style="font-size: 0.72rem; color: var(--text-muted);">
+                        (rattaché à {sc.parentCompte || sc.compte.slice(0, 3)})
+                      </span>
+                    </div>
+                    {#if sc.desc}
+                      <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 3px;">{sc.desc}</div>
+                    {/if}
+                  </div>
+                  <button
+                    type="button"
+                    onclick={() => handleDeleteCustomSubAccount(sc.compte)}
+                    class="dict-delete-btn"
+                    title="Supprimer ce sous-compte"
+                  >
+                    <i class="fa-solid fa-trash-can"></i> Supprimer
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+        {/if}
 
       </div>
 
@@ -3432,11 +3796,16 @@
   .dict-modal-body {
     padding: 20px 24px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 20px;
     box-sizing: border-box;
+  }
+  .dict-modal-body > * {
+    flex-shrink: 0;
   }
   .dict-add-box {
     background: var(--bg-subtle, #f8fafc);

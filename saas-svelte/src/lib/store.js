@@ -402,41 +402,22 @@ export function loadEntityData(entityId) {
 
   const savedPlan = safeGetJson(`saas_compta_plan_${entityId}`, null);
   const resolvedPlan = savedPlan ? [...savedPlan] : [...INITIAL_PLAN_COMPTABLE];
-  if (!resolvedPlan.some(p => p.compte === '707')) {
-    resolvedPlan.push({ compte: "707", libelle: "Ventes de marchandises", type: "Produit", group: "entrees", desc: "Ventes de biens et marchandises destinées à la revente." });
-  }
-  if (!resolvedPlan.some(p => p.compte === '455')) {
-    resolvedPlan.push({ compte: "455", libelle: "Compte courant d'associé (Apport / Avance CCA)", type: "Transfert", group: "transferts", desc: "Avances de trésorerie ou apports des associés (SCI / SASU / SARL)." });
-  }
-  if (!resolvedPlan.some(p => p.compte === '635')) {
-    resolvedPlan.push({ compte: "635", libelle: "Impôts & Taxes (Taxe foncière, CFE)", type: "Charge", group: "depenses_courantes", desc: "Taxe foncière, CFE et taxes déductibles." });
-  }
-  if (!resolvedPlan.some(p => p.compte === '661')) {
-    resolvedPlan.push({ compte: "661", libelle: "Intérêts d'emprunt & Charges financières", type: "Charge", group: "depenses_courantes", desc: "Intérêts des crédits bancaires et emprunts immobiliers." });
-  }
-  if (!resolvedPlan.some(p => p.compte === '487')) {
-    resolvedPlan.push({ compte: "487", libelle: "Produits constatés d'avance (Inscriptions saison future / Reports)", type: "Transfert", group: "transferts", desc: "Inscriptions et cotisations perçues par avance pour le prochain exercice ou la saison suivante." });
-  }
-  if (!resolvedPlan.some(p => p.compte === '791')) {
-    resolvedPlan.push({ compte: "791", libelle: "Remboursements Sécurité Sociale (IJSS) & Assurances", type: "Produit", group: "entrees", desc: "Indemnités journalières de la CPAM (arrêt de travail, subrogation) ou remboursements de prévoyance / assurance." });
-  }
-  const extraSubAccounts = [
-    { compte: "7061", libelle: "Honoraires au temps passé (Taux horaire)", type: "Produit", group: "entrees", desc: "Facturation au temps passé selon le taux horaire." },
-    { compte: "7062", libelle: "Honoraires de résultat", type: "Produit", group: "entrees", desc: "Honoraires complémentaires de résultat (success fees)." },
-    { compte: "7063", libelle: "Consultations & Conseils", type: "Produit", group: "entrees", desc: "Consultations juridiques et rendez-vous conseils." },
-    { compte: "7064", libelle: "Plaidoiries & Actes juridiques", type: "Produit", group: "entrees", desc: "Rédaction d'actes, assignations, plaidoiries et conclusions." },
-    { compte: "708", libelle: "Frais & Débours refacturés", type: "Produit", group: "entrees", desc: "Frais de greffe, huissier ou déplacements refacturés aux clients." }
-  ];
-  extraSubAccounts.forEach(sub => {
-    if (!resolvedPlan.some(p => p.compte === sub.compte)) {
-      resolvedPlan.push(sub);
+  // Fusionner automatiquement les nouveaux comptes officiels et enrichir les descriptions standards
+  // sans jamais écraser les sous-comptes personnalisés (isCustom: true) de l'utilisateur
+  INITIAL_PLAN_COMPTABLE.forEach(std => {
+    const existingIdx = resolvedPlan.findIndex(p => p.compte === std.compte);
+    if (existingIdx === -1) {
+      resolvedPlan.push({ ...std });
+    } else if (!resolvedPlan[existingIdx].isCustom) {
+      resolvedPlan[existingIdx] = {
+        ...resolvedPlan[existingIdx],
+        libelle: std.libelle,
+        type: std.type,
+        group: std.group,
+        desc: std.desc
+      };
     }
   });
-  const cpt706 = resolvedPlan.find(p => p.compte === '706');
-  if (cpt706 && (cpt706.libelle === 'Ventes, Cours & Services' || cpt706.libelle.includes('Cours'))) {
-    cpt706.libelle = 'Honoraires généraux / Forfaits';
-    cpt706.desc = 'Honoraires forfaitaires, dossiers et missions principales.';
-  }
   planComptable.set(resolvedPlan);
   localStorage.setItem(`saas_compta_plan_${entityId}`, JSON.stringify(resolvedPlan));
 

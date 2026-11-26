@@ -159,7 +159,7 @@
       </div>
 
       <!-- Corps déroulant -->
-      <div style="flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 18px;">
+      <div style="flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px; display: flex; flex-direction: column; gap: 18px;">
         
         {#if $focusedChatTx && txExplanation}
           <!-- ======================================================== -->
@@ -227,7 +227,7 @@
             <div style="display: flex; flex-direction: column; gap: 8px;">
               {#each viewSuggestions as item, idx}
                 {@const isOpen = expandedFaqIndex === idx}
-                <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; overflow: hidden; transition: border-color 0.15s ease;">
+                <div style="flex-shrink: 0; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; overflow: hidden; transition: border-color 0.15s ease;">
                   <button
                     type="button"
                     onclick={() => toggleFaq(idx)}
