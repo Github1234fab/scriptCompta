@@ -397,7 +397,7 @@
       </button>
     </div>
 
-    <div class="table-container desktop-tx-table" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
+    <div class="table-container desktop-tx-table" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
       <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="background: #ffffff; border-bottom: 1.5px solid #e2e8f0;">
@@ -413,7 +413,7 @@
               <td style="color: var(--text-muted); white-space: nowrap;">{formatDateFr(tx.date)}</td>
               <td style="font-weight: 600; color: var(--text-main);">{tx.libelle}</td>
               <td>
-                <span class="badge badge-muted" style="background: var(--bg-subtle); border: 1px solid var(--border-subtle);">
+                <span class="badge badge-muted">
                   Virement bancaire
                 </span>
               </td>

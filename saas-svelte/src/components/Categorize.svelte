@@ -167,6 +167,7 @@
     const target = /** @type {HTMLInputElement} */ (e.target);
     if (target.files?.length) {
       processCSVFile(target.files[0]);
+      target.value = '';
     }
   }
 
@@ -3004,6 +3005,7 @@
 
   /* Conteneur principal du tableau / liste d'attribution */
   .categorize-table-section {
+    flex-shrink: 0;
     margin-bottom: 30px;
     background: var(--table-container-bg);
     border: 1.5px solid var(--border-container);
@@ -3013,7 +3015,7 @@
     box-sizing: border-box;
     width: 100%;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
   }
   .categorize-table-inner {
     padding: 6px;

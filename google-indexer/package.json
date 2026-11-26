@@ -1,0 +1,13 @@
+{
+  "name": "google-indexer",
+  "version": "1.0.0",
+  "description": "Script de soumission d'URLs à Google Indexing API pour ididem.com et photo-identite-thurins.fr",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "googleapis": "^144.0.0"
+  }
+}

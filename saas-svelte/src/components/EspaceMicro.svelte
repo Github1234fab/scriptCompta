@@ -291,7 +291,7 @@
         </div>
       </div>
 
-      <div class="table-container" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
+      <div class="table-container" style="border: none; border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
         <table class="custom-table" style="width: 100%; border-collapse: collapse;">
           <thead>
             <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
@@ -377,7 +377,7 @@
       </div>
     </div>
 
-    <div class="table-container" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
+    <div class="table-container" style="border: none; border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);">
       <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
@@ -402,7 +402,7 @@
                 <td style="padding: 11px 14px; color: #64748b; font-size: 0.82rem; font-weight: 700;">#{idx + 1}</td>
                 <td style="padding: 11px 14px; font-weight: 700; color: #0f172a; font-size: 0.88rem;">{new Date(a.date).toLocaleDateString('fr-FR')}</td>
                 <td style="padding: 11px 14px; color: #0f172a; font-weight: 700; font-size: 0.88rem;">{a.libelle}</td>
-                <td style="padding: 11px 14px;"><span class="badge badge-muted" style="background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">{a.compteAttribué}</span></td>
+                <td style="padding: 11px 14px;"><span class="badge badge-muted" style="padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">{a.compteAttribué}</span></td>
                 <td style="padding: 11px 14px; font-size: 0.82rem; color: #64748b;">{a.typeOperation || 'Carte / Virement'}</td>
                 <td style="padding: 11px 14px; text-align: right; color: #b91c1c; font-weight: 800; font-size: 0.95rem; font-family: var(--font-title);">
                   -{a.debit.toFixed(2)} €

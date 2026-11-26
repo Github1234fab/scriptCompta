@@ -566,6 +566,10 @@ body {
   box-sizing: border-box;
 }
 
+.app-content > * {
+  flex-shrink: 0;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    EN-TÊTE ET TITRES
    ═══════════════════════════════════════════════════════════════════ */
@@ -1080,13 +1084,13 @@ h1, h2, h3, h4, h5, .page-title {
 }
 
 .badge-success {
-  background-color: var(--color-success-glow);
+  background-color: var(--color-success-bg);
   color: var(--color-success);
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .badge-warning {
-  background-color: var(--color-warning-glow);
+  background-color: var(--color-warning-bg);
   color: var(--color-warning);
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
@@ -1098,9 +1102,15 @@ h1, h2, h3, h4, h5, .page-title {
 }
 
 .badge-muted {
-  background-color: #f1f5f9;
-  color: #334155;
-  border: 1px solid #cbd5e1;
+  background-color: var(--bg-subtle, #f1f5f9);
+  color: var(--text-secondary, #334155);
+  border: 1px solid var(--border-subtle, #cbd5e1);
+}
+
+:root[data-theme="dark"] .badge-muted {
+  background-color: rgba(148, 163, 184, 0.14);
+  color: #e2e8f0;
+  border-color: rgba(148, 163, 184, 0.3);
 }
 
 /* Montants */

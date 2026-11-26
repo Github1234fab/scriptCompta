@@ -493,7 +493,7 @@
       </div>
     </div>
 
-    <div class="table-container desktop-tx-table" style="border: none; border-radius: 12px; overflow: hidden; background: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);">
+    <div class="table-container desktop-tx-table" style="border: none; border-radius: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; background: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);">
       <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="background: var(--bg-container); border-bottom: 1.5px solid var(--border-container);">
@@ -512,13 +512,25 @@
             </tr>
           {:else}
             {#each displayedTx as tx}
+              {@const isAttributed = tx.compteAttribué && tx.compteAttribué !== '699' && tx.statut === 'attribue'}
+              {@const isUnassigned = !tx.compteAttribué || tx.compteAttribué === '699'}
               <tr style="border-bottom: 1px solid var(--border-container); background: #ffffff;">
                 <td style="color: var(--text-muted); white-space: nowrap; padding: 12px 14px; font-weight: 600; font-size: 0.86rem;">{formatDateFr(tx.date)}</td>
                 <td style="font-weight: 600; color: var(--text-main); padding: 12px 14px; font-size: 0.88rem;">{tx.libelle}</td>
                 <td style="padding: 12px 14px;">
-                  <span class="badge badge-muted" style="background: var(--bg-subtle); border: 1px solid var(--border-subtle); font-weight: 700; font-size: 0.78rem;">
-                    {tx.compteNom || 'Attribution assistée'} ({tx.compteAttribué})
-                  </span>
+                  {#if isAttributed}
+                    <span class="badge" style="background: rgba(56, 189, 248, 0.14); color: var(--color-accent); border: 1px solid rgba(56, 189, 248, 0.35); font-weight: 700; font-size: 0.74rem;">
+                      {tx.compteNom || 'Attribution assistée'} ({tx.compteAttribué})
+                    </span>
+                  {:else if isUnassigned}
+                    <span class="badge" style="background: var(--color-warning-bg); color: var(--color-warning); border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; font-size: 0.74rem;">
+                      {tx.compteNom || 'Attribution assistée'} ({tx.compteAttribué || '699'})
+                    </span>
+                  {:else}
+                    <span class="badge badge-muted" style="font-weight: 700; font-size: 0.74rem;">
+                      {tx.compteNom || 'Attribution assistée'} ({tx.compteAttribué})
+                    </span>
+                  {/if}
                 </td>
                 <td style="text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; padding: 12px 14px; font-size: 0.92rem; color: {tx.credit > 0 ? 'var(--color-success)' : 'var(--text-main)'};">
                   {tx.credit > 0 ? '+' : ''}{(tx.credit || -tx.debit).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
