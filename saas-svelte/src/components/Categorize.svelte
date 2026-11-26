@@ -729,12 +729,18 @@
             }
           }
 
-          const complement = (match?.info || (match?.rawCells && match.rawCells[selectedComplementColIdx]) || (tx.rawCells && tx.rawCells[selectedComplementColIdx]) || '').trim();
+          const complement = String(
+            (match?.rawCells && match.rawCells[selectedComplementColIdx] !== undefined ? match.rawCells[selectedComplementColIdx] : null) ??
+            (tx.rawCells && tx.rawCells[selectedComplementColIdx] !== undefined ? tx.rawCells[selectedComplementColIdx] : null) ??
+            match?.info ??
+            ''
+          ).trim();
           if (complement) {
             const baseLib = match?.rawLibelle || tx.rawLibelle || tx.libelle.split('—')[0].split('|')[0].trim();
             return {
               ...tx,
               info: complement,
+              concatApplied: true,
               rawLibelle: baseLib,
               libelle: `${baseLib} — ${complement}`,
               rawCells: match?.rawCells || tx.rawCells
@@ -763,6 +769,7 @@
         return {
           ...tx,
           info: comp,
+          concatApplied: Boolean(comp),
           rawLibelle: baseLib,
           libelle: comp ? `${baseLib} — ${comp}` : baseLib
         };
@@ -1700,12 +1707,17 @@
                       <div 
                         style="background: {titoInfo.isHeuristicDoubt ? 'var(--heuristic-doubt-bg)' : 'var(--table-card-bg)'}; border: 1.5px solid {titoInfo.isHeuristicDoubt ? '#38bdf8' : 'var(--table-card-border)'}; border-radius: 14px; padding: 16px 18px; box-shadow: {titoInfo.isHeuristicDoubt ? '0 0 24px rgba(56, 189, 248, 0.16)' : 'var(--shadow-sm)'}; display: flex; flex-direction: column; gap: 9px; transition: all 0.15s ease;"
                       >
-                        <!-- Étage 1 : Libellé + type à gauche, Montant à droite -->
+                        <!-- Étage 1 : Libellé + détail associé + type à gauche, Montant à droite -->
                         <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
-                          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             <span style="font-weight: 800; font-size: 0.98rem; color: var(--table-card-title); letter-spacing: 0.01em;">
-                              {cleanTransactionLibelle(tx.libelle, tx)}
+                              {cleanTransactionLibelle(tx.rawLibelle || tx.libelle, tx)}
                             </span>
+                            {#if tx.info && (tx.concatApplied || tx.libelle.includes(' — '))}
+                              <span style="font-size: 0.74rem; font-weight: 700; color: var(--color-accent, #38bdf8); background: rgba(56, 189, 248, 0.12); padding: 2px 9px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.35);">
+                                {tx.info}
+                              </span>
+                            {/if}
                             <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); background: var(--bg-subtle); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-subtle);">
                               {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
                             </span>
@@ -1983,12 +1995,17 @@
                     <td style="padding: 0 10px; vertical-align: top; border: none;">
                       <div style="background: var(--table-card-bg); border: 1.5px solid var(--table-card-border); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 9px;">
                         
-                        <!-- Ligne 1 : Libellé + type à gauche, Montant à droite -->
+                        <!-- Ligne 1 : Libellé + détail associé + type à gauche, Montant à droite -->
                         <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
-                          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             <span style="font-weight: 800; font-size: 0.98rem; color: var(--table-card-title); letter-spacing: 0.01em;">
-                              {cleanTransactionLibelle(tx.libelle, tx)}
+                              {cleanTransactionLibelle(tx.rawLibelle || tx.libelle, tx)}
                             </span>
+                            {#if tx.info && (tx.concatApplied || tx.libelle.includes(' — '))}
+                              <span style="font-size: 0.74rem; font-weight: 700; color: var(--color-accent, #38bdf8); background: rgba(56, 189, 248, 0.12); padding: 2px 9px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.35);">
+                                {tx.info}
+                              </span>
+                            {/if}
                             <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); background: var(--bg-subtle); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-subtle);">
                               {tx.typeOperation || (tx.libelle.includes('PRLV') ? 'Prélèvement SEPA' : tx.libelle.includes('VIR') ? 'Virement' : 'Carte bancaire')}
                             </span>
