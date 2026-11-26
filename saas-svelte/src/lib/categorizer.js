@@ -336,6 +336,17 @@ export const Categorizer = {
       { mot: 'LAPOSTE', debit: '626', credit: '', note: 'Courrier & Timbres' },
       { mot: 'LA POSTE', debit: '626', credit: '', note: 'Courrier & Timbres' },
 
+      // Recettes santé / CPAM : IJSS (791) avant télétransmission tiers payant (7063)
+      { mot: 'IJSS', debit: '', credit: '791', note: 'Indemnités journalières CPAM (IJSS)' },
+      { mot: 'INDEMNITE', debit: '', credit: '791', note: 'Indemnités journalières CPAM (IJSS)' },
+      { mot: 'ARRET MALADIE', debit: '', credit: '791', note: 'Indemnités journalières CPAM (IJSS)' },
+      { mot: 'TELETRANSMISSION', debit: '', credit: '7063', note: 'Actes & Soins (Télétransmission CPAM)' },
+      { mot: 'NOEMIE', debit: '', credit: '7063', note: 'Actes & Soins (Télétransmission CPAM)' },
+      { mot: 'TIERS PAYANT', debit: '', credit: '7063', note: 'Actes & Soins (Tiers payant mutuelle)' },
+      { mot: 'ALMERYS', debit: '', credit: '7063', note: 'Actes & Soins (Tiers payant mutuelle)' },
+      { mot: 'VIAMEDIS', debit: '', credit: '7063', note: 'Actes & Soins (Tiers payant mutuelle)' },
+      { mot: 'CPAM', debit: '', credit: '7063', note: 'Actes & Soins (CPAM)' },
+
       // Recettes (706, 707, 756, 758)
       { mot: 'COTIS', debit: '', credit: '756', note: 'Cotisation adhérent' },
       { mot: 'ADHESION', debit: '', credit: '756', note: 'Adhésion' },
@@ -571,11 +582,11 @@ export const Categorizer = {
     }
 
     if (String(numCompte) === '7063') {
-      return 'Consultations & Conseils';
+      return 'Consultations, Actes & Soins';
     }
 
     if (String(numCompte) === '7064') {
-      return 'Plaidoiries & Actes juridiques';
+      return 'Formations, Ateliers & Stages animés';
     }
 
     if (String(numCompte) === '708') {

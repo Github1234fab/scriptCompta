@@ -5,6 +5,30 @@
  */
 
 export const TITO_ACCOUNT_KNOWLEDGE = {
+  '7063': {
+    shortTitle: 'Consultations, Actes & Soins',
+    oneClickConfirm: '✓ Oui, actes & soins',
+    doubtPrompt: 'Actes, soins ou consultations réglés par patient, CPAM ou mutuelle ?',
+    byModel: {
+      default: {
+        autoExplain: "Classé en Consultations, Actes & Soins (recettes d'activité professionnelle).",
+        whyLegal: "Les honoraires et lots de télétransmission CPAM / mutuelles tiers payant constituent vos recettes professionnelles encaissées (2035).",
+        impact: "Intégré à vos recettes professionnelles encaissées."
+      }
+    }
+  },
+  '791': {
+    shortTitle: 'Remboursements CPAM (IJSS) & Assurances',
+    oneClickConfirm: '✓ Oui, indemnités CPAM / IJSS',
+    doubtPrompt: "Indemnités journalières CPAM (arrêt maladie/maternité) ou remboursement d'assurance ?",
+    byModel: {
+      default: {
+        autoExplain: "Classé en Remboursements CPAM (IJSS) & Assurances (distinct des honoraires d'activité).",
+        whyLegal: "Les indemnités journalières versées par la Sécurité Sociale (IJSS) sont comptabilisées séparément de vos prestations/honoraires habituels.",
+        impact: "Enregistré en produit hors chiffre d'affaires courant."
+      }
+    }
+  },
   '706': {
     shortTitle: 'Prestations & Honoraires',
     oneClickConfirm: '✓ Oui, recette pro',
@@ -227,7 +251,7 @@ export function getTitoRowExplanation(tx, entityModel = 'micro', suggestion = nu
       oneClickLabel: '✓ Oui, équipement pro (> 500 €)',
       lineExplanation: isCertain
         ? "Équipement professionnel enregistré. Rappel Tito : au régime réel, tout bien > 500 € HT s'amortit sur plusieurs années."
-        : "Tito a un doute : achat d'équipement > 500 € ? Cliquez pour le classer en matériel professionnel.",
+        : "Suggestion Tito : achat d'équipement > 500 € HT ? Cliquez pour le classer en matériel professionnel.",
       whyLegal: "Selon le Bulletin Officiel des Finances Publiques (BOI-BIC-CHG-20-30-10), les équipements unitaires de plus de 500 € HT constituent des immobilisations amortissables.",
       impact: "Déduit progressivement par amortissement (3 ans pour l'informatique, 5 ans pour le mobilier)."
     };
@@ -238,13 +262,13 @@ export function getTitoRowExplanation(tx, entityModel = 'micro', suggestion = nu
     const accountLabel = suggestion?.label || entry.shortTitle;
     const accountMention = compte ? `compte ${compte} (${accountLabel})` : accountLabel;
 
-    let explanationText = isCertain ? modelData.autoExplain : `Tito a un doute : ${entry.doubtPrompt}`;
+    let explanationText = isCertain ? modelData.autoExplain : `Suggestion Tito : ${entry.doubtPrompt}`;
     // Si l'explication ne mentionne pas explicitement le numéro de compte, on l'injecte pédagogiquement
     if (compte && !explanationText.includes(compte)) {
       if (isCertain) {
         explanationText = `Tito a reconnu ce libellé et l'affecte au ${accountMention} : ${explanationText.replace(/^Tito a reconnu [^:]*:\s*/i, '').replace(/^Tito a reconnu [^.]*\.\s*/i, '').replace(/^Classé [^:]*:\s*/i, '')}`;
       } else {
-        explanationText = `Tito a un doute : classer au ${accountMention} ?`;
+        explanationText = `Suggestion Tito : classer au ${accountMention} ?`;
       }
     }
 
@@ -276,7 +300,7 @@ export function getTitoRowExplanation(tx, entityModel = 'micro', suggestion = nu
       oneClickLabel: `✓ Oui, ${accountLabel} (${compte})`,
       lineExplanation: isCertain
         ? `Tito a reconnu ce libellé et l'affecte au ${accountMention}.`
-        : `Tito a un doute : classer cette opération au ${accountMention} ?`,
+        : `Suggestion Tito : classer cette opération au ${accountMention} ?`,
       whyLegal: "Chaque ligne bancaire doit être rattachée à une catégorie comptable homogène avec pièce justificative conservée.",
       impact: tx?.debit > 0 ? "Comptabilisé dans les dépenses de votre structure." : "Comptabilisé dans les recettes de votre structure."
     };
