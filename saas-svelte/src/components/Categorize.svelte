@@ -3,6 +3,7 @@
   import { CSVParser } from "../lib/parser.js";
   import { getTitoRowExplanation } from "../lib/titoExplainer.js";
   import InfoTip from "./InfoTip.svelte";
+  import AccountMapModal from "./AccountMapModal.svelte";
 
   import { onMount } from "svelte";
   import { 
@@ -49,6 +50,7 @@
 
   // Dictionnaire d'attribution & Sous-comptes avancés modal state
   let showDictionaryModal = $state(false);
+  let showAccountMapModal = $state(false);
   /** @type {'rules' | 'subaccounts'} */
   let dictModalTab = $state('rules');
   let newRuleKeyword = $state('');
@@ -1981,6 +1983,19 @@
                             <span>+ Informations</span>
                           </button>
 
+                          <!-- 5. Pilule Carte des comptes alignée tout à droite -->
+                          <button
+                            type="button"
+                            onclick={() => (showAccountMapModal = true)}
+                            style="margin-left: auto; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.28); color: var(--color-accent, #38bdf8); padding: 4px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.72rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;"
+                            title="Ouvrir la carte complète des comptes (Recettes, Dépenses, Transferts)"
+                            onmouseenter={(e) => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.16)'; }}
+                            onmouseleave={(e) => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)'; }}
+                          >
+                            <i class="fa-solid fa-map" style="font-size: 0.68rem;"></i>
+                            <span>Carte des comptes</span>
+                          </button>
+
                         </div>
 
                       </div>
@@ -2223,6 +2238,19 @@
                             onmouseleave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                           >
                             <span>+ Informations</span>
+                          </button>
+
+                          <!-- Pilule Carte des comptes alignée tout à droite -->
+                          <button
+                            type="button"
+                            onclick={() => (showAccountMapModal = true)}
+                            style="margin-left: auto; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.28); color: var(--color-accent, #38bdf8); padding: 4px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.72rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;"
+                            title="Ouvrir la carte complète des comptes (Recettes, Dépenses, Transferts)"
+                            onmouseenter={(e) => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.16)'; }}
+                            onmouseleave={(e) => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)'; }}
+                          >
+                            <i class="fa-solid fa-map" style="font-size: 0.68rem;"></i>
+                            <span>Carte des comptes</span>
                           </button>
                         </div>
 
@@ -2606,8 +2634,16 @@
           <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.15rem; color: #ffffff !important; font-weight: 800;">
             Attribuer un compte comptable
           </h3>
-          <div style="font-size: 0.8rem; color: #94a3b8 !important; margin-top: 2px;">
-            Sélectionnez la catégorie comptable à associer à cette opération
+          <div style="font-size: 0.8rem; color: #94a3b8 !important; margin-top: 2px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span>Sélectionnez la catégorie comptable à associer à cette opération</span>
+            <button
+              type="button"
+              onclick={() => (showAccountMapModal = true)}
+              style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; border-radius: 9999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;"
+            >
+              <i class="fa-solid fa-map" style="font-size: 0.68rem;"></i>
+              <span>Voir la carte des comptes</span>
+            </button>
           </div>
         </div>
         <button 
@@ -2915,6 +2951,9 @@
     </div>
   </div>
 {/if}
+
+<!-- MODALE CARTE DES COMPTES (GUIDE COMPLET RECETTES / DÉPENSES) -->
+<AccountMapModal open={showAccountMapModal} onClose={() => (showAccountMapModal = false)} />
 
 <!-- MODALE DU DICTIONNAIRE D'ATTRIBUTION -->
 {#if showDictionaryModal}
@@ -3673,22 +3712,17 @@
                 {#each effectiveSampleRows.slice(0, 3) as row}
                   {@const lib = row[libColIdx] || row[1] || 'Libellé'}
                   {@const comp = row[selectedComplementColIdx] || ''}
-                  <div style="background: rgba(255, 255, 255, 0.04); padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 8px;">
-                    <!-- Ligne 1 : Ce qui est concaténé -->
-                    <div style="display: flex; align-items: center; font-size: 0.82rem; gap: 8px; flex-wrap: wrap;">
-                      <span style="color: #cbd5e1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{lib}">{lib}</span>
-                      <span style="color: #38bdf8; font-weight: 800; font-size: 0.95rem; flex-shrink: 0; line-height: 1;">+</span>
-                      <span style="color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.16); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;" title="{comp || '(vide)'}">
-                        {comp || '(vide)'}
+                  <div style="background: rgba(255, 255, 255, 0.04); padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <strong style="color: #ffffff; font-size: 0.88rem; word-break: break-word;">
+                      {cleanTransactionLibelle(lib)}
+                    </strong>
+                    {#if comp}
+                      <span style="color: #38bdf8; font-size: 0.76rem; font-weight: 700; background: rgba(56, 189, 248, 0.14); padding: 2px 9px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.35); word-break: break-word;">
+                        {comp}
                       </span>
-                    </div>
-                    <!-- Ligne 2 : Visualisation du résultat final -->
-                    <div style="display: flex; align-items: baseline; gap: 6px; font-size: 0.86rem; padding-top: 8px; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
-                      <span style="color: #94a3b8; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; flex-shrink: 0;">Affichage :</span>
-                      <strong style="color: #ffffff; word-break: break-word;">
-                        {comp ? `${lib} — ${comp}` : lib}
-                      </strong>
-                    </div>
+                    {:else}
+                      <span style="color: #64748b; font-size: 0.74rem; font-style: italic;">(vide)</span>
+                    {/if}
                   </div>
                 {/each}
               </div>

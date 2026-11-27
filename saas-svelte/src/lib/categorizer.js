@@ -577,8 +577,8 @@ export const Categorizer = {
     }
 
     if (String(numCompte) === '7062') {
-      if (model === 'bnc') return 'Honoraires de résultat';
-      return 'Prestations au forfait';
+      if (model === 'bnc') return 'Honoraires de résultat & Rétrocessions';
+      return 'Commissions & Primes de résultat';
     }
 
     if (String(numCompte) === '7063') {
