@@ -98,6 +98,7 @@
   let pendingTxCount = $derived(activeTx.filter(t => t.compteAttribué === '699' || t.statut === 'non_attribue' || t.statut === 'suggere' || t.statut === 'a_attribuer').length);
 
   // Helper pour nettoyer les libellés bancaires bruts façon app fintech
+  /** @param {string} [raw] */
   function formatCleanLibelle(raw) {
     if (!raw) return 'Opération bancaire';
     let s = String(raw).trim();
@@ -140,6 +141,48 @@
     s = s.replace(/^[-–—\s]+|[-–—\s]+$/g, '').trim();
 
     return s || raw;
+  }
+
+  let sortedActiveTx = $derived(
+    activeTx.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  );
+
+  let showAllTransactions = $state(false);
+  let txSearch = $state('');
+  let currentPage = $state(1);
+  const itemsPerPage = 50;
+
+  /** @param {string} [compte] */
+  function getAccountLabel(compte) {
+    if (!compte || compte === '699') return 'Non attribué';
+    const found = $planComptable.find((/** @type {any} */ p) => p.compte === String(compte));
+    return found ? `${found.libelle} (${compte})` : `Compte (${compte})`;
+  }
+
+  let filteredTx = $derived((() => {
+    if (!txSearch.trim()) return sortedActiveTx;
+    const q = txSearch.toLowerCase().trim();
+    return sortedActiveTx.filter((t) => {
+      const lib = (t.libelle || '').toLowerCase();
+      const cpt = String(t.compteAttribué || '');
+      const nom = getAccountLabel(cpt).toLowerCase();
+      const amt = String(t.credit > 0 ? t.credit : -t.debit);
+      return lib.includes(q) || cpt.includes(q) || nom.includes(q) || amt.includes(q);
+    });
+  })());
+
+  let totalPages = $derived(Math.max(1, Math.ceil(filteredTx.length / itemsPerPage)));
+
+  let displayedTx = $derived(
+    showAllTransactions
+      ? filteredTx.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+      : sortedActiveTx.slice(0, 8)
+  );
+
+  function toggleShowAll() {
+    showAllTransactions = !showAllTransactions;
+    currentPage = 1;
+    txSearch = '';
   }
 </script>
 
@@ -374,94 +417,186 @@
 
   </div>
 
-  <!-- 5. DERNIÈRES RECETTES ENCAISSÉES (ENGLOBANT LE TITRE) -->
+  <!-- 5. DERNIÈRES OPÉRATIONS BANCAIRES (ALIGNÉ AVEC LES AUTRES STRUCTURES) -->
   <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); padding: 20px; margin-bottom: 30px;">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
       <div>
         <h2 style="font-family: var(--font-title); font-size: 1.12rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-cash-register" style="color: #2563eb; font-size: 0.95rem;"></i> Dernières recettes encaissées
+          <i class="fa-solid fa-list-check" style="color: #2563eb; font-size: 0.95rem;"></i>
+          {#if showAllTransactions}
+            Écritures bancaires ({txSearch.trim() ? `${filteredTx.length} résultat${filteredTx.length > 1 ? 's' : ''}` : `${activeTx.length} opérations`})
+          {:else}
+            Dernières écritures bancaires traitées
+          {/if}
         </h2>
         <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 2px; display: block;">
-          Flux de ventes clients enregistrés et synchronisés dans votre Livre des recettes
+          {#if showAllTransactions}
+            {txSearch.trim() ? `Recherche parmi les ${activeTx.length} écritures de votre micro-entreprise` : 'Historique complet des mouvements bancaires (recettes et frais)'}
+          {:else}
+            Mouvements bancaires rapprochés et intégrés à votre comptabilité
+          {/if}
         </span>
       </div>
-      <button class="btn btn-sm" onclick={() => activeView.set('books')} style="background: #ffffff; border: 1px solid var(--border-subtle); color: #0f172a; border-radius: 6px; padding: 6px 12px; font-weight: 700; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-        Consulter le Livre des Recettes complet <i class="fa-solid fa-arrow-right"></i>
-      </button>
+
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        {#if showAllTransactions}
+          <div style="position: relative; display: flex; align-items: center;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; color: #94a3b8; font-size: 0.78rem; pointer-events: none;"></i>
+            <input 
+              type="text" 
+              placeholder="Libellé, compte, montant..." 
+              bind:value={txSearch} 
+              oninput={() => currentPage = 1}
+              style="padding: 6px 12px 6px 30px; font-size: 0.82rem; border: 1.5px solid var(--border-color); border-radius: 8px; width: 230px; background: var(--bg-card); color: var(--text-main);"
+            />
+          </div>
+        {/if}
+
+        <button 
+          type="button"
+          class="btn btn-sm" 
+          onclick={toggleShowAll} 
+          style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 6px; padding: 6px 14px; font-weight: 700; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s ease;"
+        >
+          {#if showAllTransactions}
+            <i class="fa-solid fa-chevron-up"></i>
+            Réduire l'affichage (8 dernières)
+          {:else}
+            Voir toutes les opérations ({activeTx.length})
+            <i class="fa-solid fa-chevron-down"></i>
+          {/if}
+        </button>
+      </div>
     </div>
 
-    <div class="table-container desktop-tx-table" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
+    <div class="table-container desktop-tx-table" style="border: 1px solid var(--border-color); border-radius: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--bg-card); box-shadow: var(--shadow-sm);">
       <table class="custom-table" style="width: 100%; border-collapse: collapse;">
         <thead>
-          <tr style="background: #ffffff; border-bottom: 1.5px solid #e2e8f0;">
-            <th>Date</th>
-            <th>Client / Libellé</th>
-            <th>Mode de règlement</th>
-            <th style="text-align: right;">Montant Encaissé</th>
+          <tr style="background: var(--bg-container); border-bottom: 1.5px solid var(--border-container);">
+            <th style="padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Date</th>
+            <th style="padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Libellé Opération</th>
+            <th style="padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Nomenclature comptable</th>
+            <th style="text-align: right; padding: 12px 14px; font-weight: 700; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Montant</th>
           </tr>
         </thead>
         <tbody>
-          {#each activeTx.filter(t => t.credit > 0 && t.compteAttribué !== '699' && t.statut === 'attribue').slice(0, 6) as tx}
-            <tr style="border-bottom: 1px solid var(--border-subtle, #e2e8f0); background: #ffffff;">
-              <td style="color: var(--text-muted); white-space: nowrap;">{formatDateFr(tx.date)}</td>
-              <td style="font-weight: 600; color: var(--text-main);">{tx.libelle}</td>
-              <td>
-                <span class="badge badge-muted">
-                  Virement bancaire
-                </span>
-              </td>
-              <td style="text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-success);">
-                +{tx.credit.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+          {#if displayedTx.length === 0}
+            <tr>
+              <td colspan="4" style="text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.92rem;">
+                {activeTx.length === 0 ? "Aucune opération bancaire enregistrée pour cette structure." : "Aucune opération ne correspond à votre recherche."}
               </td>
             </tr>
-          {/each}
+          {:else}
+            {#each displayedTx as tx}
+              {@const isAttributed = tx.compteAttribué && tx.compteAttribué !== '699' && tx.statut === 'attribue'}
+              {@const isUnassigned = !tx.compteAttribué || tx.compteAttribué === '699'}
+              <tr style="border-bottom: 1px solid var(--border-container); background: transparent;">
+                <td style="color: var(--text-muted); white-space: nowrap; padding: 12px 14px; font-weight: 600; font-size: 0.86rem;">{formatDateFr(tx.date)}</td>
+                <td style="font-weight: 600; color: var(--text-main); padding: 12px 14px; font-size: 0.88rem;">{tx.libelle}</td>
+                <td style="padding: 12px 14px;">
+                  {#if isAttributed}
+                    <span class="badge" style="background: rgba(56, 189, 248, 0.14); color: var(--color-accent); border: 1px solid rgba(56, 189, 248, 0.35); font-weight: 700; font-size: 0.74rem;">
+                      {getAccountLabel(tx.compteAttribué)}
+                    </span>
+                  {:else if isUnassigned}
+                    <span class="badge" style="background: var(--color-warning-bg); color: var(--color-warning); border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; font-size: 0.74rem;">
+                      À attribuer (699)
+                    </span>
+                  {:else}
+                    <span class="badge badge-muted" style="font-weight: 700; font-size: 0.74rem;">
+                      {getAccountLabel(tx.compteAttribué)}
+                    </span>
+                  {/if}
+                </td>
+                <td style="text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; padding: 12px 14px; font-size: 0.92rem; color: {tx.credit > 0 ? 'var(--color-success)' : 'var(--text-main)'};">
+                  {tx.credit > 0 ? '+' : ''}{(tx.credit || -tx.debit).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                </td>
+              </tr>
+            {/each}
+          {/if}
         </tbody>
       </table>
     </div>
 
     <!-- Vue Liste unifiée fintech (Mobile < 768px) -->
     <div class="mobile-tx-cards">
-      <div class="mobile-tx-list">
-        {#each activeTx.filter(t => t.credit > 0 && t.compteAttribué !== '699' && t.statut === 'attribue').slice(0, 6) as tx}
-          <div class="mobile-tx-item" title={tx.libelle}>
-            <!-- Pastille circulaire directionnelle 32x32px fintech -->
-            <div 
-              class="mobile-tx-icon-pill" 
-              style="background: rgba(16, 185, 129, 0.12); color: #10b981;"
-              aria-hidden="true"
-            >
-              <!-- Entrée : Flèche diagonale bas-gauche -->
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="17" y1="7" x2="7" y2="17"></line>
-                <polyline points="17 17 7 17 7 7"></polyline>
-              </svg>
-            </div>
-
-            <div class="mobile-tx-content">
-              <!-- Ligne 1 : Nom nettoyé + Montant -->
-              <div class="mobile-tx-row-top">
-                <span class="mobile-tx-name" title={tx.libelle}>
-                  {formatCleanLibelle(tx.libelle)}
-                </span>
-                <span class="mobile-tx-amount" style="color: var(--color-success, #34d399);">
-                  +{tx.credit.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-                </span>
+      {#if displayedTx.length === 0}
+        <div style="text-align: center; padding: 24px 14px; color: var(--text-muted); font-size: 0.88rem; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color);">
+          {activeTx.length === 0 ? "Aucune opération bancaire enregistrée pour cette structure." : "Aucune opération ne correspond à votre recherche."}
+        </div>
+      {:else}
+        <div class="mobile-tx-list">
+          {#each displayedTx as tx}
+            {@const isCredit = tx.credit > 0}
+            <div class="mobile-tx-item" title={tx.libelle}>
+              <div 
+                class="mobile-tx-icon-pill" 
+                style="background: {isCredit ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.10)'}; color: {isCredit ? '#10b981' : '#ef4444'};"
+                aria-hidden="true"
+              >
+                {#if isCredit}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="17" y1="7" x2="7" y2="17"></line>
+                    <polyline points="17 17 7 17 7 7"></polyline>
+                  </svg>
+                {:else}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="7" y1="17" x2="17" y2="7"></line>
+                    <polyline points="7 7 17 7 17 17"></polyline>
+                  </svg>
+                {/if}
               </div>
 
-              <!-- Ligne 2 : Date + Badge -->
-              <div class="mobile-tx-row-bottom">
-                <span class="mobile-tx-date">
-                  {formatDateFr(tx.date)}
-                </span>
-                <span class="mobile-tx-badge">
-                  706 · Prestations
-                </span>
+              <div class="mobile-tx-content">
+                <div class="mobile-tx-row-top">
+                  <span class="mobile-tx-name" title={tx.libelle}>
+                    {formatCleanLibelle(tx.libelle)}
+                  </span>
+                  <span class="mobile-tx-amount" style="color: {isCredit ? 'var(--color-success, #34d399)' : 'var(--color-danger, #f87171)'};">
+                    {isCredit ? '+ ' : '- '}{Math.abs(tx.credit || -tx.debit).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                  </span>
+                </div>
+
+                <div class="mobile-tx-row-bottom">
+                  <span class="mobile-tx-date">
+                    {formatDateFr(tx.date)}
+                  </span>
+                  <span class="mobile-tx-badge">
+                    {tx.compteAttribué && tx.compteAttribué !== '699' ? `${tx.compteAttribué}` : 'À attribuer'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        {/each}
-      </div>
+          {/each}
+        </div>
+      {/if}
     </div>
+
+    {#if showAllTransactions && totalPages > 1}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border-color); flex-wrap: wrap; gap: 10px;">
+        <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600;">
+          Page {currentPage} sur {totalPages} · {filteredTx.length} opération{filteredTx.length > 1 ? 's' : ''}
+        </span>
+        <div style="display: flex; gap: 8px;">
+          <button 
+            type="button" 
+            onclick={() => currentPage = Math.max(1, currentPage - 1)} 
+            disabled={currentPage === 1}
+            style="padding: 5px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: {currentPage === 1 ? 'var(--text-muted)' : 'var(--text-main)'}; cursor: {currentPage === 1 ? 'not-allowed' : 'pointer'};"
+          >
+            Précédent
+          </button>
+          <button 
+            type="button" 
+            onclick={() => currentPage = Math.min(totalPages, currentPage + 1)} 
+            disabled={currentPage === totalPages}
+            style="padding: 5px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: {currentPage === totalPages ? 'var(--text-muted)' : 'var(--text-main)'}; cursor: {currentPage === totalPages ? 'not-allowed' : 'pointer'};"
+          >
+            Suivant
+          </button>
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
 
