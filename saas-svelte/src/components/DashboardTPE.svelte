@@ -298,7 +298,7 @@
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
         {#if accountingModel === 'bnc'}
           <KpiCard 
-            label="Trésorerie Disponible" 
+            label="Trésorerie disponible" 
             value={totalBanque.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
             subtext={$initialBankBalance !== 0 ? `Solde réel (dont ${$initialBankBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} au départ)` : 'Solde de départ non configuré (0,00 €)'}
             actionLabel={$initialBankBalance !== 0 ? "Modifier départ" : "Définir solde initial"}
@@ -306,21 +306,21 @@
           />
 
           <KpiCard 
-            label="Honoraires & Recettes BNC" 
+            label="Honoraires encaissés" 
             value={recettes.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-            subtext="Total des recettes professionnelles"
+            subtext="Recettes professionnelles encaissées"
           />
 
           <KpiCard 
-            label="Frais Déductibles" 
+            label="Frais professionnels" 
             value={depenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
             subtext="Charges déductibles de l'exercice"
           />
 
           <KpiCard 
-            label="Bénéfice BNC Estimé (2035)" 
+            label="Bénéfice BNC (2035)" 
             value={resultatNetEstime.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-            subtext="Recettes décaissées − Frais professionnels"
+            subtext="Honoraires encaissés − Frais professionnels"
           />
 
           <KpiCard 
@@ -330,7 +330,7 @@
           />
         {:else if accountingModel === 'sci'}
           <KpiCard 
-            label="Trésorerie en Banque" 
+            label="Trésorerie disponible" 
             value={totalBanque.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
             subtext={$initialBankBalance !== 0 ? `Solde réel (dont ${$initialBankBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} au départ)` : 'Solde bancaire de la SCI'}
             actionLabel={$initialBankBalance !== 0 ? "Modifier départ" : "Définir solde initial"}
@@ -338,53 +338,91 @@
           />
 
           <KpiCard 
-            label="Loyers & Recettes Encaissés" 
+            label="Loyers encaissés" 
             value={recettes.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
             subtext="Total des loyers perçus"
           />
 
           <KpiCard 
-            label="Charges de Propriété" 
+            label="Charges de l'immeuble" 
             value={depenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-            subtext="Entretien, assurances, taxe foncière"
+            subtext="Entretien, assurances, syndic, taxe foncière"
           />
 
           <KpiCard 
-            label="Résultat Net Foncier (2072)" 
+            label="Revenu foncier net (2072)" 
             value={resultatNetEstime.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-            subtext="Revenu foncier net estimé"
+            subtext="Loyers encaissés − Charges de l'immeuble"
           />
 
           <KpiCard 
             label="Justificatifs" 
             value={`${piecesManquantesCount} pièce${piecesManquantesCount > 1 ? 's' : ''}`} 
-            subtext={piecesManquantesCount > 0 ? "Factures de charges à lier" : "Complet"}
+            subtext={piecesManquantesCount > 0 ? "Factures de charges à lier" : "100% des dépenses justifiées"}
           />
-        {:else}
+        {:else if accountingModel === 'copro'}
           <KpiCard 
-            label="Trésorerie Réelle (Net TVA)" 
-            value={vraiDisponible.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-            subtext={$initialBankBalance !== 0 ? `Total banque : ${totalBanque.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}` : "Après déduction de la provision TVA"}
+            label="Trésorerie du syndicat" 
+            value={totalBanque.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
+            subtext={$initialBankBalance !== 0 ? `Solde réel (dont ${$initialBankBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} au départ)` : 'Solde du compte séparé'}
             actionLabel={$initialBankBalance !== 0 ? "Modifier départ" : "Définir solde initial"}
             onAction={openInitialBalanceModal}
           />
 
           <KpiCard 
-            label="Provision TVA Nette Due" 
-            value={tvaNetteEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-            subtext="TVA collectée − TVA déductible"
+            label="Appels de fonds encaissés" 
+            value={recettes.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
+            subtext="Provisions versées par les copropriétaires"
           />
 
           <KpiCard 
-            label="Chiffre d'Affaires HT" 
-            value={recettes.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-            subtext="Produits d'exploitation facturés"
+            label="Dépenses de l'immeuble" 
+            value={depenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
+            subtext="Entretien, énergie, assurances, travaux"
+          />
+
+          <KpiCard 
+            label="Solde de l'exercice" 
+            value={resultatNetEstime.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
+            subtext="Appels de fonds − Dépenses de l'immeuble"
           />
 
           <KpiCard 
             label="Justificatifs" 
             value={`${piecesManquantesCount} pièce${piecesManquantesCount > 1 ? 's' : ''}`} 
-            subtext={piecesManquantesCount > 0 ? "Pièces manquantes à joindre" : "100% des dépenses sécurisées"}
+            subtext={piecesManquantesCount > 0 ? "Factures de l'immeuble à lier" : "100% des dépenses justifiées"}
+          />
+        {:else}
+          <KpiCard 
+            label="Trésorerie disponible" 
+            value={vraiDisponible.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
+            subtext={$initialBankBalance !== 0 ? `Banque : ${totalBanque.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} (hors TVA)` : "Après provision TVA à reverser"}
+            actionLabel={$initialBankBalance !== 0 ? "Modifier départ" : "Définir solde initial"}
+            onAction={openInitialBalanceModal}
+          />
+
+          <KpiCard 
+            label="Chiffre d'affaires" 
+            value={recettes.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
+            subtext="Recettes clients encaissées"
+          />
+
+          <KpiCard 
+            label="Frais & Charges" 
+            value={depenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
+            subtext="Achats, loyers, salaires et frais payés"
+          />
+
+          <KpiCard 
+            label="TVA à reverser" 
+            value={tvaNetteEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
+            subtext="TVA collectée − TVA déductible"
+          />
+
+          <KpiCard 
+            label="Justificatifs" 
+            value={`${piecesManquantesCount} pièce${piecesManquantesCount > 1 ? 's' : ''}`} 
+            subtext={piecesManquantesCount > 0 ? "Pièces manquantes à joindre" : "100% des dépenses justifiées"}
           />
         {/if}
       </div>

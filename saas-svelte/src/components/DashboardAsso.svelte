@@ -419,20 +419,20 @@
 
         <div class="kpi-item-cell">
           <KpiCard 
-            label="Dépenses & Charges" 
+            label="Dépenses de l'association" 
             mobileLabel="Dépenses"
             value={formatCurrency(totalCharges)} 
-            subtext="Achats, frais, prestations"
-            infoTip="Ensemble des charges et dépenses de fonctionnement décaissées sur l'exercice."
+            subtext="Achats, salles, intervenants et frais"
+            infoTip="Ensemble des charges et dépenses de fonctionnement payées sur l'exercice."
           />
         </div>
 
         <div class="kpi-item-cell">
           <KpiCard 
-            label="Cotisations & Cours Encaissés" 
+            label="Cotisations & Cours" 
             mobileLabel="Cotisations"
             value={formatCurrency(cotisationsEncaissées)} 
-            subtext="Recettes 756 & 706"
+            subtext="Adhésions et stages encaissés"
             infoTip="Total des adhésions, cotisations et règlements de cours perçus sur les comptes 756 et 706."
           />
         </div>
@@ -450,11 +450,11 @@
         <!-- 6. Dons & Mécénat (masqué si 0€ sur mobile, sinon pleine largeur en bas) -->
         <div class="kpi-item-dons {donsEncaissés === 0 ? 'hide-on-mobile-zero' : ''}">
           <KpiCard 
-            label="Dons & Mécénat (754)" 
+            label="Dons & Mécénat" 
             mobileLabel="Dons & Mécénat"
             value={formatCurrency(donsEncaissés)} 
             subtext="Dons manuels et mécénat"
-            infoTip="Recettes issues de la générosité du public, dons déductibles (CERFA) et mécénat associatif (compte 754)."
+            infoTip="Recettes issues de la générosité du public, dons déductibles (CERFA) et mécénat associatif."
           />
         </div>
       </div>

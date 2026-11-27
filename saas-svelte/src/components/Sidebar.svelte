@@ -360,39 +360,43 @@
         </span>
       </li>
 
-      <!-- SÉPARATEUR & TUTORIELS VIDÉO / POSER VOS QUESTIONS -->
-      <li style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 6px;">
-        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-        <span 
-           class="menu-item" 
-           style="color: #e2e8f0; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.09);"
-           data-tooltip="Tutoriels vidéo"
-           title="Ouvrir le tiroir des tutoriels vidéo express"
-           onclick={() => {
-             closeMobileSidebar();
-             openVideoDrawer($activeView === 'categorize' || $activeView === 'books' || $activeView === 'activity' ? $activeView : 'dashboard');
-           }}>
-          <i class="fa-solid fa-circle-play" style="color: #38bdf8;"></i>
-          <span class="menu-label-text" style="font-weight: 700;">Tutoriels vidéo</span>
-        </span>
-
-        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-        <span 
-           class="menu-item" 
-           style="color: #38bdf8; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.16);"
-           data-tooltip="Posez vos questions"
-           title="Posez vos questions à l'équipe Tito"
-           onclick={() => {
-             closeMobileSidebar();
-             openTitoChat(null);
-           }}>
-          <i class="fa-regular fa-comment-dots" style="color: #38bdf8;"></i>
-          <span class="menu-label-text" style="font-weight: 700;">Posez vos questions</span>
-        </span>
-      </li>
-
     </ul>
   </nav>
+
+  <!-- BLOC BAS DE SIDEBAR : AIDE & RESSOURCES (FOND DISTINCT) -->
+  <div style="flex-shrink: 0; padding: 14px 12px 16px 12px; border-top: 1px solid rgba(56, 189, 248, 0.16); background: linear-gradient(180deg, rgba(16, 31, 58, 0.78) 0%, #0b1529 100%); display: flex; flex-direction: column; gap: 7px; box-sizing: border-box;">
+    <span style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; padding: 0 4px 2px 4px;">
+      Aide & Ressources
+    </span>
+
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <span 
+       class="menu-item" 
+       style="color: #e2e8f0; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);"
+       data-tooltip="Tutoriels vidéo"
+       title="Ouvrir le tiroir des tutoriels vidéo express"
+       onclick={() => {
+         closeMobileSidebar();
+         openVideoDrawer($activeView === 'categorize' || $activeView === 'books' || $activeView === 'activity' ? $activeView : 'dashboard');
+       }}>
+      <i class="fa-solid fa-circle-play" style="color: #38bdf8;"></i>
+      <span class="menu-label-text" style="font-weight: 700;">Tutoriels vidéo</span>
+    </span>
+
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <span 
+       class="menu-item" 
+       style="color: #38bdf8; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.22);"
+       data-tooltip="Posez vos questions"
+       title="Posez vos questions à l'équipe Tito"
+       onclick={() => {
+         closeMobileSidebar();
+         openTitoChat(null);
+       }}>
+      <i class="fa-regular fa-comment-dots" style="color: #38bdf8;"></i>
+      <span class="menu-label-text" style="font-weight: 700;">Posez vos questions</span>
+    </span>
+  </div>
 
   <!-- DRAG HANDLE POUR REDIMENSIONNER À LA SOURIS -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->

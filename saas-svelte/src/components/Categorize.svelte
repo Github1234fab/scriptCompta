@@ -1867,18 +1867,20 @@
                   {@const titoInfo = getTitoRowExplanation(tx, activeEntityModel, sug)}
 
                   <tr>
-                    <!-- 1. Colonne Date -->
-                    <td style="padding: 16px 14px; vertical-align: top; font-weight: 800; font-size: 0.88rem; color: var(--text-muted); white-space: nowrap; border: none;">
-                      <div style="background: var(--table-date-bg); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); text-align: center; color: var(--table-date-text); font-weight: 800;">
-                        {formatDateFr(tx.date)}
-                      </div>
-                    </td>
-
-                    <!-- 2. Colonne Opération & Contrôle Tito (Carte Dashboard Hero) -->
-                    <td style="padding: 0 10px; vertical-align: top; border: none;">
+                    <!-- Carte pleine largeur englobant la Date + Opération & Contrôle Tito -->
+                    <td colspan="2" style="padding: 0; vertical-align: top; border: none;">
                       <div 
-                        style="background: {titoInfo.isHeuristicDoubt ? 'var(--heuristic-doubt-bg)' : 'var(--table-card-bg)'}; border: 1.5px solid {titoInfo.isHeuristicDoubt ? '#38bdf8' : 'var(--table-card-border)'}; border-radius: 14px; padding: 16px 18px; box-shadow: {titoInfo.isHeuristicDoubt ? '0 0 24px rgba(56, 189, 248, 0.16)' : 'var(--shadow-sm)'}; display: flex; flex-direction: column; gap: 9px; transition: all 0.15s ease;"
+                        style="background: var(--table-card-bg); border: 1.5px solid var(--table-card-border); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow-sm); display: flex; align-items: flex-start; gap: 18px; transition: border-color 0.15s ease;"
                       >
+                        <!-- 1. Date intégrée dans la carte -->
+                        <div style="width: 96px; flex-shrink: 0;">
+                          <div style="background: var(--table-date-bg); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); text-align: center; color: var(--table-date-text); font-weight: 800; font-size: 0.86rem; white-space: nowrap;">
+                            {formatDateFr(tx.date)}
+                          </div>
+                        </div>
+
+                        <!-- 2. Contenu de l'opération -->
+                        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
                         <!-- Étage 1 : Libellé + détail associé + type à gauche, Montant à droite -->
                         <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
                           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -1901,26 +1903,26 @@
                           </div>
                         </div>
 
-                        <!-- Étage 2 : Suggestion / Analyse Tito bien mise en valeur -->
+                        <!-- Étage 2 : Bandeau anguleux unifié Tito (2 états limpides) -->
                         {#if isStateA && sug}
                           <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
-                            <span style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 9999px; font-size: 0.8rem; font-weight: 800; {titoInfo.isCertain ? 'background: rgba(16, 185, 129, 0.14); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);' : 'background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%); color: #ffffff; box-shadow: 0 3px 12px rgba(6, 182, 212, 0.28);'}">
-                              <i class="fa-solid {titoInfo.isCertain ? 'fa-check-double' : 'fa-wand-magic-sparkles'}" style="font-size: 0.74rem;"></i>
-                              <span>{titoInfo.isCertain ? 'Reconnu par Tito' : 'Suggestion Tito'} : {sug.compte} — {sug.label}</span>
+                            <span style="display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 6px; font-size: 0.82rem; font-weight: 800; background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%); color: #ffffff; box-shadow: 0 3px 12px rgba(6, 182, 212, 0.35);">
+                              <i class="fa-solid fa-wand-magic-sparkles" style="font-size: 0.78rem; color: #e0f2fe;"></i>
+                              <span>Tito propose : {sug.compte} — {sug.label}</span>
                             </span>
                           </div>
                         {:else if isStateC}
                           <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
-                            <span style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 9999px; font-size: 0.8rem; font-weight: 800; background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4);">
-                              <i class="fa-solid fa-check" style="font-size: 0.74rem;"></i>
+                            <span style="display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 6px; font-size: 0.82rem; font-weight: 800; background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%); color: #ffffff; box-shadow: 0 3px 12px rgba(6, 182, 212, 0.35);">
+                              <i class="fa-solid fa-check" style="font-size: 0.78rem; color: #e0f2fe;"></i>
                               <span>Sélectionné : {manualCat} — {formatAccountLabel(manualCat)}</span>
                             </span>
                           </div>
                         {:else}
                           <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
-                            <span style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 9999px; font-size: 0.8rem; font-weight: 800; background: var(--color-warning-bg, rgba(245, 158, 11, 0.14)); color: var(--color-warning, #fbbf24); border: 1px solid rgba(245, 158, 11, 0.45);">
-                              <i class="fa-solid fa-circle-question" style="font-size: 0.78rem;"></i>
-                              <span>Libellé inédit : choisissez sa catégorie une seule fois (Tito la mémorisera)</span>
+                            <span style="display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 6px; font-size: 0.82rem; font-weight: 800; background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%); color: #ffffff; box-shadow: 0 3px 12px rgba(6, 182, 212, 0.35);">
+                              <i class="fa-solid fa-graduation-cap" style="font-size: 0.8rem; color: #fde68a;"></i>
+                              <span>Attribuer pour apprendre à Tito</span>
                             </span>
                           </div>
                         {/if}
@@ -1998,6 +2000,7 @@
 
                         </div>
 
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -2159,14 +2162,15 @@
               <tbody>
                 {#each displayedCategorizedTxList as tx}
                   <tr>
-                    <td style="padding: 16px 14px; vertical-align: top; font-weight: 800; font-size: 0.88rem; color: var(--text-muted); white-space: nowrap; border: none;">
-                      <div style="background: var(--table-date-bg); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); text-align: center; color: var(--table-date-text); font-weight: 800;">
-                        {formatDateFr(tx.date)}
-                      </div>
-                    </td>
+                    <td colspan="2" style="padding: 0; vertical-align: top; border: none;">
+                      <div style="background: var(--table-card-bg); border: 1.5px solid rgba(148, 163, 184, 0.4); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow-sm); display: flex; align-items: flex-start; gap: 18px;">
+                        <div style="width: 96px; flex-shrink: 0;">
+                          <div style="background: var(--table-date-bg); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); text-align: center; color: var(--table-date-text); font-weight: 800; font-size: 0.86rem; white-space: nowrap;">
+                            {formatDateFr(tx.date)}
+                          </div>
+                        </div>
 
-                    <td style="padding: 0 10px; vertical-align: top; border: none;">
-                      <div style="background: var(--table-card-bg); border: 1.5px solid var(--table-card-border); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 9px;">
+                        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
                         
                         <!-- Ligne 1 : Libellé + détail associé + type à gauche, Montant à droite -->
                         <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
@@ -2254,6 +2258,7 @@
                           </button>
                         </div>
 
+                        </div>
                       </div>
                     </td>
                   </tr>

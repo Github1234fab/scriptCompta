@@ -237,15 +237,18 @@
     <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 18px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 30px;">
       <div>
         <span style="font-size: 0.74rem; text-transform: uppercase; font-weight: 800; color: #64748b; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">
-          Activité micro-entrepreneur & Taux de cotisations
+          Cotisations sociales & seuils légaux
         </span>
-        <div style="font-weight: 800; font-size: 1.05rem; color: #0f172a; font-family: var(--font-title);">
-          Régime fiscal et social applicable à <span style="color: #2563eb; background: rgba(37, 99, 235, 0.09); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2);">{activeEntity.name}</span>
+        <div style="font-weight: 800; font-size: 1.02rem; color: #0f172a; font-family: var(--font-title);">
+          Barème URSSAF et plafonds applicables
+        </div>
+        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px;">
+          Calibre automatiquement vos cotisations URSSAF, votre reste net et vos jauges TVA / statut.
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <label for="dashboard-regime-select" style="font-size: 0.85rem; font-weight: 700; color: #334155;">Type d'activité :</label>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <label for="dashboard-regime-select" style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); white-space: nowrap;">Votre catégorie :</label>
         <select 
           id="dashboard-regime-select"
           value={selectedRegimeKey}
@@ -272,33 +275,33 @@
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">
         <KpiCard 
-          label="CA Encaissé Net" 
+          label="CA Encaissé" 
           value={caEncaissé.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-          subtext="Facturé aux clients (ce que je vends)"
+          subtext="Recettes clients encaissées"
         />
 
         <KpiCard 
-          label="Dépenses d'activité" 
+          label="Frais professionnels" 
           value={`-${depensesReelles.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`} 
-          subtext="Achats et frais pro décaissés"
+          subtext="Achats, logiciels et frais payés"
         />
 
         <KpiCard 
-          label="CA moins dépenses" 
+          label="Solde avant URSSAF" 
           value={soldeTresorerie.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-          subtext="Reste sur mes ventes avant Urssaf"
+          subtext="CA encaissé − frais professionnels"
         />
 
         <KpiCard 
-          label={`Charges Urssaf (${selectedRegime.shortLabel})`} 
+          label="Cotisations URSSAF" 
           value={`-${urssafEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`} 
-          subtext={`Cotisations à régler (${(selectedRegime.rate * 100).toFixed(1)}%)`}
+          subtext={`À prévoir (${(selectedRegime.rate * 100).toFixed(1)}% · ${selectedRegime.shortLabel})`}
         />
 
         <KpiCard 
-          label="Reste Net Final" 
+          label="Revenu net" 
           value={resteNetEnPoche.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} 
-          subtext={`En poche après charges (${margePct}% marge)`}
+          subtext={`Après frais & URSSAF (${margePct}% de marge)`}
         />
       </div>
     </div>
@@ -344,10 +347,10 @@
     <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px;">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
         <h3 style="font-family: var(--font-title); font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-calculator" style="color: #2563eb; font-size: 0.95rem;"></i> Panorama de trésorerie en un clin d'œil
+          <i class="fa-solid fa-calculator" style="color: #2563eb; font-size: 0.95rem;"></i> Du CA au revenu net
         </h3>
         <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
-          Décomposition pas à pas de vos ventes brutes jusqu'au net final en poche
+          Votre calcul en direct, sans jargon
         </span>
       </div>
 
@@ -356,15 +359,15 @@
           <span style="color: #475569; font-weight: 700;">Calcul direct :</span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-family: var(--font-title); flex-wrap: wrap;">
-          <span style="color: #0f172a;" title="Ce que j'ai facturé et vendu">{caEncaissé.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(CA encaissé)</span></span>
-          <span style="color: #94a3b8;">−</span>
-          <span style="color: #b91c1c;" title="Ce que j'ai dépensé pour mon activité">{depensesReelles.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Dépenses)</span></span>
-          <span style="color: #94a3b8;">=</span>
-          <span style="color: #2563eb; background: #eff6ff; padding: 3px 8px; border-radius: 6px; border: 1px solid #bfdbfe;" title="Combien il me reste sur mes ventes">{soldeTresorerie.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #1e40af; font-weight: 600;">(CA − Dépenses)</span></span>
-          <span style="color: #94a3b8;">−</span>
-          <span style="color: #ea580c;" title="Ce que je dois régler à l'Urssaf">{urssafEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">(Charges Urssaf)</span></span>
-          <span style="color: #94a3b8;">=</span>
-          <span style="color: #15803d; background: #f0fdf4; padding: 3px 8px; border-radius: 6px; border: 1px solid #bbf7d0;" title="Combien il me reste finalement en poche">{resteNetEnPoche.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: #166534; font-weight: 600;">(Reste net en poche)</span></span>
+          <span style="color: var(--text-main);" title="Recettes clients encaissées">{caEncaissé.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">(CA encaissé)</span></span>
+          <span style="color: var(--text-muted);">−</span>
+          <span style="color: var(--color-danger, #f87171);" title="Achats, logiciels et frais payés">{depensesReelles.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">(Frais pro)</span></span>
+          <span style="color: var(--text-muted);">=</span>
+          <span style="color: var(--color-accent, #38bdf8); background: rgba(56, 189, 248, 0.12); padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.32);" title="Solde avant cotisations URSSAF">{soldeTresorerie.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; opacity: 0.85; font-weight: 600;">(Solde avant URSSAF)</span></span>
+          <span style="color: var(--text-muted);">−</span>
+          <span style="color: var(--color-warning, #fbbf24);" title="Cotisations URSSAF à prévoir">{urssafEstimee.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">(URSSAF)</span></span>
+          <span style="color: var(--text-muted);">=</span>
+          <span style="color: var(--color-success, #34d399); background: var(--color-success-bg, rgba(16, 185, 129, 0.14)); padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.38);" title="Revenu net après frais et URSSAF">{resteNetEnPoche.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="font-size: 0.72rem; opacity: 0.85; font-weight: 600;">(Revenu net)</span></span>
         </div>
       </div>
     </div>
