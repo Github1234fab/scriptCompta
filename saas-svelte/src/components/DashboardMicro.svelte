@@ -195,71 +195,80 @@
     subtitle="Suivi du CA encaissé, cotisations Urssaf et seuils légaux." 
   >
     <!-- Double compteur type tableau de bord (Franchise TVA & Statut Micro) -->
-    <div style="display: flex; align-items: center; gap: 14px; background: #ffffff; padding: 6px 14px; border-radius: 14px; border: 1.5px solid #e2e8f0; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
-      
-      <!-- Compteur 1 : Franchise de TVA -->
-      <div 
-        style="display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: default;" 
-        title="Franchise en base de TVA : {caEncaissé.toLocaleString('fr-FR')} € / {selectedRegime.franchiseTVA.toLocaleString('fr-FR')} € ({tvaProgressionPct}%)"
-      >
-        <div style="position: relative; width: 62px; height: 62px;">
-          <svg width="62" height="62" viewBox="0 0 62 62" style="display: block;">
-            <circle cx="31" cy="31" r="25" fill="none" stroke="#f1f5f9" stroke-width="4" />
-            <circle 
-              cx="31" cy="31" r="25" 
-              fill="none" 
-              stroke={tvaColor} 
-              stroke-width="4" 
-              stroke-linecap="round"
-              stroke-dasharray="157.08"
-              stroke-dashoffset={157.08 - (157.08 * tvaProgressionPct) / 100}
-              transform="rotate(-90 31 31)"
-              style="transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;"
-            />
-          </svg>
-          <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
-            <span style="font-size: 0.50rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1;">TVA</span>
-            <span style="font-size: 0.74rem; font-weight: 800; color: #0f172a; line-height: 1.1; margin-top: 2px;">{tvaProgressionPct}%</span>
-          </div>
-        </div>
-        <span style="font-size: 0.65rem; color: #64748b; font-weight: 600; white-space: nowrap;">
-          Max {(selectedRegime.franchiseTVA / 1000).toLocaleString('fr-FR')} k€
-        </span>
+    <div style="display: flex; flex-direction: column; gap: 6px; background: var(--bg-card); padding: 8px 16px 10px 16px; border-radius: 14px; border: 1.5px solid var(--border-color); box-shadow: var(--shadow-sm);">
+      <div style="font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); text-align: center;">
+        Plafonds annuels de CA
       </div>
-
-      <!-- Séparateur discret -->
-      <div style="width: 1px; height: 42px; background: #e2e8f0;"></div>
-
-      <!-- Compteur 2 : Plafond statut Micro -->
-      <div 
-        style="display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: default;" 
-        title="Plafond du régime micro : {caEncaissé.toLocaleString('fr-FR')} € / {selectedRegime.plafondCA.toLocaleString('fr-FR')} € ({plafondProgressionPct}%) - Marge : {Math.max(0, selectedRegime.plafondCA - caEncaissé).toLocaleString('fr-FR')} €"
-      >
-        <div style="position: relative; width: 62px; height: 62px;">
-          <svg width="62" height="62" viewBox="0 0 62 62" style="display: block;">
-            <circle cx="31" cy="31" r="25" fill="none" stroke="#f1f5f9" stroke-width="4" />
-            <circle 
-              cx="31" cy="31" r="25" 
-              fill="none" 
-              stroke={plafondColor} 
-              stroke-width="4" 
-              stroke-linecap="round"
-              stroke-dasharray="157.08"
-              stroke-dashoffset={157.08 - (157.08 * plafondProgressionPct) / 100}
-              transform="rotate(-90 31 31)"
-              style="transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;"
-            />
-          </svg>
-          <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
-            <span style="font-size: 0.48rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1;">STATUT</span>
-            <span style="font-size: 0.74rem; font-weight: 800; color: #0f172a; line-height: 1.1; margin-top: 2px;">{plafondProgressionPct}%</span>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <!-- Compteur 1 : Franchise de TVA -->
+        <div 
+          style="display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: default;" 
+          title="Franchise en base de TVA : {caEncaissé.toLocaleString('fr-FR')} € / {selectedRegime.franchiseTVA.toLocaleString('fr-FR')} € ({tvaProgressionPct}%) — Marge avant TVA : {Math.max(0, selectedRegime.franchiseTVA - caEncaissé).toLocaleString('fr-FR')} €"
+        >
+          <div style="position: relative; width: 58px; height: 58px;">
+            <svg width="58" height="58" viewBox="0 0 62 62" style="display: block;">
+              <circle cx="31" cy="31" r="25" fill="none" stroke="rgba(148, 163, 184, 0.22)" stroke-width="4.5" />
+              <circle 
+                cx="31" cy="31" r="25" 
+                fill="none" 
+                stroke={tvaColor} 
+                stroke-width="4.5" 
+                stroke-linecap="round"
+                stroke-dasharray="157.08"
+                stroke-dashoffset={157.08 - (157.08 * tvaProgressionPct) / 100}
+                transform="rotate(-90 31 31)"
+                style="transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;"
+              />
+            </svg>
+            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
+              <span style="font-size: 0.48rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; line-height: 1;">TVA</span>
+              <span style="font-size: 0.78rem; font-weight: 800; color: var(--text-main); line-height: 1.1; margin-top: 2px;">{tvaProgressionPct}%</span>
+            </div>
           </div>
+          <span style="font-size: 0.68rem; color: var(--text-main); font-weight: 700; white-space: nowrap; line-height: 1.15;">
+            Avant TVA
+          </span>
+          <span style="font-size: 0.62rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; line-height: 1;">
+            Max {(selectedRegime.franchiseTVA / 1000).toLocaleString('fr-FR')} k€
+          </span>
         </div>
-        <span style="font-size: 0.65rem; color: #64748b; font-weight: 600; white-space: nowrap;">
-          Max {(selectedRegime.plafondCA / 1000).toLocaleString('fr-FR')} k€
-        </span>
-      </div>
 
+        <!-- Séparateur discret -->
+        <div style="width: 1px; height: 56px; background: var(--border-color);"></div>
+
+        <!-- Compteur 2 : Plafond statut Micro -->
+        <div 
+          style="display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: default;" 
+          title="Plafond du régime micro : {caEncaissé.toLocaleString('fr-FR')} € / {selectedRegime.plafondCA.toLocaleString('fr-FR')} € ({plafondProgressionPct}%) — Marge : {Math.max(0, selectedRegime.plafondCA - caEncaissé).toLocaleString('fr-FR')} €"
+        >
+          <div style="position: relative; width: 58px; height: 58px;">
+            <svg width="58" height="58" viewBox="0 0 62 62" style="display: block;">
+              <circle cx="31" cy="31" r="25" fill="none" stroke="rgba(148, 163, 184, 0.22)" stroke-width="4.5" />
+              <circle 
+                cx="31" cy="31" r="25" 
+                fill="none" 
+                stroke={plafondColor} 
+                stroke-width="4.5" 
+                stroke-linecap="round"
+                stroke-dasharray="157.08"
+                stroke-dashoffset={157.08 - (157.08 * plafondProgressionPct) / 100}
+                transform="rotate(-90 31 31)"
+                style="transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;"
+              />
+            </svg>
+            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
+              <span style="font-size: 0.46rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; line-height: 1;">MICRO</span>
+              <span style="font-size: 0.78rem; font-weight: 800; color: var(--text-main); line-height: 1.1; margin-top: 2px;">{plafondProgressionPct}%</span>
+            </div>
+          </div>
+          <span style="font-size: 0.68rem; color: var(--text-main); font-weight: 700; white-space: nowrap; line-height: 1.15;">
+            Plafond micro
+          </span>
+          <span style="font-size: 0.62rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; line-height: 1;">
+            Max {(selectedRegime.plafondCA / 1000).toLocaleString('fr-FR')} k€
+          </span>
+        </div>
+      </div>
     </div>
 
     <button 
