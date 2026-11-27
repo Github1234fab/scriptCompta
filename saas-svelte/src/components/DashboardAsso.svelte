@@ -364,7 +364,8 @@
 <div class="dashboard-asso-page">
   <!-- PAGE HEADER -->
   <PageHeader 
-    title="Trésorerie Associative" 
+    structureName={activeEntity.name}
+    title="Association Loi 1901" 
     mobileTitle="Trésorerie"
     subtitle="Suivi des adhésions, cotisations et trésorerie disponible." 
   >

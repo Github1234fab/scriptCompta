@@ -118,13 +118,11 @@
       <i class="fa-solid fa-bars"></i>
     </button>
 
-    <div class="header-breadcrumb" style="display: flex; align-items: center; gap: 6px; font-size: 0.84rem; color: var(--text-muted); min-width: 0;">
+    <div class="header-breadcrumb" style="display: flex; align-items: center; gap: 6px; font-size: 0.88rem; color: var(--text-muted); min-width: 0;">
       <!-- Logo Tito visible sur smartphone à côté du burger -->
       <span class="header-mobile-brand" style="display: none; font-size: 1.35rem; font-weight: 900; letter-spacing: -0.03em; color: var(--text-main); user-select: none;">
         Ti<span style="color: #38bdf8;">t</span>o
       </span>
-      <span class="header-entity-name" style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px;">{activeEntity ? activeEntity.name : 'Mon Espace'}</span>
-      <span class="header-breadcrumb-sep" style="opacity: 0.35;">/</span>
       <span class="header-page-title" style="color: var(--text-main); font-weight: 700; white-space: nowrap;">
         {#if $activeView === 'dashboard'}
           Accueil
@@ -530,8 +528,6 @@
       align-items: center;
       margin-left: 2px;
     }
-    .header-entity-name,
-    .header-breadcrumb-sep,
     .header-page-title {
       display: none !important;
     }

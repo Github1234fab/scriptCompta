@@ -146,12 +146,10 @@
 <div class="dashboard-micro-page" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 24px;">
   <!-- PAGE HEADER AVEC COMPTEURS CIRCULAIRES INTÉGRÉS -->
   <PageHeader 
+    structureName={activeEntity.name}
     title="Micro-Entreprise" 
     mobileTitle="Trésorerie"
     subtitle="Suivi du CA encaissé, cotisations Urssaf et seuils légaux." 
-    buttonLabel="Consulter mes Obligations"
-    buttonIcon="fa-scale-balanced"
-    onButtonClick={() => activeView.set('books')}
   >
     <!-- Double compteur type tableau de bord (Franchise TVA & Statut Micro) -->
     <div style="display: flex; align-items: center; gap: 14px; background: #ffffff; padding: 6px 14px; border-radius: 14px; border: 1.5px solid #e2e8f0; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
@@ -232,16 +230,8 @@
     </button>
   </PageHeader>
 
-  <!-- 1. VOTRE MICRO-ENTREPRISE -->
+  <!-- 1. CADRE SOCIAL & INDICATEURS -->
   <div style="display: flex; flex-direction: column; gap: 18px;">
-    <div class="micro-section-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-      <h2 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">
-        Votre micro-entreprise
-      </h2>
-      <span style="font-size: 0.82rem; color: #64748b; font-weight: 600;">
-        Cadre social, indicateurs et seuils de chiffre d'affaires
-      </span>
-    </div>
 
     <!-- BANDEAU SÉLECTEUR DE RÉGIME ET TAUX URSSAF -->
     <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 18px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 30px;">
@@ -482,7 +472,6 @@
   }
 
   @media (max-width: 768px) {
-    .micro-section-header,
     .micro-kpi-header {
       display: none !important;
     }

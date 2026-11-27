@@ -376,6 +376,138 @@
     showCategorizeModal = true;
   }
 
+  // Ventilation (Split) modal state
+  let showSplitModal = $state(false);
+  /** @type {any} */
+  let splitTargetTx = $state(null);
+  /** @type {Array<{ id: number, compte: string, amount: string, note: string }>} */
+  let splitLines = $state([]);
+  let splitLineCounter = 0;
+
+  let splitOriginalAmount = $derived(
+    splitTargetTx ? Math.round(Number(splitTargetTx.debit || splitTargetTx.credit || 0) * 100) / 100 : 0
+  );
+
+  /** @param {string} val */
+  function parseSplitAmount(val) {
+    if (val === '' || val === null || val === undefined) return 0;
+    const n = parseFloat(String(val).replace(/\s/g, '').replace(',', '.'));
+    return isNaN(n) || n < 0 ? 0 : Math.round(n * 100) / 100;
+  }
+
+  let splitAllocatedTotal = $derived(
+    Math.round(splitLines.reduce((sum, l) => sum + parseSplitAmount(l.amount), 0) * 100) / 100
+  );
+
+  let splitRemaining = $derived(
+    Math.round((splitOriginalAmount - splitAllocatedTotal) * 100) / 100
+  );
+
+  let isSplitBalanced = $derived(
+    splitOriginalAmount > 0 && Math.abs(splitRemaining) < 0.005
+  );
+
+  let isSplitValid = $derived(
+    isSplitBalanced &&
+    splitLines.length >= 2 &&
+    splitLines.every(l => Boolean(l.compte) && l.compte !== '699' && parseSplitAmount(l.amount) > 0)
+  );
+
+  /** @param {any} tx */
+  function openSplitModal(tx) {
+    splitTargetTx = tx;
+    const isDebit = Number(tx.debit || 0) > 0;
+    const sug = getSuggestionForTx(tx);
+    const defaultFirst = (tx.compteAttribué && tx.compteAttribué !== '699')
+      ? String(tx.compteAttribué)
+      : (sug?.compte || (isDebit ? '606' : '706'));
+    const defaultSecond = isDebit
+      ? (defaultFirst === '164' ? '661' : defaultFirst === '606' ? '108' : '606')
+      : (defaultFirst === '756' ? '706' : '756');
+
+    splitLineCounter = 2;
+    splitLines = [
+      { id: 1, compte: defaultFirst, amount: '', note: '' },
+      { id: 2, compte: defaultSecond, amount: '', note: '' }
+    ];
+    showSplitModal = true;
+  }
+
+  function addSplitLine() {
+    if (!splitTargetTx) return;
+    const isDebit = Number(splitTargetTx.debit || 0) > 0;
+    splitLineCounter += 1;
+    splitLines = [
+      ...splitLines,
+      { id: splitLineCounter, compte: isDebit ? '606' : '706', amount: '', note: '' }
+    ];
+  }
+
+  /** @param {number} idx */
+  function removeSplitLine(idx) {
+    if (splitLines.length <= 2) return;
+    splitLines = splitLines.filter((_, i) => i !== idx);
+  }
+
+  /** @param {number} idx */
+  function fillSplitRemaining(idx) {
+    const currentLineAmt = parseSplitAmount(splitLines[idx]?.amount || '');
+    const targetAmt = Math.max(0, Math.round((splitRemaining + currentLineAmt) * 100) / 100);
+    splitLines = splitLines.map((l, i) =>
+      i === idx ? { ...l, amount: targetAmt > 0 ? targetAmt.toFixed(2).replace('.', ',') : '' } : l
+    );
+  }
+
+  function validerVentilation() {
+    if (!splitTargetTx || !isSplitValid) return;
+
+    lastStateTransactions = JSON.parse(JSON.stringify($transactions));
+    const isDebit = Number(splitTargetTx.debit || 0) > 0;
+    const splitGroupId = `split_${Date.now()}`;
+    const baseLibelle = splitTargetTx.rawLibelle || splitTargetTx.libelle.split('—')[0].trim();
+
+    const newSplitTxs = splitLines.map((line, idx) => {
+      const amt = parseSplitAmount(line.amount);
+      const noteText = line.note.trim();
+      const libelleFinal = noteText
+        ? `${baseLibelle} — ${noteText}`
+        : `${baseLibelle} (Ventilation ${idx + 1}/${splitLines.length})`;
+
+      return {
+        ...splitTargetTx,
+        id: `${splitTargetTx.id}_split_${Date.now()}_${idx}`,
+        rawLibelle: baseLibelle,
+        libelle: libelleFinal,
+        info: noteText || splitTargetTx.info || '',
+        concatApplied: Boolean(noteText) || Boolean(splitTargetTx.concatApplied),
+        debit: isDebit ? amt : 0,
+        credit: isDebit ? 0 : amt,
+        compteAttribué: line.compte,
+        statut: 'attribue',
+        regleAppliquee: `Ventilation (${idx + 1}/${splitLines.length})`,
+        isSplit: true,
+        splitGroupId,
+        splitIndex: idx + 1,
+        splitTotal: splitLines.length
+      };
+    });
+
+    const updated = [];
+    for (const t of $transactions) {
+      if (t.id === splitTargetTx.id) {
+        updated.push(...newSplitTxs);
+      } else {
+        updated.push(t);
+      }
+    }
+
+    updateTransactions(updated);
+    showSplitModal = false;
+    splitTargetTx = null;
+    splitLines = [];
+    showToast(`Opération ventilée en ${newSplitTxs.length} écritures équilibrées !`);
+  }
+
   /** @type {Record<string, string>} */
   let selectedCategoryMap = $state({});
 
@@ -897,6 +1029,8 @@
   }
   let nonTriees = $derived(currentStructureTx.filter((t) => t.compteAttribué === "699" || t.statut === "non_attribue" || t.statut === "suggere"));
   let triees = $derived(currentStructureTx.filter((t) => t.compteAttribué !== "699" && t.statut === "attribue"));
+  let totalOpsCount = $derived(nonTriees.length + triees.length);
+  let progressPct = $derived(totalOpsCount > 0 ? Math.round((triees.length / totalOpsCount) * 100) : 0);
   let displayedTxList = $derived(activeTab === "pending" ? nonTriees : triees);
 
   // Auto-recognized transactions ready for 1-click batch validation
@@ -1572,37 +1706,73 @@
     </div>
   </div>
 
-  <!-- CARTE 3 : TRAITEMENT ET AFFECTATION DES OPÉRATIONS -->
+  <!-- CARTE 3 : MINI TABLEAU DE BORD DE TRAITEMENT DES OPÉRATIONS -->
   <div style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; height: 100%; box-sizing: border-box;">
     <!-- En-tête du bloc -->
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px;">
       <h3 style="font-family: var(--font-title); font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap;">
         <span>Traitement des opérations</span>
-        <InfoTip text="Vérifiez les opérations en attente ou visualisez l'ensemble de votre grand journal déjà classé." width="250px" />
+        <InfoTip text="Cliquez sur l'un des deux compteurs pour afficher le tableau des opérations en attente ou celui des écritures déjà attribuées." width="250px" />
       </h3>
+      {#if totalOpsCount > 0}
+        <span style="font-size: 0.74rem; font-weight: 700; color: {progressPct === 100 ? '#34d399' : 'var(--text-muted)'}; white-space: nowrap;">
+          {progressPct}% traité
+        </span>
+      {/if}
     </div>
 
-    <!-- Carte intérieure avec deux boutons bien distincts et alignés -->
-    <div class="attribution-tabs-row" style="padding: 20px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; gap: 12px; flex: 1; min-height: 145px; box-sizing: border-box;">
-      <button
-        type="button"
-        style="flex: 1; padding: 12px 14px; border-radius: 10px; font-size: 0.86rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'pending' ? 'background: #4f46e5; color: #ffffff; border: 1.5px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color);'}"
-        onclick={() => {
-          activeTab = 'pending';
-        }}
-      >
-        À attribuer ({nonTriees.length})
-      </button>
+    <!-- Mini tableau de bord cliquable (2 compteurs KPI + barre d'avancement) -->
+    <div style="padding: 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 12px; flex: 1; min-height: 145px; box-sizing: border-box;">
+      <div class="attribution-tabs-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1;">
+        <!-- Compteur cliquable : À attribuer -->
+        <button
+          type="button"
+          onclick={() => { activeTab = 'pending'; }}
+          aria-pressed={activeTab === 'pending'}
+          title="Afficher les opérations à attribuer"
+          style="display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 12px 14px; border-radius: 10px; cursor: pointer; text-align: left; transition: all 0.16s ease; {activeTab === 'pending' ? 'background: rgba(245, 158, 11, 0.1); border: 1.5px solid rgba(245, 158, 11, 0.55); box-shadow: 0 2px 10px rgba(245, 158, 11, 0.12);' : 'background: var(--bg-subtle); border: 1px solid var(--border-color);'}"
+        >
+          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 6px;">
+            <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: {activeTab === 'pending' ? 'var(--color-warning, #fbbf24)' : 'var(--text-muted)'};">
+              À attribuer
+            </span>
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: {nonTriees.length > 0 ? '#f59e0b' : 'var(--border-color)'}; opacity: {activeTab === 'pending' ? '1' : '0.5'};"></span>
+          </div>
+          <div style="font-family: var(--font-title); font-size: 1.6rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: {nonTriees.length > 0 ? 'var(--color-warning, #fbbf24)' : 'var(--text-main)'};">
+            {nonTriees.length}
+          </div>
+        </button>
 
-      <button
-        type="button"
-        style="flex: 1; padding: 12px 14px; border-radius: 10px; font-size: 0.86rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; text-align: center; white-space: nowrap; {activeTab === 'categorized' ? 'background: #4f46e5; color: #ffffff; border: 1.5px solid #4f46e5; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);' : 'background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color);'}"
-        onclick={() => {
-          activeTab = 'categorized';
-        }}
-      >
-        Attribué ({triees.length})
-      </button>
+        <!-- Compteur cliquable : Attribuées -->
+        <button
+          type="button"
+          onclick={() => { activeTab = 'categorized'; }}
+          aria-pressed={activeTab === 'categorized'}
+          title="Afficher les opérations déjà attribuées"
+          style="display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 12px 14px; border-radius: 10px; cursor: pointer; text-align: left; transition: all 0.16s ease; {activeTab === 'categorized' ? 'background: rgba(16, 185, 129, 0.1); border: 1.5px solid rgba(16, 185, 129, 0.55); box-shadow: 0 2px 10px rgba(16, 185, 129, 0.12);' : 'background: var(--bg-subtle); border: 1px solid var(--border-color);'}"
+        >
+          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 6px;">
+            <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: {activeTab === 'categorized' ? 'var(--color-success, #34d399)' : 'var(--text-muted)'};">
+              Attribuées
+            </span>
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: {triees.length > 0 ? '#10b981' : 'var(--border-color)'}; opacity: {activeTab === 'categorized' ? '1' : '0.5'};"></span>
+          </div>
+          <div style="font-family: var(--font-title); font-size: 1.6rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: {triees.length > 0 ? 'var(--color-success, #34d399)' : 'var(--text-main)'};">
+            {triees.length}
+          </div>
+        </button>
+      </div>
+
+      <!-- Barre de progression discrète -->
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div style="width: 100%; height: 5px; border-radius: 999px; background: var(--bg-subtle); overflow: hidden;">
+          <div style="width: {progressPct}%; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #10b981, #34d399); transition: width 0.3s ease;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">
+          <span>{totalOpsCount === 0 ? 'Aucune opération importée' : `${triees.length} sur ${totalOpsCount} classée${triees.length > 1 ? 's' : ''}`}</span>
+          <span style="color: var(--text-secondary);">Vue : {activeTab === 'pending' ? 'À attribuer' : 'Attribuées'}</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1729,88 +1899,86 @@
                           </div>
                         </div>
 
-                        <!-- Étage 2 : Analyse pédagogique Tito (avec numéro de compte explicite pour apprendre) -->
-                        <div style="font-size: 0.84rem; color: {titoInfo.isHeuristicDoubt ? 'var(--color-primary)' : 'var(--table-card-desc)'}; line-height: 1.45; font-weight: {titoInfo.isHeuristicDoubt ? '600' : '400'};">
-                          {titoInfo.lineExplanation}
-                        </div>
+                        <!-- Étage 2 : Suggestion / Analyse Tito bien mise en valeur -->
+                        {#if isStateA && sug}
+                          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <span style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 9999px; font-size: 0.8rem; font-weight: 800; {titoInfo.isCertain ? 'background: rgba(16, 185, 129, 0.14); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);' : 'background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%); color: #ffffff; box-shadow: 0 3px 12px rgba(6, 182, 212, 0.28);'}">
+                              <i class="fa-solid {titoInfo.isCertain ? 'fa-check-double' : 'fa-wand-magic-sparkles'}" style="font-size: 0.74rem;"></i>
+                              <span>{titoInfo.isCertain ? 'Reconnu par Tito' : 'Suggestion Tito'} : {sug.compte} — {sug.label}</span>
+                            </span>
+                          </div>
+                        {:else if isStateC}
+                          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <span style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 9999px; font-size: 0.8rem; font-weight: 800; background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4);">
+                              <i class="fa-solid fa-check" style="font-size: 0.74rem;"></i>
+                              <span>Sélectionné : {manualCat} — {formatAccountLabel(manualCat)}</span>
+                            </span>
+                          </div>
+                        {:else}
+                          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <span style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 9999px; font-size: 0.8rem; font-weight: 800; background: var(--color-warning-bg, rgba(245, 158, 11, 0.14)); color: var(--color-warning, #fbbf24); border: 1px solid rgba(245, 158, 11, 0.45);">
+                              <i class="fa-solid fa-circle-question" style="font-size: 0.78rem;"></i>
+                              <span>Libellé inédit : choisissez sa catégorie une seule fois (Tito la mémorisera)</span>
+                            </span>
+                          </div>
+                        {/if}
 
-                        <!-- Étage 3 : Barre de pilules actions -->
+                        <!-- Étage 3 : Panneau de commande uniforme (Attribuer | Modifier | Ventiler | + Informations) -->
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
                           
-                          <!-- Pilule principale Tito -->
-                          {#if isStateA && sug}
-                            {#if titoInfo.isCertain}
-                              <span style="font-weight: 700; font-size: 0.78rem; color: #34d399; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); padding: 5px 12px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px;">
-                                <i class="fa-solid fa-check" style="font-size: 0.7rem;"></i>
-                                <span>Attribution automatique • {sug.label} (compte {sug.compte})</span>
-                              </span>
-                            {:else}
-                              <!-- Pilule bleue 1-clic Hero -->
-                              <button
-                                type="button"
-                                onclick={() => {
-                                  selectAccount(tx.id, sug.compte);
-                                  validerLigneSeule(tx);
-                                }}
-                                title="Valider en 1 clic au compte {sug.compte}"
-                                style="background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%); color: #ffffff; border: none; font-size: 0.8rem; font-weight: 800; padding: 6px 14px; border-radius: 9999px; cursor: pointer; box-shadow: 0 3px 12px rgba(6, 182, 212, 0.35); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;"
-                              >
-                                <span>{titoInfo.oneClickLabel}</span>
-                              </button>
-                            {/if}
-                          {:else if isStateC}
-                            <span style="font-weight: 700; font-size: 0.78rem; color: #93c5fd; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); padding: 5px 12px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px;">
-                              <i class="fa-solid fa-check" style="color: #60a5fa;"></i>
-                              <span>Compte {manualCat} ({formatAccountLabel(manualCat)})</span>
-                            </span>
-                          {:else}
-                            <button
-                              type="button"
-                              onclick={() => openCategorizeModal(tx)}
-                              style="background: var(--bg-subtle); color: var(--text-main); border: 1px solid var(--border-color); font-size: 0.78rem; font-weight: 700; padding: 5px 12px; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"
-                            >
-                              <i class="fa-solid fa-magnifying-glass" style="color: var(--color-primary);"></i>
-                              <span>Attribuer manuellement</span>
-                            </button>
-                          {/if}
-
-                          <!-- Bouton Confirmer -->
-                          {#if (isStateA && sug && titoInfo.isCertain) || isStateC}
-                            <button
-                              type="button"
-                              onclick={() => {
-                                if (isStateA && sug) selectAccount(tx.id, sug.compte);
+                          <!-- 1. Bouton Attribuer (1-clic si suggestion Tito / sélection, sinon ouvre la modale) -->
+                          <button
+                            type="button"
+                            onclick={() => {
+                              if (isStateA && sug) {
+                                selectAccount(tx.id, sug.compte);
                                 validerLigneSeule(tx);
-                              }}
-                              style="padding: 5px 14px; font-weight: 800; font-size: 0.78rem; background: #16a34a; color: #ffffff; border: none; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.35);"
-                              title="Confirmer cette attribution"
-                            >
-                              <i class="fa-solid fa-check"></i>
-                              <span>Confirmer</span>
-                            </button>
-                          {/if}
+                              } else if (isStateC) {
+                                validerLigneSeule(tx);
+                              } else {
+                                openCategorizeModal(tx);
+                              }
+                            }}
+                            title={isStateA && sug ? `Attribuer en 1 clic au compte ${sug.compte} (${sug.label})` : isStateC ? `Attribuer au compte ${manualCat}` : 'Choisir un compte comptable'}
+                            style="background: {(isStateA && sug) || isStateC ? '#16a34a' : '#4f46e5'}; color: #ffffff; border: none; font-size: 0.78rem; font-weight: 700; padding: 5px 14px; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: {(isStateA && sug) || isStateC ? '0 2px 8px rgba(22, 163, 74, 0.35)' : '0 2px 8px rgba(79, 70, 229, 0.3)'};"
+                          >
+                            <i class="fa-solid {(isStateA && sug) || isStateC ? 'fa-check' : 'fa-tag'}" style="font-size: 0.7rem;"></i>
+                            <span>Attribuer</span>
+                          </button>
 
-                          <!-- Bouton Modifier -->
-                          {#if isStateA || isStateC}
+                          <!-- 2. Bouton Modifier (si suggestion ou sélection en cours) -->
+                          {#if (isStateA && sug) || isStateC}
                             <button
                               type="button"
                               onclick={() => openCategorizeModal(tx)}
+                              title="Choisir un autre compte comptable"
                               style="background: var(--bg-subtle); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 5px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.74rem; font-weight: 600;"
                             >
                               Modifier
                             </button>
                           {/if}
 
-                          <!-- Bouton Ajouter détails (actif) -->
+                          <!-- 3. Bouton Ventiler -->
+                          <button
+                            type="button"
+                            onclick={() => openSplitModal(tx)}
+                            style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.35); color: #c084fc; padding: 5px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;"
+                            title="Répartir cette opération sur plusieurs comptes comptables"
+                          >
+                            <i class="fa-solid fa-code-branch" style="font-size: 0.68rem;"></i>
+                            <span>Ventiler</span>
+                          </button>
+
+                          <!-- 4. Bouton + Informations (actif) -->
                           <button
                             type="button"
                             onclick={openConcatModal}
                             style="background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.72rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;"
-                            title="Ajouter des détails / associer une colonne de votre relevé"
+                            title="Associer une colonne d'informations de votre relevé CSV"
                             onmouseenter={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.color = 'var(--text-main)'; }}
                             onmouseleave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                           >
-                            <span>+ Ajouter détails</span>
+                            <span>+ Informations</span>
                           </button>
 
                         </div>
@@ -2019,6 +2187,13 @@
                             <span>Validé • Compte {tx.compteAttribué} ({formatAccountLabel(tx.compteAttribué)})</span>
                           </span>
 
+                          {#if tx.isSplit}
+                            <span style="display: inline-flex; align-items: center; gap: 5px; background: rgba(168, 85, 247, 0.14); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.35); padding: 4px 10px; border-radius: 9999px; font-size: 0.72rem; font-weight: 700;">
+                              <i class="fa-solid fa-code-branch" style="font-size: 0.66rem;"></i>
+                              <span>Ventilé {tx.splitIndex}/{tx.splitTotal}</span>
+                            </span>
+                          {/if}
+
                           <button
                             type="button"
                             onclick={() => openCategorizeModal(tx)}
@@ -2027,16 +2202,27 @@
                             Modifier
                           </button>
 
-                          <!-- Bouton Ajouter détails (actif) -->
+                          <!-- Bouton Ventiler -->
+                          <button
+                            type="button"
+                            onclick={() => openSplitModal(tx)}
+                            style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.35); color: #c084fc; padding: 5px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;"
+                            title="Ventiler cette opération sur plusieurs comptes comptables"
+                          >
+                            <i class="fa-solid fa-code-branch" style="font-size: 0.68rem;"></i>
+                            <span>Ventiler</span>
+                          </button>
+
+                          <!-- Bouton + Informations (actif) -->
                           <button
                             type="button"
                             onclick={openConcatModal}
                             style="background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 11px; border-radius: 9999px; cursor: pointer; font-size: 0.72rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;"
-                            title="Ajouter des détails / associer une colonne de votre relevé"
+                            title="Associer une colonne d'informations de votre relevé CSV"
                             onmouseenter={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.color = 'var(--text-main)'; }}
                             onmouseleave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                           >
-                            <span>+ Ajouter détails</span>
+                            <span>+ Informations</span>
                           </button>
                         </div>
 
@@ -2216,6 +2402,191 @@
         <button class="btn btn-primary" onclick={validerAttributionGroupéeSimilaire} style="padding: 10px 22px; background: #6366f1; border: none; font-weight: 600;">
           <i class="fa-solid fa-check-double"></i> Attribué aux {selectedSimilarTxIds.size + 1} opérations
         </button>
+      </div>
+
+    </div>
+  </div>
+{/if}
+
+<!-- Modale Dédiée de Ventilation (Répartition sur plusieurs comptes) -->
+{#if showSplitModal && splitTargetTx}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="modal-backdrop" onclick={() => showSplitModal = false} role="presentation" style="position: fixed; inset: 0; background: rgba(5, 10, 20, 0.78); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 20px;">
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_interactive_supports_focus -->
+    <div class="modal-content" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Ventiler l'opération" tabindex="-1" style="max-width: 680px; width: 100%; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; background: #0c1527 !important; border: 1.5px solid rgba(168, 85, 247, 0.35) !important; border-radius: 16px; padding: 22px 24px; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75); color: #f8fafc !important;">
+
+      <!-- Header -->
+      <div style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 34px; height: 34px; border-radius: 9px; background: rgba(168, 85, 247, 0.16); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); display: flex; align-items: center; justify-content: center; font-size: 0.95rem;">
+            <i class="fa-solid fa-code-branch"></i>
+          </div>
+          <div>
+            <h3 style="margin: 0; font-family: var(--font-title); font-size: 1.12rem; color: #ffffff !important; font-weight: 800;">
+              Ventiler l'opération sur plusieurs comptes
+            </h3>
+            <div style="font-size: 0.78rem; color: #94a3b8 !important; margin-top: 2px;">
+              Répartissez le montant exact (ex. capital + intérêts d'emprunt, cotisation + cours, part pro / perso).
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          aria-label="Fermer"
+          onclick={() => showSplitModal = false}
+          style="background: none; border: none; color: #94a3b8; font-size: 1.25rem; cursor: pointer; padding: 4px;"
+        >✕</button>
+      </div>
+
+      <!-- Résumé de l'opération d'origine -->
+      <div style="flex-shrink: 0; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+        <div style="min-width: 0; flex: 1;">
+          <div style="font-weight: 700; color: #ffffff; font-size: 0.94rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title={splitTargetTx.libelle}>
+            {cleanTransactionLibelle(splitTargetTx.rawLibelle || splitTargetTx.libelle, splitTargetTx)}
+          </div>
+          <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;">
+            {formatDateFr(splitTargetTx.date)} &bull; {Number(splitTargetTx.debit || 0) > 0 ? 'Dépense' : 'Recette'}
+          </div>
+        </div>
+        <div style="font-weight: 800; font-size: 1.15rem; font-variant-numeric: tabular-nums; font-family: var(--font-title); color: {Number(splitTargetTx.debit || 0) > 0 ? '#f87171' : '#34d399'}; white-space: nowrap;">
+          {Number(splitTargetTx.debit || 0) > 0 ? '- ' : '+ '}{splitOriginalAmount.toFixed(2).replace('.', ',')} €
+        </div>
+      </div>
+
+      <!-- Lignes de ventilation (scrollable) -->
+      <div style="flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; margin-bottom: 14px;">
+        {#each splitLines as line, idx (line.id)}
+          <div style="flex-shrink: 0; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #c084fc;">
+                Part {idx + 1}
+              </span>
+              {#if splitLines.length > 2}
+                <button
+                  type="button"
+                  onclick={() => removeSplitLine(idx)}
+                  style="background: none; border: none; color: #f87171; font-size: 0.74rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                >
+                  <i class="fa-solid fa-trash-can" style="font-size: 0.68rem;"></i> Retirer
+                </button>
+              {/if}
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 10px; align-items: end;">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label for="split-acc-{line.id}" style="font-size: 0.72rem; font-weight: 700; color: #94a3b8;">Compte comptable</label>
+                <select
+                  id="split-acc-{line.id}"
+                  bind:value={line.compte}
+                  style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.14); background: #101c33; color: #ffffff; font-size: 0.82rem; font-weight: 600;"
+                >
+                  {#if Number(splitTargetTx.debit || 0) > 0}
+                    <optgroup label="Dépenses & Charges">
+                      {#each listComptesTries.filter(p => p.compte.startsWith('6') || p.compte.startsWith('2')) as p}
+                        <option value={p.compte}>{p.compte} — {p.libelle}</option>
+                      {/each}
+                    </optgroup>
+                    <optgroup label="Prélèvements, Emprunts, TVA & Transferts">
+                      {#each listComptesTries.filter(p => !p.compte.startsWith('6') && !p.compte.startsWith('7') && !p.compte.startsWith('2')) as p}
+                        <option value={p.compte}>{p.compte} — {p.libelle}</option>
+                      {/each}
+                    </optgroup>
+                  {:else}
+                    <optgroup label="Recettes & Produits">
+                      {#each listComptesTries.filter(p => p.compte.startsWith('7')) as p}
+                        <option value={p.compte}>{p.compte} — {p.libelle}</option>
+                      {/each}
+                    </optgroup>
+                    <optgroup label="Transferts, Apports & Cautions">
+                      {#each listComptesTries.filter(p => !p.compte.startsWith('6') && !p.compte.startsWith('7') && !p.compte.startsWith('2')) as p}
+                        <option value={p.compte}>{p.compte} — {p.libelle}</option>
+                      {/each}
+                    </optgroup>
+                  {/if}
+                </select>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label for="split-amt-{line.id}" style="font-size: 0.72rem; font-weight: 700; color: #94a3b8;">Montant (€)</label>
+                <div style="display: flex; gap: 6px;">
+                  <input
+                    id="split-amt-{line.id}"
+                    type="text"
+                    inputmode="decimal"
+                    bind:value={line.amount}
+                    placeholder="0,00"
+                    style="flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.14); background: #101c33; color: #ffffff; font-size: 0.86rem; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right;"
+                  />
+                  <button
+                    type="button"
+                    onclick={() => fillSplitRemaining(idx)}
+                    title="Affecter automatiquement le reste à cette ligne"
+                    style="padding: 6px 9px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-size: 0.72rem; font-weight: 700; cursor: pointer; white-space: nowrap;"
+                  >
+                    Reste
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <input
+              type="text"
+              bind:value={line.note}
+              placeholder="Précision optionnelle (ex : Part capital, Intérêts, Cotisation annuelle, Part perso...)"
+              style="width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.22); color: #e2e8f0; font-size: 0.78rem;"
+            />
+          </div>
+        {/each}
+
+        <button
+          type="button"
+          onclick={addSplitLine}
+          style="flex-shrink: 0; align-self: flex-start; padding: 7px 13px; border-radius: 8px; border: 1px dashed rgba(168, 85, 247, 0.45); background: rgba(168, 85, 247, 0.08); color: #d8b4fe; font-size: 0.78rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"
+        >
+          <i class="fa-solid fa-plus"></i>
+          <span>Ajouter une ligne</span>
+        </button>
+      </div>
+
+      <!-- Bandeau d'équilibre temps réel + Rappel justificatif -->
+      <div style="flex-shrink: 0; padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: {isSplitBalanced ? 'rgba(16, 185, 129, 0.12)' : splitRemaining < 0 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.1)'}; border: 1px solid {isSplitBalanced ? 'rgba(16, 185, 129, 0.4)' : splitRemaining < 0 ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.35)'};">
+        <div style="font-size: 0.82rem; font-weight: 700; color: #e2e8f0;">
+          Total ventilé : <span style="font-variant-numeric: tabular-nums;">{splitAllocatedTotal.toFixed(2).replace('.', ',')} €</span> / {splitOriginalAmount.toFixed(2).replace('.', ',')} €
+        </div>
+        <div style="font-size: 0.82rem; font-weight: 800; color: {isSplitBalanced ? '#34d399' : splitRemaining < 0 ? '#f87171' : '#fbbf24'};">
+          {#if isSplitBalanced}
+            <i class="fa-solid fa-circle-check"></i> Équilibré au centime près
+          {:else if splitRemaining < 0}
+            Dépassement de {Math.abs(splitRemaining).toFixed(2).replace('.', ',')} €
+          {:else}
+            Reste à répartir : {splitRemaining.toFixed(2).replace('.', ',')} €
+          {/if}
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 14px;">
+        <span style="font-size: 0.72rem; color: #94a3b8;">
+          <i class="fa-solid fa-shield-halved" style="color: #38bdf8; margin-right: 4px;"></i>
+          Conservez le justificatif détaillé (facture, tableau d'amortissement…).
+        </span>
+        <div style="display: flex; gap: 10px; margin-left: auto;">
+          <button
+            type="button"
+            onclick={() => showSplitModal = false}
+            style="padding: 8px 16px; border-radius: 7px; color: #cbd5e1; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); font-size: 0.84rem; font-weight: 600; cursor: pointer;"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            disabled={!isSplitValid}
+            onclick={validerVentilation}
+            style="padding: 8px 18px; font-weight: 700; border: none; border-radius: 7px; font-size: 0.84rem; cursor: {isSplitValid ? 'pointer' : 'not-allowed'}; background: {isSplitValid ? '#7c3aed' : 'rgba(255, 255, 255, 0.08)'}; color: {isSplitValid ? '#ffffff' : '#64748b'}; box-shadow: {isSplitValid ? '0 4px 14px rgba(124, 58, 237, 0.35)' : 'none'};"
+          >
+            Valider la ventilation
+          </button>
+        </div>
       </div>
 
     </div>

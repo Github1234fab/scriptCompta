@@ -265,12 +265,10 @@
 <div style="padding: 24px;">
   <!-- PAGE HEADER -->
   <PageHeader 
+    structureName={activeEntity.name}
     title={dashboardTitle} 
     mobileTitle="Trésorerie"
     subtitle={dashboardSubtitle} 
-    buttonLabel={buttonLabel}
-    buttonIcon={buttonIcon}
-    onButtonClick={() => activeView.set('books')}
   >
     <button 
       type="button" 
@@ -283,16 +281,8 @@
     </button>
   </PageHeader>
 
-  <!-- 1. VOTRE ENTREPRISE / STRUCTURE (Indicateurs clés) -->
+  <!-- 1. INDICATEURS CLÉS -->
   <div style="margin-bottom: 30px;">
-    <div class="tpe-section-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
-      <h2 style="font-family: var(--font-title); font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">
-        {structureSectionTitle} <span style="color: #2563eb; background: rgba(37, 99, 235, 0.09); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2); font-size: 0.95rem; margin-left: 6px;">{activeEntity.name}</span>
-      </h2>
-      <span style="font-size: 0.82rem; color: #64748b; font-weight: 600;">
-        Pilotage financier et indicateurs
-      </span>
-    </div>
 
     <!-- 1. BLOC GÉNÉRAL INDICATEURS (ENGLOBANT LE TITRE) -->
     <div class="tpe-section-box" style="background: var(--bg-container); border: 1.5px solid var(--border-container); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 30px;">
@@ -724,7 +714,6 @@
   }
 
   @media (max-width: 768px) {
-    .tpe-section-header,
     .tpe-kpi-header {
       display: none !important;
     }
