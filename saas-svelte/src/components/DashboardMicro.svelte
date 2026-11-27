@@ -86,6 +86,9 @@
   // Seuils & Compteurs circulaires (Franchise TVA & Statut Micro)
   let tvaProgressionPct = $derived(Math.min(100, Math.round((caEncaissé / selectedRegime.franchiseTVA) * 100)));
   let plafondProgressionPct = $derived(Math.min(100, Math.round((caEncaissé / selectedRegime.plafondCA) * 100)));
+  let tvaMargeRestante = $derived(Math.max(0, Math.round(selectedRegime.franchiseTVA - caEncaissé)));
+  let plafondMargeRestante = $derived(Math.max(0, Math.round(selectedRegime.plafondCA - caEncaissé)));
+  let showSeuilsInfo = $state(false);
 
   let tvaColor = $derived(
     tvaProgressionPct >= 100 ? '#ef4444' : (tvaProgressionPct >= 85 ? '#f59e0b' : '#10b981')
@@ -194,81 +197,110 @@
     mobileTitle="Trésorerie"
     subtitle="Suivi du CA encaissé, cotisations Urssaf et seuils légaux." 
   >
-    <!-- Double compteur type tableau de bord (Franchise TVA & Statut Micro) -->
-    <div style="display: flex; flex-direction: column; gap: 6px; background: var(--bg-card); padding: 8px 16px 10px 16px; border-radius: 14px; border: 1.5px solid var(--border-color); box-shadow: var(--shadow-sm);">
-      <div style="font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); text-align: center;">
-        Plafonds annuels de CA
-      </div>
-      <div style="display: flex; align-items: center; gap: 16px;">
-        <!-- Compteur 1 : Franchise de TVA -->
-        <div 
-          style="display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: default;" 
-          title="Franchise en base de TVA : {caEncaissé.toLocaleString('fr-FR')} € / {selectedRegime.franchiseTVA.toLocaleString('fr-FR')} € ({tvaProgressionPct}%) — Marge avant TVA : {Math.max(0, selectedRegime.franchiseTVA - caEncaissé).toLocaleString('fr-FR')} €"
-        >
-          <div style="position: relative; width: 58px; height: 58px;">
-            <svg width="58" height="58" viewBox="0 0 62 62" style="display: block;">
-              <circle cx="31" cy="31" r="25" fill="none" stroke="rgba(148, 163, 184, 0.22)" stroke-width="4.5" />
-              <circle 
-                cx="31" cy="31" r="25" 
-                fill="none" 
-                stroke={tvaColor} 
-                stroke-width="4.5" 
-                stroke-linecap="round"
-                stroke-dasharray="157.08"
-                stroke-dashoffset={157.08 - (157.08 * tvaProgressionPct) / 100}
-                transform="rotate(-90 31 31)"
-                style="transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;"
-              />
-            </svg>
-            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
-              <span style="font-size: 0.48rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; line-height: 1;">TVA</span>
-              <span style="font-size: 0.78rem; font-weight: 800; color: var(--text-main); line-height: 1.1; margin-top: 2px;">{tvaProgressionPct}%</span>
-            </div>
-          </div>
-          <span style="font-size: 0.68rem; color: var(--text-main); font-weight: 700; white-space: nowrap; line-height: 1.15;">
-            Avant TVA
+    <!-- Double jauge horizontale en euros (Seuils TVA & Statut Micro) -->
+    <div class="seuils-widget-wrap">
+      <div class="seuils-card">
+        <div class="seuils-card-header">
+          <span class="seuils-card-title">
+            CA encaissé : <strong>{Math.round(caEncaissé).toLocaleString('fr-FR')} €</strong>
           </span>
-          <span style="font-size: 0.62rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; line-height: 1;">
-            Max {(selectedRegime.franchiseTVA / 1000).toLocaleString('fr-FR')} k€
-          </span>
+          <button
+            type="button"
+            class="seuils-info-btn"
+            class:active={showSeuilsInfo}
+            onclick={() => (showSeuilsInfo = !showSeuilsInfo)}
+            title="Comprendre ces deux seuils"
+            aria-label="Comprendre les seuils TVA et micro-entreprise"
+            aria-expanded={showSeuilsInfo}
+          >
+            <i class="fa-solid fa-circle-info"></i>
+          </button>
         </div>
 
-        <!-- Séparateur discret -->
-        <div style="width: 1px; height: 56px; background: var(--border-color);"></div>
-
-        <!-- Compteur 2 : Plafond statut Micro -->
-        <div 
-          style="display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: default;" 
-          title="Plafond du régime micro : {caEncaissé.toLocaleString('fr-FR')} € / {selectedRegime.plafondCA.toLocaleString('fr-FR')} € ({plafondProgressionPct}%) — Marge : {Math.max(0, selectedRegime.plafondCA - caEncaissé).toLocaleString('fr-FR')} €"
-        >
-          <div style="position: relative; width: 58px; height: 58px;">
-            <svg width="58" height="58" viewBox="0 0 62 62" style="display: block;">
-              <circle cx="31" cy="31" r="25" fill="none" stroke="rgba(148, 163, 184, 0.22)" stroke-width="4.5" />
-              <circle 
-                cx="31" cy="31" r="25" 
-                fill="none" 
-                stroke={plafondColor} 
-                stroke-width="4.5" 
-                stroke-linecap="round"
-                stroke-dasharray="157.08"
-                stroke-dashoffset={157.08 - (157.08 * plafondProgressionPct) / 100}
-                transform="rotate(-90 31 31)"
-                style="transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;"
-              />
-            </svg>
-            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
-              <span style="font-size: 0.46rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; line-height: 1;">MICRO</span>
-              <span style="font-size: 0.78rem; font-weight: 800; color: var(--text-main); line-height: 1.1; margin-top: 2px;">{plafondProgressionPct}%</span>
+        <div class="seuils-bars-list">
+          <!-- Barre 1 : Seuil TVA -->
+          <button
+            type="button"
+            class="seuil-bar-row"
+            onclick={() => (showSeuilsInfo = !showSeuilsInfo)}
+            title="Cliquer pour comprendre le seuil de TVA"
+          >
+            <div class="seuil-bar-top">
+              <span class="seuil-bar-name">Seuil de TVA</span>
+              <span class="seuil-bar-ratio">
+                max {selectedRegime.franchiseTVA.toLocaleString('fr-FR')} €
+              </span>
             </div>
-          </div>
-          <span style="font-size: 0.68rem; color: var(--text-main); font-weight: 700; white-space: nowrap; line-height: 1.15;">
-            Plafond micro
-          </span>
-          <span style="font-size: 0.62rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; line-height: 1;">
-            Max {(selectedRegime.plafondCA / 1000).toLocaleString('fr-FR')} k€
-          </span>
+            <div class="seuil-bar-track">
+              <div class="seuil-bar-fill" style="width: {tvaProgressionPct}%; background: {tvaColor};"></div>
+            </div>
+            <div class="seuil-bar-sub" style="color: {tvaMargeRestante === 0 ? tvaColor : 'var(--text-muted)'};">
+              {#if tvaMargeRestante > 0}
+                Reste <strong>{tvaMargeRestante.toLocaleString('fr-FR')} €</strong> avant de facturer la TVA
+              {:else}
+                <strong>Seuil dépassé</strong> — TVA à ajouter sur vos factures
+              {/if}
+            </div>
+          </button>
+
+          <!-- Barre 2 : Plafond statut Micro -->
+          <button
+            type="button"
+            class="seuil-bar-row"
+            onclick={() => (showSeuilsInfo = !showSeuilsInfo)}
+            title="Cliquer pour comprendre le plafond du statut micro"
+          >
+            <div class="seuil-bar-top">
+              <span class="seuil-bar-name">Statut micro</span>
+              <span class="seuil-bar-ratio">
+                max {selectedRegime.plafondCA.toLocaleString('fr-FR')} €
+              </span>
+            </div>
+            <div class="seuil-bar-track">
+              <div class="seuil-bar-fill" style="width: {plafondProgressionPct}%; background: {plafondColor};"></div>
+            </div>
+            <div class="seuil-bar-sub" style="color: {plafondMargeRestante === 0 ? plafondColor : 'var(--text-muted)'};">
+              {#if plafondMargeRestante > 0}
+                Reste <strong>{plafondMargeRestante.toLocaleString('fr-FR')} €</strong> avant sortie de la micro
+              {:else}
+                <strong>Plafond dépassé</strong> — vigilance régime réel
+              {/if}
+            </div>
+          </button>
         </div>
       </div>
+
+      {#if showSeuilsInfo}
+        <div class="seuils-popover" role="dialog" aria-label="Explication des seuils micro-entreprise">
+          <div class="seuils-popover-head">
+            <span>À quoi servent ces 2 seuils ?</span>
+            <button
+              type="button"
+              class="seuils-popover-close"
+              onclick={() => (showSeuilsInfo = false)}
+              aria-label="Fermer l'explication"
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="seuils-popover-item">
+            <div class="seuils-popover-label" style="color: {tvaColor};">
+              Seuil de TVA · {selectedRegime.franchiseTVA.toLocaleString('fr-FR')} €
+            </div>
+            <p>
+              Si votre CA annuel dépasse ce seuil, vous devez <strong>ajouter la TVA sur vos factures</strong> et la déclarer aux impôts.
+            </p>
+          </div>
+          <div class="seuils-popover-item">
+            <div class="seuils-popover-label" style="color: {plafondColor};">
+              Statut micro · jusqu'à {selectedRegime.plafondCA.toLocaleString('fr-FR')} €
+            </div>
+            <p>
+              Si votre CA dépasse ce plafond <strong>2 années de suite</strong>, vous quittez le régime micro et passez au régime réel.
+            </p>
+          </div>
+        </div>
+      {/if}
     </div>
 
     <button 
@@ -610,6 +642,192 @@
 </div>
 
 <style>
+  .seuils-widget-wrap {
+    position: relative;
+  }
+
+  .seuils-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--bg-card);
+    padding: 10px 14px;
+    border-radius: 14px;
+    border: 1.5px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    min-width: 280px;
+  }
+
+  .seuils-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .seuils-card-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .seuils-card-title strong {
+    color: var(--text-main);
+    font-weight: 800;
+  }
+
+  .seuils-info-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.15s ease;
+  }
+
+  .seuils-info-btn:hover,
+  .seuils-info-btn.active {
+    color: var(--color-accent, #38bdf8);
+  }
+
+  .seuils-bars-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .seuil-bar-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: transparent;
+    border: none;
+    padding: 2px 4px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s ease;
+  }
+
+  .seuil-bar-row:hover {
+    background: rgba(148, 163, 184, 0.08);
+  }
+
+  .seuil-bar-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .seuil-bar-name {
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: var(--text-main);
+    white-space: nowrap;
+  }
+
+  .seuil-bar-ratio {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .seuil-bar-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.22);
+    overflow: hidden;
+  }
+
+  .seuil-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.45s ease, background-color 0.3s ease;
+  }
+
+  .seuil-bar-sub {
+    font-size: 0.68rem;
+    line-height: 1.25;
+  }
+
+  .seuil-bar-sub strong {
+    color: var(--text-main);
+    font-weight: 700;
+  }
+
+  .seuils-popover {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 310px;
+    max-width: calc(100vw - 40px);
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px 14px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .seuils-popover-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--text-main);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .seuils-popover-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    font-size: 0.82rem;
+  }
+
+  .seuils-popover-close:hover {
+    color: var(--text-main);
+  }
+
+  .seuils-popover-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .seuils-popover-label {
+    font-size: 0.76rem;
+    font-weight: 800;
+  }
+
+  .seuils-popover-item p {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+  }
+
+  .seuils-popover-item strong {
+    color: var(--text-main);
+  }
+
   .desktop-tx-table {
     display: block;
   }
