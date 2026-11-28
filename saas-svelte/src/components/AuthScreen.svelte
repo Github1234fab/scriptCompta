@@ -8,7 +8,16 @@
   } from '../lib/auth.js';
   import { showToast, openCguModal } from '../lib/store.js';
 
-  let mode = $state('login'); // 'login' | 'register'
+  function getInitialMode() {
+    if (typeof window !== 'undefined') {
+      const modeParam = new URLSearchParams(window.location.search).get('mode');
+      if (modeParam === 'register' || modeParam === 'signup') return 'register';
+      if (modeParam === 'login') return 'login';
+    }
+    return 'login';
+  }
+
+  let mode = $state(getInitialMode()); // 'login' | 'register'
   let email = $state('');
   let password = $state('');
   let displayName = $state('');
