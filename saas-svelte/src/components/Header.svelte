@@ -17,6 +17,7 @@
     toggleMobileSidebar
   } from '../lib/store.js';
   import { currentUser, logoutUser, sendResetPassword } from '../lib/auth.js';
+  import { deferredInstallPrompt, isAppInstalled, isIosSafari } from '../lib/pwa.js';
   import InfoTip from './InfoTip.svelte';
 
   const stripePortalUrl = import.meta.env.VITE_STRIPE_PORTAL_LINK || 'https://billing.stripe.com/p/login/9B65kC2UzaUM8GR7CzfjG00';
@@ -89,6 +90,22 @@
       window.open(stripePortalUrl, '_blank', 'noopener,noreferrer');
     } else {
       showToast("Vous utilisez actuellement la formule gratuite : aucune facture émise.");
+    }
+  }
+
+  async function handleInstallApp() {
+    showUserDropdown = false;
+    if ($deferredInstallPrompt) {
+      $deferredInstallPrompt.prompt();
+      const choice = await $deferredInstallPrompt.userChoice;
+      if (choice?.outcome === 'accepted') {
+        showToast('Tito est en cours d’installation sur votre appareil.');
+      }
+      deferredInstallPrompt.set(null);
+    } else if (isIosSafari()) {
+      showToast('Sur iPhone/iPad : touchez le bouton Partager puis « Sur l’écran d’accueil ».');
+    } else {
+      showToast('Ajoutez Tito en favori (Ctrl+D / ⌘+D) ou cliquez sur l’icône d’installation dans la barre d’adresse.');
     }
   }
 
@@ -328,6 +345,19 @@
               <i class="fa-solid fa-key" style="color: #2563eb; font-size: 0.75rem; width: 14px;"></i>
               <span>Modifier mon mot de passe</span>
             </button>
+
+            {#if !$isAppInstalled}
+              <button 
+                type="button"
+                onclick={handleInstallApp}
+                style="width: 100%; text-align: left; padding: 6px 8px; background: transparent; border: none; border-radius: 6px; color: var(--text-secondary); font-size: 0.75rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s ease;"
+                onmouseenter={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'var(--bg-subtle)'; /** @type {HTMLElement} */ (e.currentTarget).style.color = 'var(--text-main)'; }}
+                onmouseleave={(e) => { /** @type {HTMLElement} */ (e.currentTarget).style.background = 'transparent'; /** @type {HTMLElement} */ (e.currentTarget).style.color = 'var(--text-secondary)'; }}
+              >
+                <i class="fa-solid fa-mobile-screen-button" style="color: #38bdf8; font-size: 0.75rem; width: 14px;"></i>
+                <span>Installer Tito sur cet appareil</span>
+              </button>
+            {/if}
 
             <button 
               type="button"
